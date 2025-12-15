@@ -1,0 +1,336 @@
+"Task Type","Task ID","Task Name","Parent ID","Parent Name","Parent URL","Status","Task Content","Assignee","Priority","Latest Comment","Comment Count","Assigned Comment Count","Due Date","Start Date","Date Created","Date Updated","Date Closed","Date Done","Created By","Space","Folder","List","Subtask ID's","Subtask URL's","tags","Lists","Sprints","Linked Tasks","Linked Docs","Time Logged","Time Logged Rolled Up","Time Estimate","Time Estimate Rolled Up","Points Estimate","Points Estimate Rolled Up","CNPJ CREDOR (short text)","CPF Cliente (short text)","Campanha (short text)","Campanha ID (short text)","Campanha Numero (short text)","Como você avalia este atendimento? (emoji)","Credor (short text)","Data Devolucao (short text)","E-mail (email)","Email (email)","Email Ativo (short text)","Nome (short text)","Nome Cliente  (short text)","Numero Contrato (short text)","N° Acordo / Parcela (short text)","Observacao Contrato (short text)","Observações (short text)","Pessoa (users)","Progresso (automatic progress)","Progresso % (automatic progress)","Status (short text)","Telefone (short text)","Telefone Ativo (short text)","Telefone Principal (short text)","Tempo Adicional Estimado (number)","Tempo Adicional Rastreado (number)","Tempo Adicional Restante (formula)","Tempo Restante (formula)","Tempo estimado em horas (formula)","Tipo Parcela (short text)","Tipo Telefone (short text)","Tipo de demanda (drop down)","Valor (currency)","Vencimento (short text)"
+"Task","86ad5h4w4","Testes e Validação do MVP","86ad5gznq","MVP - Identificação de citação e penhora nos processos TJSP (Esaj)","https://app.clickup.com/t/86ad5gznq","em andamento","Descrição: Rodar testes com um lote de até 100 processos reais para medir precisão da automação.
+
+Objetivos: Validar funcionamento e identificar melhorias.
+
+Ações Esperadas:
+Rodar lote com e sem eventos esperados.
+Analisar precisão.
+
+Resultado Esperado: Relatório de performance com métricas (precisão, recall, falsos positivos).
+
+","[Rafael Viegas, Rodrigo Brozinga]","NORMAL","",0,0,"Tuesday, November 25th 2025","Tuesday, November 25th 2025","Monday, November 10th 2025, 7:32:53 pm -03:00","Friday, November 28th 2025, 8:41:34 am -03:00","","","Rodrigo Brozinga","Tecnologia","Automações","Automação de Busca de Citação e Penhora","[]","[]","[projeto]","[Automação de Busca de Citação e Penhora]","[]","","","","","2h","2h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","","","",0,2,"","","","","",""
+"Task","86ad8rf7c","Validação","86adah693","Automação Colchao Congelado","https://app.clickup.com/t/86adah693","em andamento","
+","[Rafael Viegas, Rodrigo Brozinga]","NORMAL","",0,0,"Wednesday, December 3rd 2025","Wednesday, December 3rd 2025","Friday, November 14th 2025, 3:55:39 pm -03:00","Wednesday, November 26th 2025, 9:27:10 am -03:00","","","Rafael Viegas","Tecnologia","Automações","Automação colchão congelado","[]","[]","[projeto]","[Automação colchão congelado]","[]","","","","","1h","1h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","","","",0,1,"","","","","",""
+"Task","86ach4b5u","Automação Emccamp",,"","","em andamento","
+","[Thiago Vitorio]","NORMAL","",0,0,"Friday, November 28th 2025","Monday, November 10th 2025","Tuesday, October 14th 2025, 10:48:47 am -03:00","Wednesday, November 26th 2025, 9:39:32 am -03:00","","","Thiago Vitorio","Tecnologia","Projetos Automação Bases","Automação Bases (Responsável Thiago)","[86acxwcqk, 86ach4ay3, 86acj2pve, 86acj53jh, 86acj2p37, 86ack34fm, 86ackj8cx, 86acxummh, 86acxur2w, 86ad5cdpg, 86ad8v8ym]","[https://app.clickup.com/t/86acxwcqk, https://app.clickup.com/t/86ach4ay3, https://app.clickup.com/t/86acj2pve, https://app.clickup.com/t/86acj53jh, https://app.clickup.com/t/86acj2p37, https://app.clickup.com/t/86ack34fm, https://app.clickup.com/t/86ackj8cx, https://app.clickup.com/t/86acxummh, https://app.clickup.com/t/86acxur2w, https://app.clickup.com/t/86ad5cdpg, https://app.clickup.com/t/86ad8v8ym]","[automação, projeto]","[Automação Bases (Responsável Thiago)]","[]","","","","39h 49m","","44h",,0,"","","","","","3","","","","","","","","","","","","",90.9090909090909,90.9090909090909,"","","","","","",0,4.18,"","","","","",""
+"Task","86ad5e5vn","(Direcional) Estudo projeto e Início","86ad5e5b3","Automação Direcional","https://app.clickup.com/t/86ad5e5b3","pendente","Após Validação do Rodrigo Validação Rodrigo Passo a Passo Álvaro (https://app.clickup.com/t/86ad5e5qc)  Dar início ao desenvolvimento do projeto Seguindo o passo a passo validado e desenvolvimento do planejamento de como criar o projeto, Varias etapas, vão ser utilizadas de outros projetos, o que vai agilizar o desenvolvimento.
+
+","[Thiago Vitorio]","NORMAL","Thiago com o passo a passo validado por Rodrigo , poderá planejar para decidir o nível de complexidade do projeto, e assim conseguindo estimar tempo para ser feito.  ",1,0,"Tuesday, December 2nd 2025","Tuesday, December 2nd 2025","Monday, November 10th 2025, 5:38:59 pm -03:00","Wednesday, November 26th 2025, 5:56:21 pm -03:00","","","Thiago Vitorio","Tecnologia","Projetos Automação Bases","Automação Bases (Responsável Thiago)","[]","[]","[automação, projeto]","[Automação Bases (Responsável Thiago)]","[]","","","","","3h","3h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","","","",0,3,"","","","","",""
+"Task","86ad5e5b3","Automação Direcional",,"","","em andamento","
+","[Thiago Vitorio]","NORMAL","",0,0,"Monday, December 22nd 2025","Thursday, November 13th 2025","Monday, November 10th 2025, 5:38:31 pm -03:00","Wednesday, November 26th 2025, 2:27:29 pm -03:00","","","Thiago Vitorio","Tecnologia","Projetos Automação Bases","Automação Bases (Responsável Thiago)","[86ad5e5gn, 86ad5e5vn, 86ad5e5qc, 86adegy2r]","[https://app.clickup.com/t/86ad5e5gn, https://app.clickup.com/t/86ad5e5vn, https://app.clickup.com/t/86ad5e5qc, https://app.clickup.com/t/86adegy2r]","[automação, projeto]","[Automação Bases (Responsável Thiago)]","[]","","","","2h 42m","","8h 30m",,0,"","","","","","3","","","","","","","","","","","","",25,25,"","","","","","",0,5.81,"","","","","",""
+"Task","86ad8v8ym","Criar devolução","86ach4b5u","Automação Emccamp","https://app.clickup.com/t/86ach4b5u","em andamento","
+","[Thiago Vitorio]","NORMAL","",0,0,"Thursday, November 27th 2025","Thursday, November 27th 2025","Friday, November 14th 2025, 5:17:28 pm -03:00","Wednesday, November 26th 2025, 5:55:09 pm -03:00","","","Thiago Vitorio","Tecnologia","Projetos Automação Bases","Automação Bases (Responsável Thiago)","[]","[]","[automação, projeto]","[Automação Bases (Responsável Thiago)]","[]","","","3h 24m","3h 24m","3h","3h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","","","",-0.41,-0.41,"","","","","",""
+"Task","86adc1f35","Revisitar Projeto Vic para tratar o erro de bases que chegam errado da vic",,"","","em andamento","
+","[Thiago Vitorio]","NORMAL","",0,0,"Tuesday, November 25th 2025","Monday, November 24th 2025","Wednesday, November 19th 2025, 12:18:59 pm -03:00","Wednesday, November 26th 2025, 5:50:16 pm -03:00","","","Thiago Vitorio","Tecnologia","Projetos Automação Bases","Automação Bases (Responsável Thiago)","[86addg5b2, 86addxywx]","[https://app.clickup.com/t/86addg5b2, https://app.clickup.com/t/86addxywx]","[projeto]","[Automação Bases (Responsável Thiago)]","[]","","","","4h 20m","1h","5h",,0,"","","","","","3","","","","","","","","","","","","",50,50,"","","","",2,"",2,0.66,"","","","","",""
+"Task","86addxywx","testar comportamento do código após receber base inconsistente da vic","86adc1f35","Revisitar Projeto Vic para tratar o erro de bases que chegam errado da vic","https://app.clickup.com/t/86adc1f35","em andamento","
+","[Thiago Vitorio]","NORMAL","",0,0,"Tuesday, November 25th 2025","Monday, November 24th 2025","Friday, November 21st 2025, 5:14:43 pm -03:00","Tuesday, November 25th 2025, 11:00:59 am -03:00","","","Thiago Vitorio","Tecnologia","Projetos Automação Bases","Automação Bases (Responsável Thiago)","[]","[]","[projeto]","[Automação Bases (Responsável Thiago)]","[]","","","","","2h","2h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","",2,"",2,2,"","","","","",""
+"Task","86adegy2r","Coletar Requisitos para inicio do projeto com Álvaro Caso necessário ","86ad5e5b3","Automação Direcional","https://app.clickup.com/t/86ad5e5b3","em andamento","Para inicio do projeto Preciso das consultas no MAX referentes a direcional
+Consultas no MAX referentes a direcional
+Layout Utilizado na transformação
+
+","[Thiago Vitorio]","NORMAL","",0,0,"Friday, November 28th 2025","Friday, November 28th 2025","Sunday, November 23rd 2025, 9:10:49 pm -03:00","Thursday, November 27th 2025, 10:00:41 am -03:00","","","Thiago Vitorio","Tecnologia","Projetos Automação Bases","Automação Bases (Responsável Thiago)","[]","[]","[projeto]","[Automação Bases (Responsável Thiago)]","[]","","","","","1h","1h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","",2,"",2,1,"","","","","",""
+"Task","86adgyevv","Tabela Daily 2.0",,"","","pendente","
+","[Thiago Vitorio]","NORMAL","",0,0,"Wednesday, December 3rd 2025","Monday, December 1st 2025","Wednesday, November 26th 2025, 2:22:21 pm -03:00","Wednesday, November 26th 2025, 5:56:09 pm -03:00","","","Thiago Vitorio","Tecnologia","Projetos Automação Bases","ClickUp","[86adgyfdf, 86adgyg20, 86adgyf41, 86adgygh0, 86adhqr8z]","[https://app.clickup.com/t/86adgyfdf, https://app.clickup.com/t/86adgyg20, https://app.clickup.com/t/86adgyf41, https://app.clickup.com/t/86adgygh0, https://app.clickup.com/t/86adhqr8z]","[projeto]","[ClickUp]","[]","","","","4h 31m","","9h",,0,"","","","","","3","","","","","","","","","","","","",40,40,"","","","",2,"",2,4.49,"","","","","",""
+"Task","86adgyf41","Extrair informacoes via api ao invez de manualmente","86adgyevv","Tabela Daily 2.0","https://app.clickup.com/t/86adgyevv","em andamento","
+","[Thiago Vitorio]","NORMAL","",0,0,"Wednesday, December 3rd 2025","Monday, December 1st 2025","Wednesday, November 26th 2025, 2:22:39 pm -03:00","Thursday, November 27th 2025, 2:35:16 pm -03:00","","","Thiago Vitorio","Tecnologia","Projetos Automação Bases","ClickUp","[]","[]","[projeto]","[ClickUp]","[]","","","1h 31m","1h 31m","3h","3h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","",2,"",2,1.49,"","","","","",""
+"Task","86adgygh0","Verificar se consigo implementar a extracao com o script que fiz para montagem de planilha","86adgyevv","Tabela Daily 2.0","https://app.clickup.com/t/86adgyevv","novo","
+","[Thiago Vitorio]","NORMAL","",0,0,"Friday, November 28th 2025","Friday, November 28th 2025","Wednesday, November 26th 2025, 2:23:51 pm -03:00","Wednesday, November 26th 2025, 5:56:48 pm -03:00","","","Thiago Vitorio","Tecnologia","Projetos Automação Bases","ClickUp","[]","[]","[projeto]","[ClickUp]","[]","","","","","2h","2h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","",2,"",2,2,"","","","","",""
+"Task","86adgyt5a","Verificar e testar Automação 3c+ para averiguar  se esta pronta para Validação",,"","","em andamento","
+","[Thiago Vitorio]","URGENT","",0,0,"Wednesday, November 26th 2025","Wednesday, November 26th 2025","Wednesday, November 26th 2025, 2:31:46 pm -03:00","Wednesday, November 26th 2025, 4:18:35 pm -03:00","","","Thiago Vitorio","Tecnologia","Automações","Automação 3c+","[86adh0vfc, 86adgyyzc, 86adh2nca, 86adh2r09]","[https://app.clickup.com/t/86adh0vfc, https://app.clickup.com/t/86adgyyzc, https://app.clickup.com/t/86adh2nca, https://app.clickup.com/t/86adh2r09]","[projeto]","[Automação 3c+]","[]","","","","2h 36m","","3h",,0,"","","","","","3","","","","","","","","","","","","",75,75,"","","","",2,"",2,0.4,"","","","","",""
+"Task","86aa2bfd3","Régua de cobrança completa",,"","","em andamento","Descrição:
+ Implementar o envio de SMS na régua de cobrança utilizando a API da Pontal Tech, substituindo o uso atual da Message Midia, e implementar rastreabilidade com geração de relatórios via API.
+Objetivos:
+Migrar os disparos de SMS da Message Midia para a Pontal Tech.
+Estabelecer rastreabilidade dos envios com logs e relatórios de status.
+Garantir compatibilidade com a régua de cobrança atual do Max Smart.
+Resultado Esperado:
+Integração funcional do sistema Max Smart com a Pontal Tech.
+Disparos automáticos de SMS com retorno de status e relatórios disponíveis.
+Documentação técnica da integração e instruções de uso.
+
+","[Rodrigo Brozinga]","HIGH","O próximo passo é implementar a camada de lógica que alimentará e consumirá as tabelas recém‑criadas. Uma abordagem típica é desenvolver uma rotina (procedure) que:   Procure, a cada dia, os clientes ativos nas campanhas.   Calcule a próxima etapa de cada régua e insira/atualize o  HistoricoDiarioCanal .   Enfileire o disparo das mensagens usando os  Templates  apropriados.   Registre o envio em  AcoesDigitaisLog .   Isso garantirá que as réguas sejam executadas automaticamente, que o histórico fique sempre atualizado e que os disparos sejam auditáveis.   Tarefa sugeridaCriar procedure de processamento diário das réguas e histórico   Iniciar tarefa   Testes   Executar a procedure em um conjunto de dados de teste e verificar se:   HistoricoDiarioCanal  recebe as entradas corretas para cada cliente/canal.   AcoesDigitaisLog  registra os disparos esperados.   Índices ( IX_HDC_Cliente_Snapshot ,  IX_HDC_NextDate ) são utilizados nas consultas planejadas.   Notas   Ajustes adicionais poderão ser necessários conforme as regras de negócio detalhadas para cada carteira ou canal.    ",1,0,"Friday, October 31st 2025","Tuesday, July 8th 2025","Tuesday, July 8th 2025, 12:10:50 pm -03:00","Tuesday, November 18th 2025, 10:20:18 am -03:00","","","Rodrigo Brozinga","Tecnologia","Sistemas","Ações Digitais (SMS, Régua)","[86aa2bngh, 86aa2bpje, 86aa2bq8q, 86aa2bry9, 86aav3gu1, 86aav3d4d, 86aaf797p, 86aam4vhr, 86aam4w8h, 86aa2br2p, 86aaqn0xj, 86aaqn7xd, 86aa2btge, 86ab41gv4, 86ab41jw4, 86abua7tn, 86abua8f0, 86ac00uhn, 86ac01m7f, 86ac0487g, 86ac16yrz, 86ac1jm1y, 86ac1rrkw, 86ac22cq9, 86ac22dhq, 86ac22ff2, 86ac5aebr, 86ac5auvk, 86ac5be80, 86ac5bg85, 86ac5bh1m, 86ac5bjh4, 86ac5bmj6, 86ac7r10g, 86ac80u3w, 86acaweu0, 86acc86b9, 86ace2wz1, 86acetjq1, 86acj1rz7, 86ad5trt8, 86ad6jz5g, 86ad8etdx, 86ad8f1r2, 86adb273z]","[https://app.clickup.com/t/86aa2bngh, https://app.clickup.com/t/86aa2bpje, https://app.clickup.com/t/86aa2bq8q, https://app.clickup.com/t/86aa2bry9, https://app.clickup.com/t/86aav3gu1, https://app.clickup.com/t/86aav3d4d, https://app.clickup.com/t/86aaf797p, https://app.clickup.com/t/86aam4vhr, https://app.clickup.com/t/86aam4w8h, https://app.clickup.com/t/86aa2br2p, https://app.clickup.com/t/86aaqn0xj, https://app.clickup.com/t/86aaqn7xd, https://app.clickup.com/t/86aa2btge, https://app.clickup.com/t/86ab41gv4, https://app.clickup.com/t/86ab41jw4, https://app.clickup.com/t/86abua7tn, https://app.clickup.com/t/86abua8f0, https://app.clickup.com/t/86ac00uhn, https://app.clickup.com/t/86ac01m7f, https://app.clickup.com/t/86ac0487g, https://app.clickup.com/t/86ac16yrz, https://app.clickup.com/t/86ac1jm1y, https://app.clickup.com/t/86ac1rrkw, https://app.clickup.com/t/86ac22cq9, https://app.clickup.com/t/86ac22dhq, https://app.clickup.com/t/86ac22ff2, https://app.clickup.com/t/86ac5aebr, https://app.clickup.com/t/86ac5auvk, https://app.clickup.com/t/86ac5be80, https://app.clickup.com/t/86ac5bg85, https://app.clickup.com/t/86ac5bh1m, https://app.clickup.com/t/86ac5bjh4, https://app.clickup.com/t/86ac5bmj6, https://app.clickup.com/t/86ac7r10g, https://app.clickup.com/t/86ac80u3w, https://app.clickup.com/t/86acaweu0, https://app.clickup.com/t/86acc86b9, https://app.clickup.com/t/86ace2wz1, https://app.clickup.com/t/86acetjq1, https://app.clickup.com/t/86acj1rz7, https://app.clickup.com/t/86ad5trt8, https://app.clickup.com/t/86ad6jz5g, https://app.clickup.com/t/86ad8etdx, https://app.clickup.com/t/86ad8f1r2, https://app.clickup.com/t/86adb273z]","[automação, calltech, integração-api, max-smart, pontal-tech, projeto, rastreabilidade, relatórios, régua-de-cobrança, sms]","[Ações Digitais (SMS, Régua)]","[]","","","","98h 4m","","125h 15m",,0,"","","","","","3","","","","","","","","","","","","",88.88888888888889,88.88888888888889,"","","","","","",0,27.19,"","","","","",""
+"Task","86aa2btge","Documentação e validação final","86aa2bfd3","Régua de cobrança completa","https://app.clickup.com/t/86aa2bfd3","novo","Descrição:
+ Produzir documentação técnica da solução implementada e validar com Calltech e stakeholders.
+Ações Esperadas:
+Criar documentação com fluxos, endpoints usados e exemplos.
+Validar envios reais em ambiente de produção.
+Coletar feedback da equipe e ajustar se necessário.
+Resultado Esperado: Integração funcional, validada e documentada.
+
+","[Rodrigo Brozinga]","HIGH","",0,0,"","","Tuesday, July 8th 2025, 12:19:49 pm -03:00","Wednesday, November 19th 2025, 4:55:44 pm -03:00","","","Rodrigo Brozinga","Tecnologia","Sistemas","Ações Digitais (SMS, Régua)","[]","[]","[projeto]","[Ações Digitais (SMS, Régua)]","[]","","","","","4h","4h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","","","",0,4,"","","","","",""
+"Task","86ac0487g","Atualizar disparo de RCS para incluir tqdm e alterar fluxo de RO","86aa2bfd3","Régua de cobrança completa","https://app.clickup.com/t/86aa2bfd3","novo","Atualizar código para enviar payloads de até 500 mensagens para otimizar o desempenho
+","[Rodrigo Brozinga]","URGENT","novo testeeeee  ",2,0,"Wednesday, October 29th 2025","","Monday, September 22nd 2025, 11:55:38 am -03:00","Wednesday, November 19th 2025, 4:55:44 pm -03:00","","","Rodrigo Brozinga","Tecnologia","Sistemas","Ações Digitais (SMS, Régua)","[]","[]","[projeto]","[Ações Digitais (SMS, Régua)]","[]","","","","","2h","2h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","","","",0,2,"","","","","",""
+"Task","86ac5bjh4","Desenvolver atualização automática dos status dos disparos","86aa2bfd3","Régua de cobrança completa","https://app.clickup.com/t/86aa2bfd3","novo","
+","[Rodrigo Brozinga]","URGENT","",0,0,"Tuesday, October 28th 2025","","Monday, September 29th 2025, 10:03:59 am -03:00","Wednesday, November 19th 2025, 4:55:44 pm -03:00","","","Rodrigo Brozinga","Tecnologia","Sistemas","Ações Digitais (SMS, Régua)","[]","[]","[projeto]","[Ações Digitais (SMS, Régua)]","[]","","","","","3h","3h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","","","",0,3,"","","","","",""
+"Task","86ace2wz1","Confirmar validação de duplicidade nos envios de RCS","86aa2bfd3","Régua de cobrança completa","https://app.clickup.com/t/86aa2bfd3","novo","
+","[Rodrigo Brozinga]","HIGH","",0,0,"Wednesday, October 29th 2025","","Thursday, October 9th 2025, 11:51:42 am -03:00","Wednesday, November 19th 2025, 4:55:44 pm -03:00","","","Rodrigo Brozinga","Tecnologia","Sistemas","Ações Digitais (SMS, Régua)","[]","[]","[projeto]","[Ações Digitais (SMS, Régua)]","[]","","","","","1h","1h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","","","",0,1,"","","","","",""
+"Task","86ad5e5qc","Validação Rodrigo Passo a Passo Álvaro","86ad5e5b3","Automação Direcional","https://app.clickup.com/t/86ad5e5b3","validação","A base para validação Segue em anexo, juntamente com as instruções da tarefa abaixo.
+ 
+Realizar a validação completa do passo a passo enviado pelo Álvaro, verificando se todas as etapas, regras, filtros, lógicas e dependências do projeto estão devidamente contempladas. Garantir que não existam lacunas, ambiguidades ou inconsistências que possam impactar o desenvolvimento das métricas e endpoints.
+Objetivo
+Validar tecnicamente o fluxo proposto pelo Álvaro antes do início do desenvolvimento, assegurando que o direcionamento cobre todo o escopo necessário e que cada etapa do processo está clara, completa e aderente às necessidades do projeto.
+Resultado Esperado
+Passo a passo revisado, validado e sem inconsistências.
+Confirmação de que todas as etapas, filtros, regras e dependências foram consideradas.
+Identificação e documentação de possíveis ajustes ou pontos faltantes.
+
+
+Caso tenha alguma dúvida ou necessidade de alteração no passo a passo, informe o Álvaro, responsável pelo documento. Após a validação e com todas as informações necessárias completas, será possível executar o projeto integralmente, sem omitir etapas. Regras, consultas, códigos dos clientes, credenciais, etc. Após conclusão comunicar o Thiago para dar início. Alternativamente, acesse a tarefa (Direcional) Estudo projeto e Início (https://app.clickup.com/t/86ad5e5vn) e crie um comentário sobre o processo de validação e observações importantes .
+
+
+
+
+","[Rodrigo Brozinga]","NORMAL","Tarefa atualizada com anexo do passo a passo e instruções claras da validação   @Rodrigo Brozinga  ",2,0,"Wednesday, November 26th 2025","Wednesday, November 26th 2025","Monday, November 10th 2025, 5:38:52 pm -03:00","Wednesday, November 26th 2025, 2:27:36 pm -03:00","","","Thiago Vitorio","Tecnologia","Projetos Automação Bases","Automação Bases (Responsável Thiago)","[]","[]","[automação, projeto]","[Automação Bases (Responsável Thiago)]","[]","","","","","1h","1h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","","","",0,1,"","","","","",""
+"Task","86ad8f1r2","Atualizar script de disparos de e-mail para envios assíncronos","86aa2bfd3","Régua de cobrança completa","https://app.clickup.com/t/86aa2bfd3","em andamento","
+","[Rodrigo Brozinga]","URGENT","",0,0,"Friday, November 14th 2025","","Friday, November 14th 2025, 10:54:44 am -03:00","Tuesday, November 18th 2025, 10:20:08 am -03:00","","","Rodrigo Brozinga","Tecnologia","Sistemas","Ações Digitais (SMS, Régua)","[]","[]","[projeto]","[Ações Digitais (SMS, Régua)]","[]","","","3h","3h","2h","2h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","","","",-1,-1,"","","","","",""
+"Task","86acze23n","INDICAÇÃO PARA AJUIZAMENTO",,"","","novo","Gentileza enviar mensalmente a relação de clientes extrajudiciais que possuem atraso superior a 90 dias, e valor do débito maior do que R$5.000,00. 
+Separar por contratante.
+Envio recorrente, todo 1º dia útil de cada mês. Iniciando em 01/11/2024
+
+Obrigada!
+
+Tipo de demanda:
+Relatório - Banco de dados
+/
+","[Rafael Viegas]","HIGH","Prezado(a)  Carolina ,     Confirmamos a abertura do seu chamado "" INDICAÇÃO PARA AJUIZAMENTO "" com o código "" 86acze23n "". A data de abertura foi  Nov 1 2025, 23:08 (America/Sao_Paulo) .     Descrição da tarefa:"" Gentileza enviar mensalmente a relação de clientes extrajudiciais que possuem atraso superior a 90 dias, e valor do débito maior do que R$5.000,00.  Separar por contratante. Envio recorrente, todo 1º dia útil de cada mês. Iniciando em 01/11/2024  Obrigada!   Tipo de demanda:  Relatório - Banco de dados /  ""     Em breve sua solicitação estará resolvida, considerando sua prioridade e complexidade. Manteremos você atualizado sobre o progresso.     Se houver informações adicionais ou mudanças na urgência, por favor, nos informe respondendo este e-mail. Estamos à disposição para ajudar.     Atenciosamente,     Tecnologia MCSA.    ",21,0,"Monday, December 1st 2025","Monday, December 1st 2025","Saturday, November 1st 2025, 11:08:33 pm -03:00","Thursday, November 27th 2025, 8:04:44 pm -03:00","","","ClickBot","Tecnologia","Sistemas","Chamados Tecnologia","[]","[]","[projeto]","[Chamados Tecnologia]","[]","","","","","30m","30m",,0,"","","","","","","","","carolina.santana@mcsarc.com.br","","","Carolina","","","","","","",0,0,"","","","","","",0,0.5,"","","","","",""
+"Task","86ad5gznq","MVP - Identificação de citação e penhora nos processos TJSP (Esaj)",,"","","em andamento","Descrição: Desenvolver uma automação que leia movimentações processuais no TJSP a partir de uma lista de processos e identifique registros de citação positiva e penhora, com integração posterior ao Max Smart e uso como gatilho para ações automatizadas.
+
+Objetivos:
+Criar um MVP funcional para processos do TJSP.
+Automatizar parte do trabalho de leitura processual.
+Aumentar eficiência da régua de cobrança e chatbot com base em eventos judiciais.
+
+Resultado Esperado: MVP validado com ao menos 50% de precisão na identificação dos eventos em lote de testes. Integração parcial com o Max Smart ou saída estruturada pronta para ingestão.
+
+","[Rafael Viegas]","NORMAL","",0,0,"Friday, November 28th 2025","Friday, November 14th 2025","Monday, November 10th 2025, 7:24:54 pm -03:00","Friday, November 21st 2025, 2:46:58 pm -03:00","","","Rodrigo Brozinga","Tecnologia","Automações","Automação de Busca de Citação e Penhora","[86ad5h08d, 86ad5h0nd, 86ad5h160, 86ad8rntq, 86ad5h1pr, 86ad5h47y, 86ad5h4w4]","[https://app.clickup.com/t/86ad5h08d, https://app.clickup.com/t/86ad5h0nd, https://app.clickup.com/t/86ad5h160, https://app.clickup.com/t/86ad8rntq, https://app.clickup.com/t/86ad5h1pr, https://app.clickup.com/t/86ad5h47y, https://app.clickup.com/t/86ad5h4w4]","[projeto]","[Automação de Busca de Citação e Penhora]","[]","","","","18h","","24h",,0,"","","","","","3","","","","","","","","","","","","",71.42857142857143,71.42857142857143,"","","","","","",0,6,"","","","","",""
+"Task","86ad5h47y","Criação de Fila de Validação Manual (em caso de incerteza)","86ad5gznq","MVP - Identificação de citação e penhora nos processos TJSP (Esaj)","https://app.clickup.com/t/86ad5gznq","em andamento","Descrição: Implementar rotina que, em casos de indício sem certeza, alimente uma planilha do Google Sheets ou lançamento de tarefas no Autojur para revisão manual do processo.
+
+Objetivos: Garantir assertividade sem comprometer automação.
+
+Ações Esperadas:
+Definir estrutura da tarefa (template).
+Integrar Google Sheets ou Autojur.
+
+Resultado Esperado: Tarefas geradas automaticamente ou planilha de revisão.
+
+","[Rafael Viegas]","NORMAL","",0,0,"Friday, November 28th 2025","Wednesday, November 26th 2025","Monday, November 10th 2025, 7:31:31 pm -03:00","Wednesday, November 26th 2025, 9:28:03 am -03:00","","","Rodrigo Brozinga","Tecnologia","Automações","Automação de Busca de Citação e Penhora","[]","[]","[projeto]","[Automação de Busca de Citação e Penhora]","[]","","","","","4h","4h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","","","",0,4,"","","","","",""
+"Task","86ad8rep2","Tratar os dados","86adah693","Automação Colchao Congelado","https://app.clickup.com/t/86adah693","em andamento","
+","[Rafael Viegas]","NORMAL","",0,0,"Friday, November 28th 2025","Tuesday, November 18th 2025","Friday, November 14th 2025, 3:55:11 pm -03:00","Wednesday, November 26th 2025, 9:36:21 am -03:00","","","Rafael Viegas","Tecnologia","Automações","Automação colchão congelado","[]","[]","[projeto]","[Automação colchão congelado]","[]","","","","","2h","2h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","","","",0,2,"","","","","",""
+"Task","86ad8rey2","Gerar relatório final","86adah693","Automação Colchao Congelado","https://app.clickup.com/t/86adah693","em andamento","
+","[Rafael Viegas]","NORMAL","",0,0,"Wednesday, December 3rd 2025","Wednesday, December 3rd 2025","Friday, November 14th 2025, 3:55:25 pm -03:00","Wednesday, November 26th 2025, 9:27:41 am -03:00","","","Rafael Viegas","Tecnologia","Automações","Automação colchão congelado","[]","[]","[projeto]","[Automação colchão congelado]","[]","","","","","1h","1h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","","","",0,1,"","","","","",""
+"Task","86ad8rf43","Revisão do processo","86adah693","Automação Colchao Congelado","https://app.clickup.com/t/86adah693","em andamento","
+","[Rafael Viegas]","NORMAL","",0,0,"Monday, December 1st 2025","Monday, December 1st 2025","Friday, November 14th 2025, 3:55:34 pm -03:00","Wednesday, November 26th 2025, 9:39:20 am -03:00","","","Rafael Viegas","Tecnologia","Automações","Automação colchão congelado","[]","[]","[projeto]","[Automação colchão congelado]","[]","","","","","2h","2h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","","","",0,2,"","","","","",""
+"Task","86adgmae6","Relatório de Funil Carol",,"","","novo","Criar um relatório com as seguintes informações:
+
+ Ele deve conter os dados, divididos, de outubro e novembro.
+
+","[Rafael Viegas]","NORMAL","",0,0,"Friday, November 28th 2025","Thursday, November 27th 2025","Wednesday, November 26th 2025, 8:45:12 am -03:00","Thursday, November 27th 2025, 8:08:00 pm -03:00","","","Rafael Viegas","Tecnologia","Sistemas","Chamados Tecnologia","[]","[]","[projeto]","[Chamados Tecnologia]","[]","","","","","2h","2h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","",2,"",2,2,"","","","","",""
+"Task","86addjgt7","Projeto Frontend Dashboard",,"","","em andamento","
+","[Pedro Calais]","none","",0,0,"","","Friday, November 21st 2025, 11:19:14 am -03:00","Friday, November 21st 2025, 11:21:30 am -03:00","","","Thiago Vitorio","Tecnologia","Front-End","Central de dados","[86aderh95, 86adb06wb, 86adermgx, 86aderp52, 86adertg0, 86aderv3f, 86adet1zd, 86adet36b, 86adet709, 86adetp2p]","[https://app.clickup.com/t/86aderh95, https://app.clickup.com/t/86adb06wb, https://app.clickup.com/t/86adermgx, https://app.clickup.com/t/86aderp52, https://app.clickup.com/t/86adertg0, https://app.clickup.com/t/86aderv3f, https://app.clickup.com/t/86adet1zd, https://app.clickup.com/t/86adet36b, https://app.clickup.com/t/86adet709, https://app.clickup.com/t/86adetp2p]","[projeto]","[Central de dados]","[]","","","","17h 56m","","27h",,0,"","","","","","3","","","","","","","","","","","","",50,50,"","","","",2,"",2,9.07,"","","","","",""
+"Task","86aderv3f","Testes e QA","86addjgt7","Projeto Frontend Dashboard","https://app.clickup.com/t/86addjgt7","novo","
+","[Pedro Calais]","NORMAL","",0,0,"Friday, November 28th 2025","Monday, November 24th 2025","Monday, November 24th 2025, 10:20:06 am -03:00","Monday, November 24th 2025, 10:43:35 am -03:00","","","Pedro Calais","Tecnologia","Front-End","Central de dados","[]","[]","[projeto]","[Central de dados]","[]","","","","","2h","2h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","",2,"",2,2,"","","","","",""
+"Task","86adet1zd","Página: Composição da Carteira","86addjgt7","Projeto Frontend Dashboard","https://app.clickup.com/t/86addjgt7","novo","
+","[Pedro Calais]","NORMAL","",0,0,"Friday, November 28th 2025","Monday, November 24th 2025","Monday, November 24th 2025, 10:26:15 am -03:00","Wednesday, November 26th 2025, 4:27:29 pm -03:00","","","Pedro Calais","Tecnologia","Front-End","Central de dados","[]","[]","[projeto]","[Central de dados]","[]","","","5h 13m","5h 13m","2h","2h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","",2,"",-1.21,-3.21,"","","","","",""
+"Task","86adet36b","Página: Resumo da Célula","86addjgt7","Projeto Frontend Dashboard","https://app.clickup.com/t/86addjgt7","em andamento","
+","[Pedro Calais]","NORMAL","",0,0,"Thursday, November 27th 2025","Monday, November 24th 2025","Monday, November 24th 2025, 10:27:24 am -03:00","Thursday, November 27th 2025, 10:48:48 am -03:00","","","Pedro Calais","Tecnologia","Front-End","Central de dados","[]","[]","[projeto]","[Central de dados]","[]","","","1h 42m","1h 42m","2h","2h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","",2,"",2,0.3,"","","","","",""
+"Task","86adet709","Entrega de MVP","86addjgt7","Projeto Frontend Dashboard","https://app.clickup.com/t/86addjgt7","novo","MVP com lógica de autenticação + 3 páginas principais integradas ao banco e funcionando com dados reais. 
+","[Pedro Calais]","NORMAL","",0,0,"","Monday, November 24th 2025","Monday, November 24th 2025, 10:30:25 am -03:00","Monday, November 24th 2025, 10:43:42 am -03:00","","","Pedro Calais","Tecnologia","Front-End","Central de dados","[]","[]","[projeto]","[Central de dados]","[]","","","","","30m","30m",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","",2,"",2,0.5,"","","","","",""
+"Task","86adetp2p","Qualidade e Refinamento Visual","86addjgt7","Projeto Frontend Dashboard","https://app.clickup.com/t/86addjgt7","novo","
+","[Pedro Calais]","NORMAL","",0,0,"Friday, November 28th 2025","Monday, November 24th 2025","Monday, November 24th 2025, 10:41:23 am -03:00","Monday, November 24th 2025, 10:43:44 am -03:00","","","Pedro Calais","Tecnologia","Front-End","Central de dados","[]","[]","[projeto]","[Central de dados]","[]","","","","","3h","3h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","",2,"",2,3,"","","","","",""
+"Task","86adazkkw","Tarefa 24: a possibilidade de ""auditar"" e unificar o painel Zadra com o da Carol",,"","","em progresso","
+","[Lucas Soares]","NORMAL","",0,0,"Friday, November 28th 2025","Monday, November 17th 2025","Tuesday, November 18th 2025, 9:52:54 am -03:00","Wednesday, November 19th 2025, 5:01:34 pm -03:00","","","Lucas Soares","Tecnologia","App Central de Dados","Dashboards","[86adazkvz, 86adazkwn, 86adazkx2, 86adazkxb]","[https://app.clickup.com/t/86adazkvz, https://app.clickup.com/t/86adazkwn, https://app.clickup.com/t/86adazkx2, https://app.clickup.com/t/86adazkxb]","[projeto]","[Dashboards]","[]","","","","49m","","12h",,0,"","","","","","3","","","","","","","","","","","","",25,25,"","","","",12,"",12,11.19,"","","","","",""
+"Task","86adazpqz","Projeto 20: Dash gerenciamento de disitribuição de base",,"","","em progresso","
+","[Lucas Soares]","HIGH","",0,0,"Friday, November 21st 2025","Monday, November 17th 2025","Tuesday, November 18th 2025, 9:56:47 am -03:00","Wednesday, November 19th 2025, 10:43:15 am -03:00","","","Lucas Soares","Tecnologia","App Central de Dados","Dashboards","[86adazpym, 86adazpz3, 86adazpzn, 86adazq02]","[https://app.clickup.com/t/86adazpym, https://app.clickup.com/t/86adazpz3, https://app.clickup.com/t/86adazpzn, https://app.clickup.com/t/86adazq02]","[projeto]","[Dashboards]","[]","","","","","","9h",,0,"","","","","","3","","","","","","","","","","","","",50,50,"","","","","","",0,9,"","","","","",""
+"Task","86adb01u5","Projeto 25: Melhorar sistema de Media historica",,"","","em progresso","
+","[Lucas Soares]","none","",0,0,"Thursday, November 27th 2025","Monday, November 24th 2025","Tuesday, November 18th 2025, 10:10:20 am -03:00","Friday, November 28th 2025, 9:25:27 am -03:00","","","Lucas Soares","Tecnologia","App Central de Dados","Dashboards","[86adb03g6, 86adb03w5, 86adb0486]","[https://app.clickup.com/t/86adb03g6, https://app.clickup.com/t/86adb03w5, https://app.clickup.com/t/86adb0486]","[projeto]","[Dashboards]","[]","","","","","","7h",,0,"","","","","","3","","","","","","","","","","","","",66.66666666666666,66.66666666666666,"","","","","","",0,7,"","","","","",""
+"Task","86adb05g5","Correção do Dash Resumo Celula",,"","","em progresso","
+","[Lucas Soares]","URGENT","",0,0,"Friday, November 21st 2025","Monday, November 17th 2025","Tuesday, November 18th 2025, 10:13:43 am -03:00","Friday, November 28th 2025, 9:14:19 am -03:00","","","Lucas Soares","Tecnologia","App Central de Dados","Dashboards","[86adb05uq, 86adb062q, 86adb0682, 86adb06hu, 86adgqf9v, 86adhgdq8, 86adhgdzr, 86adhgeqe, 86adhgfkr]","[https://app.clickup.com/t/86adb05uq, https://app.clickup.com/t/86adb062q, https://app.clickup.com/t/86adb0682, https://app.clickup.com/t/86adb06hu, https://app.clickup.com/t/86adgqf9v, https://app.clickup.com/t/86adhgdq8, https://app.clickup.com/t/86adhgdzr, https://app.clickup.com/t/86adhgeqe, https://app.clickup.com/t/86adhgfkr]","[projeto]","[Dashboards]","[]","","","","14h 53m","","23h",,0,"","","","","","3","","","","","","","","","","","","",55.55555555555556,55.55555555555556,"","","","","","",0,8.12,"13.192877222222222","","","","",""
+"Task","86ab37u6d","Adaptação do bot para TENDA (integração sistema)",,"","","pendente","
+","[Lucas Paresqui]","none","fluxo%20tenda.png  ",1,0,"Thursday, January 1st 2026","Thursday, January 1st 2026","Tuesday, August 19th 2025, 1:52:17 pm -03:00","Wednesday, November 19th 2025, 10:15:39 am -03:00","","","Lucas Paresqui","Tecnologia","Chatbot","Autoatendimento Hyperflow","[86ab7t1cz, 86abm5d20, 86abvh5tj, 86abvh5we, 86abvh68w, 86abvh6v5, 86abvh6nh, 86abvh6fd, 86abvh74d, 86abyqy71, 86abyr01a, 86ac01n24, 86ac23x87, 86ac8fbrm]","[https://app.clickup.com/t/86ab7t1cz, https://app.clickup.com/t/86abm5d20, https://app.clickup.com/t/86abvh5tj, https://app.clickup.com/t/86abvh5we, https://app.clickup.com/t/86abvh68w, https://app.clickup.com/t/86abvh6v5, https://app.clickup.com/t/86abvh6nh, https://app.clickup.com/t/86abvh6fd, https://app.clickup.com/t/86abvh74d, https://app.clickup.com/t/86abyqy71, https://app.clickup.com/t/86abyr01a, https://app.clickup.com/t/86ac01n24, https://app.clickup.com/t/86ac23x87, https://app.clickup.com/t/86ac8fbrm]","[projeto]","[Autoatendimento Hyperflow]","[]","","","","","","54h",,0,"","","","","","","","","","","","","","","","","","",64.28571428571429,64.28571428571429,"","","","","","",0,54,"","","","","",""
+"Task","86abvh6fd","Requisição Boleto","86ab37u6d","Adaptação do bot para TENDA (integração sistema)","https://app.clickup.com/t/86ab37u6d","novo","
+","[Lucas Paresqui]","none","",0,0,"Thursday, January 1st 2026","Thursday, January 1st 2026","Tuesday, September 16th 2025, 11:20:19 am -03:00","Wednesday, November 26th 2025, 11:30:01 am -03:00","","","Lucas Paresqui","Tecnologia","Chatbot","Autoatendimento Hyperflow","[]","[]","[projeto]","[Autoatendimento Hyperflow]","[]","","","","","4h","4h",,0,"","","","","","","","","","","","","","","","","","",0,0,"","","","","","",0,4,"","","","","",""
+"Task","86abvh6nh","Requsição Ocorrências","86ab37u6d","Adaptação do bot para TENDA (integração sistema)","https://app.clickup.com/t/86ab37u6d","novo","
+","[Lucas Paresqui]","none","",0,0,"Thursday, January 1st 2026","Thursday, January 1st 2026","Tuesday, September 16th 2025, 11:20:31 am -03:00","Wednesday, November 26th 2025, 11:30:01 am -03:00","","","Lucas Paresqui","Tecnologia","Chatbot","Autoatendimento Hyperflow","[]","[]","[projeto]","[Autoatendimento Hyperflow]","[]","","","","","2h","2h",,0,"","","","","","","","","","","","","","","","","","",0,0,"","","","","","",0,2,"","","","","",""
+"Task","86abvh6v5","Requisição cancelar Parcelamento","86ab37u6d","Adaptação do bot para TENDA (integração sistema)","https://app.clickup.com/t/86ab37u6d","novo","
+","[Lucas Paresqui]","none","",0,0,"Thursday, January 1st 2026","Thursday, January 1st 2026","Tuesday, September 16th 2025, 11:20:41 am -03:00","Wednesday, November 26th 2025, 11:30:01 am -03:00","","","Lucas Paresqui","Tecnologia","Chatbot","Autoatendimento Hyperflow","[]","[]","[projeto]","[Autoatendimento Hyperflow]","[]","","","","","3h","3h",,0,"","","","","","","","","","","","","","","","","","",0,0,"","","","","","",0,3,"","","","","",""
+"Task","86abvh74d","Requisição PIX","86ab37u6d","Adaptação do bot para TENDA (integração sistema)","https://app.clickup.com/t/86ab37u6d","novo","
+","[Lucas Paresqui]","none","",0,0,"Thursday, January 1st 2026","Thursday, January 1st 2026","Tuesday, September 16th 2025, 11:20:58 am -03:00","Wednesday, November 26th 2025, 11:30:01 am -03:00","","","Lucas Paresqui","Tecnologia","Chatbot","Autoatendimento Hyperflow","[]","[]","[projeto]","[Autoatendimento Hyperflow]","[]","","","","","3h","3h",,0,"","","","","","","","","","","","","","","","","","",0,0,"","","","","","",0,3,"","","","","",""
+"Task","86ac9emzd","Adaptação do bot para EMCCAMP (pseudo integração)",,"","","pendente","
+","[Lucas Paresqui]","none","",0,0,"","Monday, October 6th 2025","Friday, October 3rd 2025, 9:55:22 am -03:00","Tuesday, November 18th 2025, 10:44:58 am -03:00","","","Lucas Paresqui","Tecnologia","Chatbot","Autoatendimento Hyperflow","[86ac9en7a, 86ac9eqyh, 86ac9endn, 86acm6t7z, 86acrg61t]","[https://app.clickup.com/t/86ac9en7a, https://app.clickup.com/t/86ac9eqyh, https://app.clickup.com/t/86ac9endn, https://app.clickup.com/t/86acm6t7z, https://app.clickup.com/t/86acrg61t]","[projeto]","[Autoatendimento Hyperflow]","[]","","","","","","12h",,0,"","","","","","","","","","","","","","","","","","",60,60,"","","","","","",0,12,"","","","","",""
+"Task","86ac9endn","Emitir boleto acordo fechado","86ac9emzd","Adaptação do bot para EMCCAMP (pseudo integração)","https://app.clickup.com/t/86ac9emzd","novo","
+","[Lucas Paresqui]","none","",0,0,"Thursday, January 1st 2026","Thursday, January 1st 2026","Friday, October 3rd 2025, 9:56:10 am -03:00","Wednesday, November 26th 2025, 11:30:01 am -03:00","","","Lucas Paresqui","Tecnologia","Chatbot","Autoatendimento Hyperflow","[]","[]","[projeto]","[Autoatendimento Hyperflow]","[]","","","","","1h","1h",,0,"","","","","","","","","","","","","","","","","","",0,0,"","","","","","",0,1,"","","","","",""
+"Task","86ac9eqyh","Criar automação geração de boleto","86ac9emzd","Adaptação do bot para EMCCAMP (pseudo integração)","https://app.clickup.com/t/86ac9emzd","novo","
+","[Lucas Paresqui]","none","",0,0,"Thursday, January 1st 2026","Thursday, January 1st 2026","Friday, October 3rd 2025, 9:59:42 am -03:00","Wednesday, November 26th 2025, 11:30:01 am -03:00","","","Lucas Paresqui","Tecnologia","Chatbot","Autoatendimento Hyperflow","[]","[]","[projeto]","[Autoatendimento Hyperflow]","[]","","","","","3h","3h",,0,"","","","","","","","","","","","","","","","","","",0,0,"","","","","","",0,3,"","","","","",""
+"Task","86abyr01a","Requisição Regras Parcelamento","86ab37u6d","Adaptação do bot para TENDA (integração sistema)","https://app.clickup.com/t/86ab37u6d","pendente","
+","[Lucas Paresqui]","none","",0,0,"Thursday, January 1st 2026","Thursday, January 1st 2026","Friday, September 19th 2025, 2:27:17 pm -03:00","Wednesday, November 19th 2025, 10:12:53 am -03:00","","","Lucas Paresqui","Tecnologia","Chatbot","Autoatendimento Hyperflow","[]","[]","[projeto]","[Autoatendimento Hyperflow]","[]","","","","","3h","3h",,0,"","","","","","","","","","","","","","","","","","",0,0,"","","","","","",0,3,"","","","","",""
+"Task","86ad1339p","Criar resposta referente dívida",,"","","em andamento","
+","[Lucas Paresqui]","LOW","Muitos clientes tem dúvidas sobre ao que se refere a dívida.   Criar uma categoria de resposta para satisfazer essas dúvidas. Explicando o porquê ele tem essa dívida nesse lugar (principalmente tabelionato)  ",1,0,"Friday, November 28th 2025","Tuesday, November 25th 2025","Tuesday, November 4th 2025, 1:14:50 pm -03:00","Wednesday, November 26th 2025, 5:08:43 pm -03:00","","","Lucas Paresqui","Tecnologia","Chatbot","Autoatendimento Hyperflow","[86adduztp, 86adfxeya, 86adg0tmv]","[https://app.clickup.com/t/86adduztp, https://app.clickup.com/t/86adfxeya, https://app.clickup.com/t/86adg0tmv]","[projeto]","[Autoatendimento Hyperflow]","[]","","","","1h 10m","","2h 10m",,0,"","","","","","","","","","","","","","","","","","",66.66666666666666,66.66666666666666,"","","","","","",0,1,"","","","","",""
+"Task","86ad8fbjq","Reunião HF ligações",,"","","validação","
+","[Lucas Paresqui]","none","",0,0,"Tuesday, November 18th 2025","Tuesday, November 18th 2025","Friday, November 14th 2025, 11:03:38 am -03:00","Tuesday, November 18th 2025, 1:18:07 pm -03:00","","","Lucas Paresqui","Tecnologia","Chatbot","Autoatendimento Hyperflow","[]","[]","[projeto]","[Autoatendimento Hyperflow]","[]","","","1h","1h","1h","1h",,0,"","","","","","","","","","","","","","","","","","",0,0,"","","","","","",0,0,"","","","","",""
+"Task","86ad8r1pn","Ver disparos ativos wpp",,"","","validação","
+","[Lucas Paresqui]","none","mas sobre o marketing:   Se a Meta entender que o conteudo é MKT, ela categoria automaticamente a categoria sem aviso prévio. Nesta documentação, tem uma explicação mais detalhada de como a Meta faz a categorização dos modelos:  https://developers.facebook.com/docs/whatsapp/updates-to-pricing/new-template-guidelines#utility-templates  ",9,0,"Tuesday, November 18th 2025","Monday, November 17th 2025","Friday, November 14th 2025, 3:42:34 pm -03:00","Wednesday, November 19th 2025, 10:16:35 am -03:00","","","Lucas Paresqui","Tecnologia","Chatbot","Autoatendimento Hyperflow","[86ad8r1zp, 86ad8r2af, 86ad8r2jq, 86adaa03q]","[https://app.clickup.com/t/86ad8r1zp, https://app.clickup.com/t/86ad8r2af, https://app.clickup.com/t/86ad8r2jq, https://app.clickup.com/t/86adaa03q]","[projeto]","[Autoatendimento Hyperflow]","[]","","","","6h","","6h",,0,"","","","","","","","","","","","","","","","","","",0,0,"","","","","","",0,0,"","","","","",""
+"Task","86ad8r1zp","criação do fluxo na HF","86ad8r1pn","Ver disparos ativos wpp","https://app.clickup.com/t/86ad8r1pn","validação","
+","[Lucas Paresqui]","none","",0,0,"Monday, November 17th 2025","Monday, November 17th 2025","Friday, November 14th 2025, 3:42:48 pm -03:00","Wednesday, November 19th 2025, 10:16:48 am -03:00","","","Lucas Paresqui","Tecnologia","Chatbot","Autoatendimento Hyperflow","[]","[]","[projeto]","[Autoatendimento Hyperflow]","[]","","","2h","2h","2h","2h",,0,"","","","","","","","","","","","","","","","","","",0,0,"","","","","","",0,0,"","","","","",""
+"Task","86ad8r2af","integração com código python","86ad8r1pn","Ver disparos ativos wpp","https://app.clickup.com/t/86ad8r1pn","validação","
+","[Lucas Paresqui]","none","",0,0,"Monday, November 17th 2025","Monday, November 17th 2025","Friday, November 14th 2025, 3:42:59 pm -03:00","Wednesday, November 19th 2025, 10:16:55 am -03:00","","","Lucas Paresqui","Tecnologia","Chatbot","Autoatendimento Hyperflow","[]","[]","[projeto]","[Autoatendimento Hyperflow]","[]","","","1h","1h","1h","1h",,0,"","","","","","","","","","","","","","","","","","",0,0,"","","","","","",0,0,"","","","","",""
+"Task","86ad8r2jq","base de teste para acionamentos","86ad8r1pn","Ver disparos ativos wpp","https://app.clickup.com/t/86ad8r1pn","validação","
+","[Lucas Paresqui]","none","",0,0,"Monday, November 17th 2025","Monday, November 17th 2025","Friday, November 14th 2025, 3:43:11 pm -03:00","Wednesday, November 19th 2025, 10:16:56 am -03:00","","","Lucas Paresqui","Tecnologia","Chatbot","Autoatendimento Hyperflow","[]","[]","[projeto]","[Autoatendimento Hyperflow]","[]","","","1h","1h","1h","1h",,0,"","","","","","","","","","","","","","","","","","",0,0,"","","","","","",0,0,"","","","","",""
+"Task","86ad8r48z","Regras Longiude",,"","","pendente","
+","[Lucas Paresqui]","none","Solicitado para Carol pegar o cliente os dados necessários para aplicar a regra  ",1,0,"Wednesday, November 19th 2025","Wednesday, November 19th 2025","Friday, November 14th 2025, 3:44:35 pm -03:00","Friday, November 21st 2025, 9:36:41 am -03:00","","","Lucas Paresqui","Tecnologia","Chatbot","Autoatendimento Hyperflow","[]","[]","[projeto]","[Autoatendimento Hyperflow]","[]","","","","","3h","3h",,0,"","","","","","","","","","","","","","","","","","",0,0,"","","","","","",0,3,"","","","","",""
+"Task","86adaa03q","Retorno chamadas","86ad8r1pn","Ver disparos ativos wpp","https://app.clickup.com/t/86ad8r1pn","validação","
+","[Lucas Paresqui]","none","",0,0,"Tuesday, November 18th 2025","Tuesday, November 18th 2025","Monday, November 17th 2025, 4:46:58 pm -03:00","Wednesday, November 19th 2025, 10:16:58 am -03:00","","","Lucas Paresqui","Tecnologia","Chatbot","Autoatendimento Hyperflow","[]","[]","[projeto]","[Autoatendimento Hyperflow]","[]","","","2h","2h","2h","2h",,0,"","","","","","","","","","","","","","","","","","",0,0,"","","","","","",0,0,"","","","","",""
+"Task","86adg0tmv","Implementação resposta","86ad1339p","Criar resposta referente dívida","https://app.clickup.com/t/86ad1339p","novo","
+","[Lucas Paresqui]","none","ou seja, passarei apenas o link com o passo a passo,para ele mesmo ver  ",2,0,"Friday, November 28th 2025","Friday, November 28th 2025","Tuesday, November 25th 2025, 2:32:46 pm -03:00","Wednesday, November 26th 2025, 5:07:53 pm -03:00","","","Lucas Paresqui","Tecnologia","Chatbot","Autoatendimento Hyperflow","[]","[]","[projeto]","[Autoatendimento Hyperflow]","[]","","","","","1h","1h",,0,"","","","","","","","","","","","","","","","","","",0,0,"","","","",2,"",2,1,"","","","","",""
+"Task","86adg46a4","Criar pagamento PIX (raw)","86adh43da","Pix Quitação","https://app.clickup.com/t/86adh43da","validação","
+","[Lucas Paresqui]","HIGH","Pesquisar e implementar pagamentos PXI  ",1,0,"Wednesday, November 26th 2025","Wednesday, November 26th 2025","Tuesday, November 25th 2025, 4:04:05 pm -03:00","Thursday, November 27th 2025, 10:07:54 am -03:00","","","Lucas Paresqui","Tecnologia","Chatbot","Autoatendimento Hyperflow","[]","[]","[projeto]","[Autoatendimento Hyperflow]","[]","","","5h","5h","5h","5h",,0,"","","","","","","","","","","","","","","","","","",0,0,"","","","",2,"",2,0,"","","","","",""
+"Task","86adh3ymb","Aplicar PIX (tabelionato) + HF","86adh43da","Pix Quitação","https://app.clickup.com/t/86adh43da","em andamento","
+","[Lucas Paresqui]","HIGH","",0,0,"Thursday, November 27th 2025","Thursday, November 27th 2025","Wednesday, November 26th 2025, 5:06:45 pm -03:00","Thursday, November 27th 2025, 10:07:43 am -03:00","","","Lucas Paresqui","Tecnologia","Chatbot","Autoatendimento Hyperflow","[]","[]","[projeto]","[Autoatendimento Hyperflow]","[]","","","","","6h","6h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","",2,"",2,6,"","","","","",""
+"Task","86adh443w","QA","86adh43da","Pix Quitação","https://app.clickup.com/t/86adh43da","novo","
+","[Lucas Paresqui]","NORMAL","",0,0,"Friday, November 28th 2025","Friday, November 28th 2025","Wednesday, November 26th 2025, 5:12:08 pm -03:00","Wednesday, November 26th 2025, 5:12:34 pm -03:00","","","Lucas Paresqui","Tecnologia","Chatbot","Autoatendimento Hyperflow","[]","[]","[projeto]","[Autoatendimento Hyperflow]","[]","","","","","3h","3h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","",2,"",2,3,"","","","","",""
+"Task","86adbz64b","Higienização: verificar os contatos errados e que não existem.",,"","","novo","Aumentar nossa assertividade ao entrar em contato com os devedores.
+
+  
+","[Alvaro Nunes]","none","",0,0,"","Sunday, August 17th 2025","Wednesday, November 19th 2025, 11:23:53 am -03:00","Wednesday, November 19th 2025, 11:24:16 am -03:00","","","Alvaro Nunes","Tecnologia","Sistemas","Chamados Tecnologia","[86adbz75f, 86adc073t, 86adc0amz, 86adc0afj]","[https://app.clickup.com/t/86adbz75f, https://app.clickup.com/t/86adc073t, https://app.clickup.com/t/86adc0amz, https://app.clickup.com/t/86adc0afj]","[alinhamento, projeto]","[Chamados Tecnologia]","[]","","","","1h","","81h",,0,"","","","","","3","","","","","","","","","","","","",50,50,"","","","",2,"",2,80,"","","","","",""
+"Task","86adc0afj","5. Desenho do projeto de enriquecimento - Documentar - SLAs - Critérios","86adbz64b","Higienização: verificar os contatos errados e que não existem.","https://app.clickup.com/t/86adbz64b","novo","
+","[Alvaro Nunes]","none","",0,0,"Friday, November 28th 2025","Friday, November 28th 2025","Wednesday, November 19th 2025, 11:51:31 am -03:00","Monday, November 24th 2025, 2:18:34 pm -03:00","","","Alvaro Nunes","Tecnologia","Sistemas","Chamados Tecnologia","[]","[]","[alinhamento, projeto]","[Chamados Tecnologia]","[]","","","","","2h","2h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","",2,"",2,2,"","","","","",""
+"Task","86adc0amz","4. Criar a automação do projeto","86adbz64b","Higienização: verificar os contatos errados e que não existem.","https://app.clickup.com/t/86adbz64b","novo","
+","[Alvaro Nunes]","none","",0,0,"Friday, November 28th 2025","Tuesday, November 25th 2025","Wednesday, November 19th 2025, 11:51:38 am -03:00","Monday, November 24th 2025, 8:16:10 am -03:00","","","Alvaro Nunes","Tecnologia","Sistemas","Chamados Tecnologia","[]","[]","[alinhamento, projeto]","[Chamados Tecnologia]","[]","","","","","6h","6h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","",2,"",2,6,"","","","","",""
+"Task","86adbjn97","Desenvolvimento da API de Recebimento da Base de Cobranças (Integração com Max Smart)",,"","","novo","Descrição:
+ Desenvolver uma API para que os clientes enviem suas bases de cobrança em formato JSON, com validações, retorno padronizado, inserção dos dados na tabela ImportPessoas do Max Smart, registro de logs e alertas em caso de falhas. A API será integrada ao fluxo nativo do Max Smart, que consome a tabela de importação para processar os dados.
+
+Objetivo:
+ Criar uma API robusta, segura e validada, permitindo que os clientes enviem dados diretamente ao sistema de cobrança sem necessidade de intermediários manuais.
+
+Resultado Esperado:
+ API funcionando em ambiente de produção, recebendo dados no formato especificado, inserindo corretamente no banco, gerando logs, disparando alertas e disponível para uso pelos clientes.
+
+","[]","HIGH","",0,0,"","","Tuesday, November 18th 2025, 6:55:16 pm -03:00","Tuesday, November 18th 2025, 6:56:17 pm -03:00","","","Rodrigo Brozinga","Tecnologia","Integrações","Blip","[86adbjp6x, 86adbjqfj, 86adbjrvd, 86adbju91, 86adbjvh6, 86adbjwpr, 86adbjxzm, 86adbjyx5, 86adbjzr7, 86adbk0t3]","[https://app.clickup.com/t/86adbjp6x, https://app.clickup.com/t/86adbjqfj, https://app.clickup.com/t/86adbjrvd, https://app.clickup.com/t/86adbju91, https://app.clickup.com/t/86adbjvh6, https://app.clickup.com/t/86adbjwpr, https://app.clickup.com/t/86adbjxzm, https://app.clickup.com/t/86adbjyx5, https://app.clickup.com/t/86adbjzr7, https://app.clickup.com/t/86adbk0t3]","[projeto]","[Blip]","[]","","","","2h","","89h",,0,"","","","","","3","","","","","","","","","","","","",20,20,"","","","",2,"",2,87,"","","","","",""
+"Task","86adbjrvd","3. Preparação de Ambiente e Infraestrutura","86adbjn97","Desenvolvimento da API de Recebimento da Base de Cobranças (Integração com Max Smart)","https://app.clickup.com/t/86adbjn97","novo","Descrição:
+ Configurar ambiente de desenvolvimento, homologação e produção. Criar repositório, dependências, servidores e comunicação com SQL Server.
+
+Objetivo:
+ Garantir que o ambiente esteja preparado e seguro antes do desenvolvimento.
+
+Resultado Esperado:
+ Ambiente funcional, com repositório criado e API conectando ao SQL Server.
+
+Ações:
+Criar repositório do projeto.
+Configurar ambiente FastAPI (venv ou Docker).
+Configurar acesso ao banco (SQL Server).
+Configurar servidor IIS ou Nginx (conforme definição).
+Configurar HTTPS e API Key.
+
+","[]","HIGH","",0,0,"","","Tuesday, November 18th 2025, 6:59:51 pm -03:00","Tuesday, November 18th 2025, 7:00:48 pm -03:00","","","Rodrigo Brozinga","Tecnologia","Integrações","Blip","[]","[]","[projeto]","[Blip]","[]","","","","","4h","4h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","",2,"",2,4,"","","","","",""
+"Task","86adbju91","4. Modelagem da Base e Configuração das Tabelas","86adbjn97","Desenvolvimento da API de Recebimento da Base de Cobranças (Integração com Max Smart)","https://app.clickup.com/t/86adbjn97","novo","Descrição:
+ Analisar e ajustar a tabela ImportPessoas, criar tabela de logs ApiImportCobrancasLog e garantir permissões adequadas.
+
+Objetivo:
+ Garantir que o banco suporte corretamente o processamento dos dados vindos da API.
+
+Resultado Esperado:
+ Tabelas prontas, normalizadas e com permissões seguras.
+
+Ações:
+Revisar estrutura da tabela ImportPessoas.
+Criar ou ajustar tabela de log.
+Criar índices se necessário.
+Criar permissões específicas para o usuário da API.
+
+","[]","HIGH","",0,0,"","","Tuesday, November 18th 2025, 7:01:27 pm -03:00","Tuesday, November 18th 2025, 7:02:18 pm -03:00","","","Rodrigo Brozinga","Tecnologia","Integrações","Blip","[]","[]","[projeto]","[Blip]","[]","","","","","8h","8h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","",2,"",2,8,"","","","","",""
+"Task","86adbjvh6","5. Desenvolvimento do Endpoint de Recebimento (Core da API)","86adbjn97","Desenvolvimento da API de Recebimento da Base de Cobranças (Integração com Max Smart)","https://app.clickup.com/t/86adbjn97","novo","Descrição:
+ Desenvolver o endpoint principal que recebe o JSON, valida os dados, converte campos (datas/valores) e realiza o insert no banco.
+
+Objetivo:
+ Implementar a funcionalidade central da API, garantindo aderência total ao formato enviado pelo cliente.
+
+Resultado Esperado:
+ Endpoint operacional em ambiente de desenvolvimento, com inserts funcionando.
+
+Ações:
+Criar modelos Pydantic (request e response).
+Implementar validação completa dos campos.
+Implementar conversão de datas/decimais.
+Implementar lógica de insert registro a registro.
+Criar retorno agregando status por cobrança.
+
+","[]","HIGH","",0,0,"","","Tuesday, November 18th 2025, 7:02:39 pm -03:00","Tuesday, November 18th 2025, 7:03:42 pm -03:00","","","Rodrigo Brozinga","Tecnologia","Integrações","Blip","[]","[]","[projeto]","[Blip]","[]","","","","","24h","24h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","",2,"",2,24,"","","","","",""
+"Task","86adbjwpr","6. Implementação de Logs e Alertas","86adbjn97","Desenvolvimento da API de Recebimento da Base de Cobranças (Integração com Max Smart)","https://app.clickup.com/t/86adbjn97","novo","Descrição:
+ Registrar logs por cobrança processada e implementar alertas automáticos em casos de falhas ou volumes anormais de erros.
+
+Objetivo:
+ Garantir rastreabilidade e rápida identificação de problemas.
+
+Resultado Esperado:
+ Logs gravados tanto no banco quanto em arquivos e alertas funcionando.
+
+Ações:
+Registrar sucesso e erro por cobrança.
+Criar função de agregação de erros.
+Implementar disparo automático (e-mail/Teams/n8n) em casos críticos.
+
+","[]","HIGH","",0,0,"","","Tuesday, November 18th 2025, 7:04:06 pm -03:00","Tuesday, November 18th 2025, 7:05:17 pm -03:00","","","Rodrigo Brozinga","Tecnologia","Integrações","Blip","[]","[]","[projeto]","[Blip]","[]","","","","","8h","8h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","",2,"",2,8,"","","","","",""
+"Task","86adbjxzm","7. Testes Unitários, Integração e Carga","86adbjn97","Desenvolvimento da API de Recebimento da Base de Cobranças (Integração com Max Smart)","https://app.clickup.com/t/86adbjn97","novo","Descrição:
+ Testar todo o funcionamento da API garantindo corretude, robustez e comportamento adequado em grandes volumes.
+
+Objetivo:
+ Garantir a estabilidade e segurança do fluxo antes da homologação.
+
+Resultado Esperado:
+ API validada internamente, com registros processados e logs funcionando.
+
+Ações:
+Criar cenários de teste.
+Testar conversões de datas e valores.
+Testar inserts reais em homolog.
+Testar requisições com 100, 500 e 1000 registros.
+
+","[]","HIGH","",0,0,"","","Tuesday, November 18th 2025, 7:05:35 pm -03:00","Tuesday, November 18th 2025, 7:06:36 pm -03:00","","","Rodrigo Brozinga","Tecnologia","Integrações","Blip","[]","[]","[projeto]","[Blip]","[]","","","","","16h","16h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","",2,"",2,16,"","","","","",""
+"Task","86adbjyx5","8. Homologação com o Cliente","86adbjn97","Desenvolvimento da API de Recebimento da Base de Cobranças (Integração com Max Smart)","https://app.clickup.com/t/86adbjn97","novo","Descrição:
+ Executar rodadas de testes com o cliente, validar comportamento e ajustar falhas encontradas.
+
+Objetivo:
+ Garantir que a API funcione exatamente conforme a necessidade do cliente.
+
+Resultado Esperado:
+ Homologação final aprovada e assinatura de aceite interno.
+
+Ações:
+Disponibilizar endpoint de homologação.
+Acompanhar envios do cliente.
+Validar dados importados no Max Smart.
+Realizar correções necessárias.
+
+","[]","HIGH","",0,0,"","","Tuesday, November 18th 2025, 7:06:50 pm -03:00","Tuesday, November 18th 2025, 7:07:30 pm -03:00","","","Rodrigo Brozinga","Tecnologia","Integrações","Blip","[]","[]","[projeto]","[Blip]","[]","","","","","8h","8h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","",2,"",2,8,"","","","","",""
+"Task","86adbjzr7","9. Documentação e Treinamento","86adbjn97","Desenvolvimento da API de Recebimento da Base de Cobranças (Integração com Max Smart)","https://app.clickup.com/t/86adbjn97","novo","Descrição:
+ Produzir documentações técnicas e funcionais e realizar orientação com o time interno e com o cliente.
+
+Objetivo:
+ Disponibilizar todo o conhecimento necessário para operação e suporte.
+
+Resultado Esperado:
+ Documentação publicada no espaço do projeto e equipe capacitada.
+
+Ações:
+Gerar documentação técnica.
+Criar material de uso para o cliente.
+Realizar sessão de treinamento rápida.
+
+","[]","HIGH","",0,0,"","","Tuesday, November 18th 2025, 7:07:50 pm -03:00","Tuesday, November 18th 2025, 7:08:25 pm -03:00","","","Rodrigo Brozinga","Tecnologia","Integrações","Blip","[]","[]","[projeto]","[Blip]","[]","","","","","6h","6h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","",2,"",2,6,"","","","","",""
+"Task","86adbk0t3","10. Deploy em Produção e Acompanhamento Inicial","86adbjn97","Desenvolvimento da API de Recebimento da Base de Cobranças (Integração com Max Smart)","https://app.clickup.com/t/86adbjn97","novo","Descrição:
+ Publicar a API em ambiente produtivo, validar comunicação e acompanhar primeiras cargas.
+
+Objetivo:
+ Garantir um go-live estável e seguro.
+
+Resultado Esperado:
+ API em produção, estável e monitorada.
+
+Ações:
+Publicar API na infraestrutura definida.
+Validar logs e conectividade.
+Realizar go-live controlado com o cliente.
+Monitorar por 48–72h.
+
+","[]","HIGH","",0,0,"","","Tuesday, November 18th 2025, 7:08:39 pm -03:00","Tuesday, November 18th 2025, 7:09:19 pm -03:00","","","Rodrigo Brozinga","Tecnologia","Integrações","Blip","[]","[]","[projeto]","[Blip]","[]","","","","","12h","12h",,0,"","","","","","3","","","","","","","","","","","","",0,0,"","","","",2,"",2,12,"","","","","",""

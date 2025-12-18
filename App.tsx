@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { GoogleOAuthProvider } from '@react-oauth/google';
-import { 
-  Users, 
-  Settings as SettingsIcon, 
-  LayoutDashboard, 
-  Database, 
-  BarChart3, 
-  Filter, 
-  Archive, 
-  ChevronLeft, 
+import {
+  Users,
+  Settings as SettingsIcon,
+  LayoutDashboard,
+  Database,
+  BarChart3,
+  Filter,
+  Archive,
+  ChevronLeft,
   ChevronRight,
   Menu,
   X,
@@ -31,8 +31,9 @@ import FileUpload from './components/FileUpload';
 import Filters from './components/Filters';
 import CompletedProjects from './components/CompletedProjects';
 import { LoginScreen } from './components/LoginScreen';
+import TimesheetDashboard from './components/TimesheetDashboard';
 
-type ViewMode = 'import' | 'projects' | 'alignment' | 'management2' | 'settings' | 'filters' | 'archived' | 'admin';
+type ViewMode = 'import' | 'projects' | 'alignment' | 'management2' | 'settings' | 'admin' | 'timesheet';
 
 const App: React.FC = () => {
   // Login com persistência em localStorage
@@ -55,7 +56,7 @@ const App: React.FC = () => {
   const [filterState, setFilterState] = useState<FilterState>(() => {
     return FilterService.loadFilterState();
   });
-  
+
   // Check if there's cached data to determine initial view
   const [activeView, setActiveView] = useState<ViewMode>(() => {
     try {
@@ -71,7 +72,7 @@ const App: React.FC = () => {
     }
     return 'import';
   });
-  
+
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -91,7 +92,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const loadCacheInLayers = async () => {
       console.log('🔍 Loading cache in layers...');
-      
+
       // LAYER 1: Metadata (instant - for filters)
       const metadata = advancedCache.loadMetadata();
       if (metadata) {
@@ -99,7 +100,7 @@ const App: React.FC = () => {
         setLastSyncTime(new Date(metadata.lastSync));
         setCachedTaskCount(metadata.taskCount);
       }
-      
+
       // LAYER 2: Processed Data (fast - show dashboard)
       const processedData = advancedCache.loadProcessedData();
       if (processedData && processedData.length > 0) {
@@ -107,7 +108,7 @@ const App: React.FC = () => {
         setData(processedData);
         setActiveView('projects'); // Show dashboard immediately
       }
-      
+
       // LAYER 3: Raw Data (slow - for reprocessing)
       const rawData = await advancedCache.loadRawData();
       if (rawData && rawData.length > 0) {
@@ -119,27 +120,27 @@ const App: React.FC = () => {
       if (!metadata && !processedData && !rawData) {
         console.log('🔧 Tentando recuperação de emergência...');
         const recovered = await advancedCache.tryRecoverFromOldCache();
-        
+
         if (recovered.config && !config.clickupApiToken) {
           console.log('✅ Configurações recuperadas, aplicando...');
           setConfig(prev => ({ ...prev, ...recovered.config }));
         }
-        
+
         if (recovered.data && recovered.data.length > 0) {
           console.log('✅ Dados recuperados:', recovered.data.length, 'grupos');
           setData(recovered.data);
           setActiveView('projects');
-          setCachedTaskCount(recovered.data.reduce((sum, g) => 
+          setCachedTaskCount(recovered.data.reduce((sum, g) =>
             sum + g.projects.reduce((pSum, p) => pSum + p.tasks.length, 0), 0
           ));
         }
       }
-      
+
       // Show cache status
       const status = await advancedCache.getCacheStatus();
       console.log('📊 Cache status:', status);
     };
-    
+
     loadCacheInLayers().catch(console.error);
   }, []);
 
@@ -205,39 +206,39 @@ const App: React.FC = () => {
     setStandupFetched(false);
     setStandupEntries(null);
     setStandupLoading(false);
-    
+
     // Add timeout protection
     const timeoutId = setTimeout(() => {
       setLoading(false);
       alert('Sincronização demorou muito. Tente novamente.');
     }, 180000); // 180 seconds timeout (3 minutes for large datasets)
-    
+
     try {
       // Check if we should do incremental sync
       const metadata = advancedCache.loadMetadata();
       const shouldUseIncremental = metadata && metadata.lastSync;
-      
+
       let rawTasks: ClickUpApiTask[];
-      
+
       if (shouldUseIncremental) {
         console.log('🔄 Using INCREMENTAL sync (faster)');
         const incrementalTasks = await fetchRawClickUpData(config, metadata.lastSync);
-        
+
         // Merge with cached data
         rawTasks = await advancedCache.mergeIncrementalUpdate(incrementalTasks);
-        
+
         console.log(`✅ Incremental sync: ${incrementalTasks.length} updated, ${rawTasks.length} total`);
       } else {
         console.log('📥 Using FULL sync (first time)');
         rawTasks = await fetchRawClickUpData(config);
       }
-      
+
       clearTimeout(timeoutId);
-      
+
       // STEP 1: Extract and save metadata FIRST (instant filter availability)
       const filterMetadata = extractFilterMetadata(rawTasks, config.nameMappings);
       advancedCache.saveMetadata(filterMetadata, rawTasks.length);
-      
+
       // Update config with available tags, statuses, assignees
       const updatedConfig = {
         ...config,
@@ -247,7 +248,7 @@ const App: React.FC = () => {
       };
       setConfig(updatedConfig);
       localStorage.setItem('dailyPresenterConfig', JSON.stringify(updatedConfig));
-      
+
       setRawData(rawTasks);
       const filtered = applyClientSideFilters(rawTasks, filterState.currentFilters);
       const processed = processApiTasks(filtered, config);
@@ -257,20 +258,20 @@ const App: React.FC = () => {
       } else {
         setData(processed);
         setActiveView('projects');
-        
+
         // STEP 2: Save processed data (compressed, fast dashboard load)
         advancedCache.saveProcessedData(processed);
-        
+
         // STEP 3: Save raw data to IndexedDB (background, for reprocessing)
         advancedCache.saveRawData(rawTasks).catch(err => {
           console.warn('⚠️  Failed to save raw data to IndexedDB:', err);
         });
-        
+
         // Update UI state
         const syncTime = new Date();
         setLastSyncTime(syncTime);
         setCachedTaskCount(rawTasks.length);
-        
+
         console.log('✅ All 3 cache layers saved successfully');
       }
 
@@ -359,11 +360,10 @@ const App: React.FC = () => {
   const hasCachedData = !!(cachedTaskCount > 0);
 
   const navItems = [
-    { 
+    {
       section: 'Dados',
       items: [
         { view: 'import' as ViewMode, icon: Database, label: 'Importar / Sync', disabled: false },
-        { view: 'filters' as ViewMode, icon: Filter, label: 'Filtros', disabled: !rawData },
       ]
     },
     {
@@ -371,7 +371,7 @@ const App: React.FC = () => {
       items: [
         { view: 'projects' as ViewMode, icon: Calendar, label: 'Alinhamento Diário', disabled: !data },
         { view: 'alignment' as ViewMode, icon: Users, label: 'Alinhamento', disabled: !data },
-        { view: 'archived' as ViewMode, icon: Archive, label: 'Arquivados', disabled: !data },
+        { view: 'timesheet' as ViewMode, icon: LayoutDashboard, label: 'Timesheet', disabled: !data },
         { view: 'management2' as ViewMode, icon: BarChart3, label: 'Gestão', disabled: !data },
       ]
     },
@@ -410,7 +410,7 @@ const App: React.FC = () => {
   // Show login screen if not authenticated
   if (!isAuthenticated) {
     const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    
+
     // Wrap with GoogleOAuthProvider if configured
     if (googleClientId) {
       return (
@@ -419,7 +419,7 @@ const App: React.FC = () => {
         </GoogleOAuthProvider>
       );
     }
-    
+
     return <LoginScreen onLogin={handleLogin} />;
   }
 
@@ -427,7 +427,7 @@ const App: React.FC = () => {
     <div className="flex h-screen bg-slate-100 text-slate-800 font-sans overflow-hidden">
       {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden animate-fade-in"
           onClick={() => setIsMobileMenuOpen(false)}
         />
@@ -460,8 +460,8 @@ const App: React.FC = () => {
               <TrendingUp className="w-5 h-5 text-white" />
             </div>
           )}
-          
-          <button 
+
+          <button
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
             className="hidden lg:flex p-2 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
           >
@@ -469,7 +469,7 @@ const App: React.FC = () => {
           </button>
 
           {/* Mobile close button */}
-          <button 
+          <button
             onClick={() => setIsMobileMenuOpen(false)}
             className="lg:hidden p-2 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
           >
@@ -522,7 +522,7 @@ const App: React.FC = () => {
       <main className="flex-1 overflow-hidden relative flex flex-col min-w-0">
         {/* Mobile Header */}
         <header className="lg:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between sticky top-0 z-30">
-          <button 
+          <button
             onClick={() => setIsMobileMenuOpen(true)}
             className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
           >
@@ -562,10 +562,10 @@ const App: React.FC = () => {
 
           {(activeView === 'projects' || activeView === 'alignment') && data && (
             <div className="h-full overflow-hidden flex flex-col">
-              <Dashboard 
-                data={data} 
-                config={config} 
-                viewMode={activeView as 'projects' | 'alignment'} 
+              <Dashboard
+                data={data}
+                config={config}
+                viewMode={activeView as 'projects' | 'alignment'}
                 rawData={rawData}
                 standupEntries={standupEntries ?? undefined}
                 standupFetched={standupFetched}
@@ -578,20 +578,19 @@ const App: React.FC = () => {
 
           {activeView === 'management2' && data && (
             <div className="h-full overflow-hidden flex flex-col">
-              <TestDashboard 
-                data={data} 
-                config={config} 
+              <TestDashboard
+                data={data}
+                config={config}
                 rawData={rawData}
               />
             </div>
           )}
 
-          {activeView === 'archived' && rawData && (
-            <div className="h-full overflow-hidden flex flex-col">
-              <CompletedProjects
-                rawData={rawData}
+          {activeView === 'timesheet' && data && (
+            <div className="h-full overflow-hidden">
+              <TimesheetDashboard
+                data={data}
                 config={config}
-                onBack={() => setActiveView('projects')}
               />
             </div>
           )}
@@ -604,21 +603,16 @@ const App: React.FC = () => {
 
           {activeView === 'admin' && (
             <div className="h-full overflow-y-auto p-4 md:p-8">
-              <Settings config={config} onSave={handleConfigUpdate} data={data} variant="admin" onFileUpload={handleFileUpload} />
-            </div>
-          )}
-
-          {activeView === 'filters' && rawData && (
-            <div className="h-full overflow-y-auto p-4 md:p-8">
-              <div className="max-w-6xl mx-auto">
-                <Filters
-                  rawData={rawData}
-                  filterState={filterState}
-                  onFilterStateChange={setFilterState}
-                  config={config}
-                  onConfigChange={handleConfigUpdate}
-                />
-              </div>
+              <Settings
+                config={config}
+                onSave={handleConfigUpdate}
+                data={data}
+                variant="admin"
+                onFileUpload={handleFileUpload}
+                rawData={rawData}
+                filterState={filterState}
+                onFilterStateChange={setFilterState}
+              />
             </div>
           )}
         </div>

@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { DEFAULT_CONFIG, formatHours } from '../constants';
 import { fetchRawClickUpData } from '../services/clickup';
+import Filters from './Filters';
 
 interface SettingsProps {
   config: AppConfig;
@@ -31,9 +32,12 @@ interface SettingsProps {
   data?: any[] | null;
   variant?: 'user' | 'admin';
   onFileUpload?: (file: File) => void;
+  rawData?: any[] | null;
+  filterState?: any;
+  onFilterStateChange?: (state: any) => void;
 }
 
-const Settings: React.FC<SettingsProps> = ({ config, onSave, data, variant = 'user', onFileUpload }) => {
+const Settings: React.FC<SettingsProps> = ({ config, onSave, data, variant = 'user', onFileUpload, rawData, filterState, onFilterStateChange }) => {
   const [localConfig, setLocalConfig] = useState<AppConfig>(config);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success'>('idle');
   const [debugLoading, setDebugLoading] = useState(false);
@@ -50,7 +54,7 @@ const Settings: React.FC<SettingsProps> = ({ config, onSave, data, variant = 'us
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!onFileUpload) return;
-    
+
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
@@ -269,7 +273,7 @@ const Settings: React.FC<SettingsProps> = ({ config, onSave, data, variant = 'us
                 + Adicionar Grupo
               </button>
             </div>
-            
+
             {(!localConfig.taskGroups || localConfig.taskGroups.length === 0) ? (
               <div className="text-center py-6 text-slate-400 bg-slate-50 rounded-lg border border-dashed border-slate-200">
                 <Activity className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -292,146 +296,146 @@ const Settings: React.FC<SettingsProps> = ({ config, onSave, data, variant = 'us
                     { value: 'purple', label: 'Roxo', class: 'bg-purple-500' },
                   ];
                   const selectedColor = colorOptions.find(c => c.value === (group.color || 'amber'));
-                  
+
                   return (
-                  <div key={idx} className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-                    <div className="flex gap-2 mb-2">
-                      <input
-                        type="text"
-                        value={group.name}
-                        onChange={(e) => {
-                          const updated = [...(localConfig.taskGroups || [])];
-                          updated[idx] = { ...updated[idx], name: e.target.value };
-                          setLocalConfig(prev => ({ ...prev, taskGroups: updated }));
-                        }}
-                        placeholder="Nome do grupo"
-                        className="flex-1 px-3 py-1.5 text-sm font-medium bg-white border border-slate-300 rounded focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none"
-                      />
-                      
-                      {/* Color picker */}
-                      <div className="relative">
-                        <button
-                          onClick={() => setOpenTagSelector(openTagSelector === -idx - 1 ? null : -idx - 1)}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors"
-                          title="Escolher cor"
-                        >
-                          <div className={`w-4 h-4 rounded-full ${selectedColor?.class}`}></div>
-                        </button>
-                        
-                        {openTagSelector === -idx - 1 && (
-                          <div className="absolute right-0 z-50 mt-1 bg-white border border-slate-300 rounded-lg shadow-lg p-2 w-48">
-                            <div className="grid grid-cols-5 gap-1">
-                              {colorOptions.map(color => (
-                                <button
-                                  key={color.value}
-                                  onClick={() => {
-                                    const updated = [...(localConfig.taskGroups || [])];
-                                    updated[idx] = { ...updated[idx], color: color.value };
-                                    setLocalConfig(prev => ({ ...prev, taskGroups: updated }));
-                                    setOpenTagSelector(null);
-                                  }}
-                                  className={`w-8 h-8 rounded-full ${color.class} hover:ring-2 ring-slate-400 transition-all ${group.color === color.value ? 'ring-2 ring-slate-600' : ''}`}
-                                  title={color.label}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <button
-                        onClick={() => {
-                          const updated = (localConfig.taskGroups || []).filter((_, i) => i !== idx);
-                          setLocalConfig(prev => ({ ...prev, taskGroups: updated }));
-                        }}
-                        className="px-2 py-1.5 bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors"
-                        title="Remover"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                    
-                    <div className="relative">
-                      <button
-                        onClick={() => setOpenTagSelector(openTagSelector === idx ? null : idx)}
-                        className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-left flex items-center justify-between"
-                      >
-                        <span className="flex-1 font-mono text-xs">
-                          {group.tags.length === 0 
-                            ? <span className="text-slate-400">Selecione as tags...</span>
-                            : group.tags.join(', ')
-                          }
-                        </span>
-                        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${openTagSelector === idx ? 'rotate-180' : ''}`} />
-                      </button>
-                      
-                      {openTagSelector === idx && (
-                        <div className="absolute z-50 w-full mt-1 bg-white border border-slate-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                          {availableTags.length === 0 ? (
-                            <div className="p-3 text-xs text-slate-400 text-center">
-                              Nenhuma tag disponível. Sincronize com ClickUp primeiro.
-                            </div>
-                          ) : (
-                            <div className="p-2">
-                              {availableTags.map(tag => {
-                                const isSelected = group.tags.includes(tag);
-                                return (
-                                  <label
-                                    key={tag}
-                                    className="flex items-center gap-2 px-2 py-1.5 hover:bg-slate-50 rounded cursor-pointer"
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={isSelected}
-                                      onChange={(e) => {
-                                        const updated = [...(localConfig.taskGroups || [])];
-                                        if (e.target.checked) {
-                                          updated[idx] = { ...updated[idx], tags: [...group.tags, tag] };
-                                        } else {
-                                          updated[idx] = { ...updated[idx], tags: group.tags.filter(t => t !== tag) };
-                                        }
-                                        setLocalConfig(prev => ({ ...prev, taskGroups: updated }));
-                                      }}
-                                      className="w-4 h-4 text-amber-500 border-slate-300 rounded focus:ring-2 focus:ring-amber-500"
-                                    />
-                                    <span className="text-xs font-mono flex-1">{tag}</span>
-                                  </label>
-                                );
-                              })}
+                    <div key={idx} className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                      <div className="flex gap-2 mb-2">
+                        <input
+                          type="text"
+                          value={group.name}
+                          onChange={(e) => {
+                            const updated = [...(localConfig.taskGroups || [])];
+                            updated[idx] = { ...updated[idx], name: e.target.value };
+                            setLocalConfig(prev => ({ ...prev, taskGroups: updated }));
+                          }}
+                          placeholder="Nome do grupo"
+                          className="flex-1 px-3 py-1.5 text-sm font-medium bg-white border border-slate-300 rounded focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none"
+                        />
+
+                        {/* Color picker */}
+                        <div className="relative">
+                          <button
+                            onClick={() => setOpenTagSelector(openTagSelector === -idx - 1 ? null : -idx - 1)}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors"
+                            title="Escolher cor"
+                          >
+                            <div className={`w-4 h-4 rounded-full ${selectedColor?.class}`}></div>
+                          </button>
+
+                          {openTagSelector === -idx - 1 && (
+                            <div className="absolute right-0 z-50 mt-1 bg-white border border-slate-300 rounded-lg shadow-lg p-2 w-48">
+                              <div className="grid grid-cols-5 gap-1">
+                                {colorOptions.map(color => (
+                                  <button
+                                    key={color.value}
+                                    onClick={() => {
+                                      const updated = [...(localConfig.taskGroups || [])];
+                                      updated[idx] = { ...updated[idx], color: color.value };
+                                      setLocalConfig(prev => ({ ...prev, taskGroups: updated }));
+                                      setOpenTagSelector(null);
+                                    }}
+                                    className={`w-8 h-8 rounded-full ${color.class} hover:ring-2 ring-slate-400 transition-all ${group.color === color.value ? 'ring-2 ring-slate-600' : ''}`}
+                                    title={color.label}
+                                  />
+                                ))}
+                              </div>
                             </div>
                           )}
                         </div>
+
+                        <button
+                          onClick={() => {
+                            const updated = (localConfig.taskGroups || []).filter((_, i) => i !== idx);
+                            setLocalConfig(prev => ({ ...prev, taskGroups: updated }));
+                          }}
+                          className="px-2 py-1.5 bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors"
+                          title="Remover"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="relative">
+                        <button
+                          onClick={() => setOpenTagSelector(openTagSelector === idx ? null : idx)}
+                          className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-left flex items-center justify-between"
+                        >
+                          <span className="flex-1 font-mono text-xs">
+                            {group.tags.length === 0
+                              ? <span className="text-slate-400">Selecione as tags...</span>
+                              : group.tags.join(', ')
+                            }
+                          </span>
+                          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${openTagSelector === idx ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {openTagSelector === idx && (
+                          <div className="absolute z-50 w-full mt-1 bg-white border border-slate-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                            {availableTags.length === 0 ? (
+                              <div className="p-3 text-xs text-slate-400 text-center">
+                                Nenhuma tag disponível. Sincronize com ClickUp primeiro.
+                              </div>
+                            ) : (
+                              <div className="p-2">
+                                {availableTags.map(tag => {
+                                  const isSelected = group.tags.includes(tag);
+                                  return (
+                                    <label
+                                      key={tag}
+                                      className="flex items-center gap-2 px-2 py-1.5 hover:bg-slate-50 rounded cursor-pointer"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={isSelected}
+                                        onChange={(e) => {
+                                          const updated = [...(localConfig.taskGroups || [])];
+                                          if (e.target.checked) {
+                                            updated[idx] = { ...updated[idx], tags: [...group.tags, tag] };
+                                          } else {
+                                            updated[idx] = { ...updated[idx], tags: group.tags.filter(t => t !== tag) };
+                                          }
+                                          setLocalConfig(prev => ({ ...prev, taskGroups: updated }));
+                                        }}
+                                        className="w-4 h-4 text-amber-500 border-slate-300 rounded focus:ring-2 focus:ring-amber-500"
+                                      />
+                                      <span className="text-xs font-mono flex-1">{tag}</span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {group.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {group.tags.map(tag => (
+                            <span
+                              key={tag}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-mono"
+                            >
+                              {tag}
+                              <button
+                                onClick={() => {
+                                  const updated = [...(localConfig.taskGroups || [])];
+                                  updated[idx] = { ...updated[idx], tags: group.tags.filter(t => t !== tag) };
+                                  setLocalConfig(prev => ({ ...prev, taskGroups: updated }));
+                                }}
+                                className="hover:text-amber-900"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
-                    
-                    {group.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {group.tags.map(tag => (
-                          <span
-                            key={tag}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-mono"
-                          >
-                            {tag}
-                            <button
-                              onClick={() => {
-                                const updated = [...(localConfig.taskGroups || [])];
-                                updated[idx] = { ...updated[idx], tags: group.tags.filter(t => t !== tag) };
-                                setLocalConfig(prev => ({ ...prev, taskGroups: updated }));
-                              }}
-                              className="hover:text-amber-900"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
                   );
                 })}
               </div>
             )}
-            
+
             <p className="text-xs text-slate-400 mt-2">
               💡 Grupos aparecem <strong>embaixo dos projetos</strong> e começam colapsados. Clique para expandir. Tarefas com múltiplas tags aparecem no grupo se tiver <strong>pelo menos uma</strong> tag correspondente.
             </p>
@@ -464,8 +468,8 @@ const Settings: React.FC<SettingsProps> = ({ config, onSave, data, variant = 'us
               htmlFor="csv-upload-admin"
               className={`
                 flex items-center justify-center gap-3 w-full p-6 border-2 border-dashed rounded-xl cursor-pointer transition-all
-                ${csvUploading 
-                  ? 'bg-slate-50 border-slate-200 opacity-50 cursor-not-allowed' 
+                ${csvUploading
+                  ? 'bg-slate-50 border-slate-200 opacity-50 cursor-not-allowed'
                   : 'bg-emerald-50 border-emerald-300 hover:border-emerald-400 hover:bg-emerald-100'
                 }
               `}
@@ -578,12 +582,12 @@ const Settings: React.FC<SettingsProps> = ({ config, onSave, data, variant = 'us
                           }
                         }
                         keysToRemove.forEach(key => localStorage.removeItem(key));
-                        
+
                         // Clear IndexedDB
                         if (window.indexedDB) {
                           window.indexedDB.deleteDatabase('dailyflow-cache');
                         }
-                        
+
                         alert('🔄 Reset completo realizado! A página será recarregada.');
                         window.location.reload();
                       }
@@ -683,14 +687,14 @@ const Settings: React.FC<SettingsProps> = ({ config, onSave, data, variant = 'us
                     e.preventDefault();
                     const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
                     const toIndex = index;
-                    
+
                     if (fromIndex === toIndex) return;
-                    
+
                     const currentOrder = localConfig.teamMemberOrder || localConfig.teamMembers;
                     const newOrder = [...currentOrder];
                     const [movedItem] = newOrder.splice(fromIndex, 1);
                     newOrder.splice(toIndex, 0, movedItem);
-                    
+
                     setLocalConfig(prev => ({ ...prev, teamMemberOrder: newOrder }));
                   }}
                   className="flex items-center gap-3 p-4 bg-gradient-to-r from-slate-50 to-white border-2 border-slate-200 rounded-xl hover:border-sky-300 hover:shadow-md transition-all cursor-move group"
@@ -788,6 +792,29 @@ const Settings: React.FC<SettingsProps> = ({ config, onSave, data, variant = 'us
               />
             )}
           </div>
+
+          {/* Filters Section - Integrated into Admin */}
+          {rawData && filterState && onFilterStateChange && (
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+                  <Filter size={18} />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-800">Filtros de Dados</h3>
+                  <p className="text-xs text-slate-500">Configure filtros para visualização de tarefas</p>
+                </div>
+              </div>
+
+              <Filters
+                rawData={rawData}
+                filterState={filterState}
+                onFilterStateChange={onFilterStateChange}
+                config={config}
+                onConfigChange={onSave}
+              />
+            </div>
+          )}
         </>
       )}
     </div>

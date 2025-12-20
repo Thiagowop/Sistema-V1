@@ -10,19 +10,18 @@
 import React, { useState } from 'react';
 import { DataProvider } from './contexts/DataContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { LoginScreen } from './library/components/LoginScreen';
+import { LoginScreen } from './components/LoginScreen';
 import { SyncDashboard } from './pages/SyncDashboard';
 import { DailyAlignmentDashboard } from './pages/DailyAlignmentDashboard';
 import { ProjectsDashboard } from './pages/ProjectsDashboard'; // Clean version
 import { TeamWorkloadWrapper } from './pages/TeamWorkloadWrapper';
 import { QualityWrapper } from './pages/QualityWrapper';
-import { LibraryBrowser } from './pages/LibraryBrowser';
 import { AdminDashboard } from './pages/AdminDashboard';
 import TimesheetDashboard from './pages/TimesheetDashboard'; // NEW: Timesheet (default export)
 import { GeneralTeamWrapper } from './pages/GeneralTeamWrapper';
 import { FiltersWrapper } from './pages/FiltersWrapper';
 import { CompletedProjectsWrapper } from './pages/CompletedProjectsWrapper';
-import { RefreshCw, Users, FolderOpen, BarChart2, Shield, Library, LayoutDashboard, Filter, Archive, Clock, LogOut } from 'lucide-react';
+import { RefreshCw, Users, FolderOpen, BarChart2, Shield, LayoutDashboard, Filter, Archive, Clock, LogOut } from 'lucide-react';
 import { AuthorizedUser } from './services/supabaseService';
 
 // Configuração inicial (pode vir de .env ou localStorage)
@@ -46,7 +45,7 @@ const getInitialConfig = () => {
     };
 };
 
-type ActiveView = 'sync' | 'daily' | 'projects' | 'gestao' | 'quality' | 'library' | 'admin';
+type ActiveView = 'sync' | 'daily' | 'projects' | 'gestao' | 'quality' | 'admin';
 
 const NAV_ITEMS = [
     { key: 'sync' as const, label: 'Sync', icon: RefreshCw },
@@ -54,7 +53,6 @@ const NAV_ITEMS = [
     { key: 'projects' as const, label: 'Projetos', icon: FolderOpen },
     { key: 'gestao' as const, label: 'Gestão', icon: Clock },
     { key: 'quality' as const, label: 'Qualidade', icon: Shield },
-    { key: 'library' as const, label: 'Biblioteca', icon: Library },
     { key: 'admin' as const, label: 'Admin', icon: Shield, adminOnly: true },
 ];
 
@@ -147,7 +145,6 @@ const AppContent: React.FC = () => {
                     {activeView === 'projects' && <ProjectsDashboard />}
                     {activeView === 'gestao' && <TimesheetDashboard />}
                     {activeView === 'quality' && <QualityWrapper />}
-                    {activeView === 'library' && <LibraryBrowser />}
                     {activeView === 'admin' && <AdminDashboard />}
                 </main>
             </div>

@@ -1,5 +1,5 @@
 /**
- * @id LIB-LOGIN-001
+ * @id COMP-LOGIN-001
  * @name LoginScreen
  * @description Tela de login com autenticação Supabase e visual MCSA
  * @status active
@@ -8,11 +8,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { Lock, Mail, ArrowRight, Eye, EyeOff, Shield } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import {
   getRememberedEmail,
   type AuthorizedUser
-} from '../../services/supabaseService';
+} from '../services/supabaseService';
 
 interface LoginScreenProps {
   onLogin: (user: AuthorizedUser) => void;

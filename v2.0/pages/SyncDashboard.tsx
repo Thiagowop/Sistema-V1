@@ -25,9 +25,16 @@ import {
     ArrowRight,
     AlertTriangle,
     Trash2,
-    Zap
+    Zap,
+    Filter,
+    Tag,
+    ChevronDown,
+    ChevronUp,
+    X,
+    Settings2
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
+import { SyncFilters, SYNC_FILTER_PRESETS } from '../services/filterService';
 
 // Chave para persistir configuração do AutoSync
 const AUTOSYNC_KEY = 'dailyFlow_autoSync_v2';
@@ -65,7 +72,9 @@ export const SyncDashboard: React.FC = () => {
         metadata,
         groupedData,
         isInitialized,
-        hasCacheData
+        hasCacheData,
+        syncFilters,
+        setSyncFilters
     } = useData();
 
     // Carregar autoSync do localStorage na inicialização
@@ -73,6 +82,8 @@ export const SyncDashboard: React.FC = () => {
     const [logs, setLogs] = useState<string[]>([]);
     const [hasAttemptedCacheLoad, setHasAttemptedCacheLoad] = useState(false);
     const [hasAttemptedAutoSync, setHasAttemptedAutoSync] = useState(false);
+    const [showFilters, setShowFilters] = useState(false);
+    const [tagInput, setTagInput] = useState('');
     const logsEndRef = useRef<HTMLDivElement>(null);
 
     // Salvar autoSync quando muda
@@ -141,12 +152,23 @@ export const SyncDashboard: React.FC = () => {
         setLogs([]);
         addLog(incremental ? "Iniciando sync incremental..." : "Iniciando sync completo...");
 
+        // Log active filters
+        if (syncFilters.tags.length > 0) {
+            addLog(`🏷️  Filtros de tags: ${syncFilters.tags.join(', ')}`);
+        }
+        if (syncFilters.assignees.length > 0) {
+            addLog(`👥 Filtros de membros: ${syncFilters.assignees.join(', ')}`);
+        }
+        if (!hasActiveFilters) {
+            addLog("📦 Sem filtros - buscando todas as tarefas");
+        }
+
         try {
             if (incremental && syncState.lastSync) {
                 addLog(`Buscando tarefas modificadas desde ${new Date(syncState.lastSync).toLocaleString('pt-BR')}...`);
                 await syncIncremental();
             } else {
-                addLog("Buscando todas as tarefas do ClickUp...");
+                addLog("Conectando ao ClickUp...");
                 await syncFull();
             }
         } catch (e: any) {
@@ -163,6 +185,37 @@ export const SyncDashboard: React.FC = () => {
     const handleReset = () => {
         setLogs([]);
     };
+
+    // Filter handlers
+    const handleAddTag = (tag: string) => {
+        const trimmedTag = tag.trim().toLowerCase();
+        if (trimmedTag && !syncFilters.tags.includes(trimmedTag)) {
+            setSyncFilters({
+                ...syncFilters,
+                tags: [...syncFilters.tags, trimmedTag]
+            });
+        }
+        setTagInput('');
+    };
+
+    const handleRemoveTag = (tag: string) => {
+        setSyncFilters({
+            ...syncFilters,
+            tags: syncFilters.tags.filter(t => t !== tag)
+        });
+    };
+
+    const handleApplyPreset = (preset: typeof SYNC_FILTER_PRESETS[0]) => {
+        setSyncFilters(preset.filters);
+        addLog(`📋 Preset "${preset.name}" aplicado`);
+    };
+
+    const handleClearFilters = () => {
+        setSyncFilters({ tags: [], assignees: [], includeArchived: false });
+        addLog('🗑️ Filtros limpos');
+    };
+
+    const hasActiveFilters = syncFilters.tags.length > 0 || syncFilters.assignees.length > 0;
 
     const isLoading = syncState.status === 'syncing';
 
@@ -287,6 +340,127 @@ export const SyncDashboard: React.FC = () => {
                             </div>
                         )}
 
+                        {/* Filter Panel */}
+                        <div className="relative z-10 mb-4">
+                            {/* Filter Toggle Button */}
+                            <button
+                                onClick={() => setShowFilters(!showFilters)}
+                                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${
+                                    hasActiveFilters
+                                        ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300'
+                                        : 'bg-slate-800/50 border-slate-700/50 text-slate-400 hover:text-white'
+                                }`}
+                            >
+                                <div className="flex items-center gap-2">
+                                    <Filter size={16} />
+                                    <span className="text-sm font-medium">
+                                        Filtros de Sync
+                                        {hasActiveFilters && (
+                                            <span className="ml-2 text-xs bg-indigo-500/30 px-2 py-0.5 rounded">
+                                                {syncFilters.tags.length} tag(s)
+                                            </span>
+                                        )}
+                                    </span>
+                                </div>
+                                {showFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            </button>
+
+                            {/* Filter Content */}
+                            {showFilters && (
+                                <div className="mt-3 p-4 bg-slate-800/50 rounded-xl border border-slate-700/50 space-y-4 animate-fadeIn">
+                                    {/* Presets */}
+                                    <div>
+                                        <label className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2 block">
+                                            Presets Rápidos
+                                        </label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {SYNC_FILTER_PRESETS.map(preset => (
+                                                <button
+                                                    key={preset.name}
+                                                    onClick={() => handleApplyPreset(preset)}
+                                                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${
+                                                        JSON.stringify(syncFilters.tags) === JSON.stringify(preset.filters.tags)
+                                                            ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300'
+                                                            : 'bg-slate-700/50 border-slate-600/50 text-slate-300 hover:bg-slate-700'
+                                                    }`}
+                                                    title={preset.description}
+                                                >
+                                                    {preset.name}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Custom Tags */}
+                                    <div>
+                                        <label className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2 block">
+                                            Tags Personalizadas
+                                        </label>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={tagInput}
+                                                onChange={(e) => setTagInput(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        handleAddTag(tagInput);
+                                                    }
+                                                }}
+                                                placeholder="Digite uma tag e pressione Enter"
+                                                className="flex-1 bg-slate-900/50 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                                            />
+                                            <button
+                                                onClick={() => handleAddTag(tagInput)}
+                                                disabled={!tagInput.trim()}
+                                                className="px-4 py-2 bg-indigo-500/20 text-indigo-300 rounded-lg text-sm font-medium hover:bg-indigo-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <Tag size={16} />
+                                            </button>
+                                        </div>
+
+                                        {/* Active Tags */}
+                                        {syncFilters.tags.length > 0 && (
+                                            <div className="flex flex-wrap gap-2 mt-3">
+                                                {syncFilters.tags.map(tag => (
+                                                    <span
+                                                        key={tag}
+                                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-500/20 text-indigo-300 text-xs font-medium rounded-lg"
+                                                    >
+                                                        <Tag size={12} />
+                                                        {tag}
+                                                        <button
+                                                            onClick={() => handleRemoveTag(tag)}
+                                                            className="hover:text-white transition-colors"
+                                                        >
+                                                            <X size={12} />
+                                                        </button>
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Info & Clear */}
+                                    <div className="flex items-center justify-between pt-2 border-t border-slate-700/50">
+                                        <p className="text-[10px] text-slate-500">
+                                            {hasActiveFilters
+                                                ? 'Filtros serão aplicados no próximo sync'
+                                                : 'Nenhum filtro ativo - buscará todas as tarefas'}
+                                        </p>
+                                        {hasActiveFilters && (
+                                            <button
+                                                onClick={handleClearFilters}
+                                                className="text-xs text-rose-400 hover:text-rose-300 font-medium flex items-center gap-1"
+                                            >
+                                                <X size={12} /> Limpar filtros
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         {/* Action Button Area */}
                         <div className="relative z-10 space-y-3">
                             {syncState.status === 'success' && !isLoading ? (
@@ -344,7 +518,7 @@ export const SyncDashboard: React.FC = () => {
                                         ) : (
                                             <>
                                                 <DownloadCloud size={20} className="text-indigo-600" />
-                                                Sync Completo
+                                                {hasActiveFilters ? 'Sync Filtrado' : 'Sync Completo'}
                                             </>
                                         )}
                                     </button>

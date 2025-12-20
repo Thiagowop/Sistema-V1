@@ -9,6 +9,77 @@
 
 import { FilterConfig, FilterState, FilterGroup } from '../types/FilterConfig';
 
+// ============================================
+// SYNC FILTERS (para configurar ANTES do sync)
+// ============================================
+export interface SyncFilters {
+  tags: string[];           // Tags para filtrar na API (server-side)
+  assignees: string[];      // Membros para filtrar (client-side)
+  includeArchived: boolean; // Incluir tarefas arquivadas
+}
+
+const SYNC_FILTERS_KEY = 'dailyFlow_syncFilters_v2';
+
+export const loadSyncFilters = (): SyncFilters => {
+  try {
+    const saved = localStorage.getItem(SYNC_FILTERS_KEY);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch (e) {
+    console.warn('[SERV-FILT-001] Erro ao carregar filtros de sync:', e);
+  }
+  return createDefaultSyncFilters();
+};
+
+export const saveSyncFilters = (filters: SyncFilters): void => {
+  try {
+    localStorage.setItem(SYNC_FILTERS_KEY, JSON.stringify(filters));
+    console.log('[SERV-FILT-001] Filtros de sync salvos:', filters);
+  } catch (e) {
+    console.error('[SERV-FILT-001] Erro ao salvar filtros de sync:', e);
+  }
+};
+
+export const createDefaultSyncFilters = (): SyncFilters => ({
+  tags: [],
+  assignees: [],
+  includeArchived: false
+});
+
+// Presets de filtros comuns
+export const SYNC_FILTER_PRESETS: { name: string; description: string; filters: SyncFilters }[] = [
+  {
+    name: 'Projetos',
+    description: 'Apenas tarefas com tag "projeto"',
+    filters: { tags: ['projeto'], assignees: [], includeArchived: false }
+  },
+  {
+    name: 'Rotinas',
+    description: 'Apenas tarefas com tag "rotina"',
+    filters: { tags: ['rotina'], assignees: [], includeArchived: false }
+  },
+  {
+    name: 'Projetos + Rotinas',
+    description: 'Tarefas com tags "projeto" ou "rotina"',
+    filters: { tags: ['projeto', 'rotina'], assignees: [], includeArchived: false }
+  },
+  {
+    name: 'Tarefas',
+    description: 'Apenas tarefas com tag "tarefa"',
+    filters: { tags: ['tarefa'], assignees: [], includeArchived: false }
+  },
+  {
+    name: 'Completo',
+    description: 'Todas as tarefas (sem filtro)',
+    filters: { tags: [], assignees: [], includeArchived: false }
+  }
+];
+
+// ============================================
+// FILTER SERVICE CLASS
+// ============================================
+
 export class FilterService {
     private static STORAGE_KEY = 'dailyflow_filters';
 

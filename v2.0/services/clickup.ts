@@ -1,6 +1,17 @@
 import { Task, AppConfig, GroupedData, StandupEntry } from '../types';
 import { FilterConfig, FilterMetadata } from '../types/FilterConfig';
 import { calculateWeeklyDistribution, getDynamicWeekRange } from './processor';
+
+// ============================================
+// SYNC FILTER OPTIONS
+// ============================================
+export interface SyncFilterOptions {
+  tags?: string[];           // Filtrar por tags na API (server-side)
+  assignees?: string[];      // Filtrar client-side após busca
+  includeArchived?: boolean;
+  incrementalSince?: string; // ISO date para sync incremental
+  onProgress?: (current: number, total: number, message: string) => void;
+}
 // MOCK_DATA removed - not used in v2.0
 
 // ClickUp API Types
@@ -224,34 +235,63 @@ export const fetchTaskById = async (taskId: string, config: AppConfig): Promise<
 };
 
 // --- Raw Data Fetcher ---
-export const fetchRawClickUpData = async (config: AppConfig, incrementalSince?: string): Promise<ClickUpApiTask[]> => {
+export const fetchRawClickUpData = async (
+  config: AppConfig,
+  syncOptions?: SyncFilterOptions
+): Promise<ClickUpApiTask[]> => {
   if (!config.clickupApiToken) {
     throw new Error("Missing ClickUp API Token");
   }
 
   const token = config.clickupApiToken.replace(/\s/g, '');
   const proxy = config.corsProxy?.trim();
+  const options = syncOptions || {};
 
   // OPTION 1: Fetch from Team/Space (with tag filtering and duplicate detection)
   if (config.clickupTeamId && config.clickupTeamId.trim()) {
     console.log(`🌐 Fetching from Team/Space: ${config.clickupTeamId}`);
 
-    if (incrementalSince) {
-      console.log(`🔄 Incremental sync - only tasks updated after ${incrementalSince}`);
+    if (options.incrementalSince) {
+      console.log(`🔄 Incremental sync - only tasks updated after ${options.incrementalSince}`);
     }
 
-    const tagFilters = config.apiTagFilters || [];
-    if (tagFilters.length > 0) {
-      console.log(`🏷️  API Tag Filters: ${tagFilters.join(', ')}`);
+    // Merge tag filters: from config + from sync options
+    const tagFilters = [...(config.apiTagFilters || []), ...(options.tags || [])];
+    const uniqueTags = [...new Set(tagFilters)]; // Remove duplicates
+
+    if (uniqueTags.length > 0) {
+      console.log(`🏷️  API Tag Filters: ${uniqueTags.join(', ')}`);
     }
-    return await fetchTasksFromTeam(
+
+    const includeArchived = options.includeArchived ?? !!config.includeArchived;
+
+    let tasks = await fetchTasksFromTeam(
       config.clickupTeamId.trim(),
       token,
       proxy,
-      tagFilters,
-      !!config.includeArchived,
-      incrementalSince
+      uniqueTags,
+      includeArchived,
+      options.incrementalSince,
+      options.onProgress
     );
+
+    // Client-side assignee filter (API doesn't support assignee filter for team endpoint)
+    if (options.assignees && options.assignees.length > 0) {
+      const assigneeSet = new Set(options.assignees.map(a => a.toLowerCase()));
+      const beforeCount = tasks.length;
+
+      tasks = tasks.filter(task => {
+        if (!task.assignees || task.assignees.length === 0) return false;
+        return task.assignees.some(a =>
+          assigneeSet.has(a.username?.toLowerCase() || '') ||
+          assigneeSet.has(a.email?.toLowerCase() || '')
+        );
+      });
+
+      console.log(`👥 Assignee filter: ${beforeCount} → ${tasks.length} tasks (filtered to: ${options.assignees.join(', ')})`);
+    }
+
+    return tasks;
   }
 
   // OPTION 2: Fetch from individual Lists (fallback)
@@ -282,17 +322,20 @@ const fetchTasksFromTeam = async (
   proxyUrl?: string,
   tagFilters: string[] = [],
   includeArchived: boolean = false,
-  dateUpdatedAfter?: string
+  dateUpdatedAfter?: string,
+  onProgress?: (current: number, total: number, message: string) => void
 ): Promise<ClickUpApiTask[]> => {
   const allTasks: ClickUpApiTask[] = [];
   const seenIds = new Set<string>(); // Track unique task IDs
   let page = 0;
   let hasMore = true;
-  const MAX_PAGES = 50; // Safety limit
+  const MAX_PAGES = 500; // Increased limit (50000 tasks max)
   const useProxy = import.meta.env.DEV;
 
   while (hasMore && page < MAX_PAGES) {
-    console.log(`Fetching Team ${teamId} - Page ${page}${dateUpdatedAfter ? ' (incremental)' : ''}...`);
+    const message = `Fetching Team ${teamId} - Page ${page}${dateUpdatedAfter ? ' (incremental)' : ''}...`;
+    console.log(message);
+    onProgress?.(page, MAX_PAGES, message);
 
     // Build URL with tag filters
     let targetUrl: string;
@@ -370,10 +413,13 @@ const fetchTasksFromTeam = async (
   }
 
   if (page >= MAX_PAGES) {
-    console.warn(`⚠️ Reached maximum page limit (${MAX_PAGES})`);
+    console.warn(`⚠️ Reached maximum page limit (${MAX_PAGES}) - ${allTasks.length} tasks loaded`);
+    onProgress?.(MAX_PAGES, MAX_PAGES, `Limite de ${MAX_PAGES} páginas atingido`);
   }
 
-  console.log(`✅ Total unique tasks from Team: ${allTasks.length}`);
+  const finalMsg = `✅ Total unique tasks from Team: ${allTasks.length}`;
+  console.log(finalMsg);
+  onProgress?.(page, page, finalMsg);
   return allTasks;
 };
 

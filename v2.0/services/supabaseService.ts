@@ -83,6 +83,34 @@ export interface SyncLog {
   created_at?: string;
 }
 
+// Tipo para usuário autorizado
+export interface AuthorizedUser {
+  id: string;
+  email: string;
+  name: string;
+  role: 'admin' | 'user' | 'viewer';
+  active: boolean;
+  last_login?: string;
+}
+
+// ============================================
+// HELPER: Lembrar Email
+// ============================================
+
+const REMEMBERED_EMAIL_KEY = 'dailyFlow_rememberedEmail';
+
+export const saveRememberedEmail = (email: string): void => {
+  localStorage.setItem(REMEMBERED_EMAIL_KEY, email);
+};
+
+export const getRememberedEmail = (): string | null => {
+  return localStorage.getItem(REMEMBERED_EMAIL_KEY);
+};
+
+export const clearRememberedEmail = (): void => {
+  localStorage.removeItem(REMEMBERED_EMAIL_KEY);
+};
+
 // ============================================
 // HELPER: Device ID (identificador único do dispositivo)
 // ============================================
@@ -368,6 +396,127 @@ export const checkSupabaseConnection = async (): Promise<boolean> => {
 };
 
 // ============================================
+// AUTENTICAÇÃO DE USUÁRIOS
+// ============================================
+
+/**
+ * Autenticar usuário por email e senha
+ */
+export const authenticateUser = async (
+  email: string,
+  password: string
+): Promise<{ success: boolean; user?: AuthorizedUser; error?: string }> => {
+  const supabase = getSupabase();
+
+  if (!supabase) {
+    return { success: false, error: 'Supabase não configurado' };
+  }
+
+  try {
+    console.log('[SERV-SUPA-001] 🔐 Autenticando usuário:', email);
+
+    const { data, error } = await supabase
+      .from('authorized_users')
+      .select('*')
+      .eq('email', email.toLowerCase().trim())
+      .eq('password_hash', password)
+      .eq('active', true)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        console.log('[SERV-SUPA-001] ❌ Credenciais inválidas');
+        return { success: false, error: 'E-mail ou senha incorretos' };
+      }
+      console.error('[SERV-SUPA-001] ❌ Erro na autenticação:', error.message);
+      return { success: false, error: 'Erro ao autenticar. Tente novamente.' };
+    }
+
+    if (!data) {
+      return { success: false, error: 'E-mail ou senha incorretos' };
+    }
+
+    // Atualizar last_login
+    await supabase
+      .from('authorized_users')
+      .update({ last_login: new Date().toISOString() })
+      .eq('id', data.id);
+
+    const user: AuthorizedUser = {
+      id: data.id,
+      email: data.email,
+      name: data.name,
+      role: data.role,
+      active: data.active,
+      last_login: new Date().toISOString(),
+    };
+
+    console.log('[SERV-SUPA-001] ✅ Autenticação bem-sucedida:', user.name);
+    return { success: true, user };
+  } catch (err: any) {
+    console.error('[SERV-SUPA-001] ❌ Erro na autenticação:', err.message);
+    return { success: false, error: 'Erro de conexão. Verifique sua internet.' };
+  }
+};
+
+/**
+ * Obter usuário por email (para verificar se existe)
+ */
+export const getUserByEmail = async (email: string): Promise<AuthorizedUser | null> => {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+
+  try {
+    const { data, error } = await supabase
+      .from('authorized_users')
+      .select('*')
+      .eq('email', email.toLowerCase().trim())
+      .single();
+
+    if (error || !data) return null;
+
+    return {
+      id: data.id,
+      email: data.email,
+      name: data.name,
+      role: data.role,
+      active: data.active,
+      last_login: data.last_login,
+    };
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Listar todos os usuários (para admin)
+ */
+export const listAllUsers = async (): Promise<AuthorizedUser[]> => {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('authorized_users')
+      .select('*')
+      .order('name');
+
+    if (error || !data) return [];
+
+    return data.map((u: any) => ({
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      role: u.role,
+      active: u.active,
+      last_login: u.last_login,
+    }));
+  } catch {
+    return [];
+  }
+};
+
+// ============================================
 // EXPORTS
 // ============================================
 
@@ -381,4 +530,12 @@ export default {
   logSync,
   getSyncHistory,
   checkSupabaseConnection,
+  // Auth
+  authenticateUser,
+  getUserByEmail,
+  listAllUsers,
+  // Remember email
+  saveRememberedEmail,
+  getRememberedEmail,
+  clearRememberedEmail,
 };

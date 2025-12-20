@@ -10,7 +10,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { GroupedData, AppConfig, Task, StandupEntry, TeamMemberData } from '../types';
 import { FilterMetadata } from '../types/FilterConfig';
-import { ClickUpApiTask, fetchRawClickUpData, fetchClickUpData, extractFilterMetadata, fetchStandupSummaries } from '../services/clickup';
+import { ClickUpApiTask, fetchRawClickUpData, processApiTasks, extractFilterMetadata, fetchStandupSummaries } from '../services/clickup';
 import { saveRawData, loadRawData, saveMetadata, loadMetadata, saveProcessedData, loadProcessedData, clearAllCache, mergeIncrementalData } from '../services/advancedCacheService';
 
 // ============================================
@@ -188,9 +188,9 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
       setMetadata(meta);
       setSyncState(prev => ({ ...prev, progress: 60 }));
 
-      // Step 3: Process tasks using fetchClickUpData (60-80%)
-      const processed = await fetchClickUpData(config);
-      setGroupedData(processed.grouped);
+      // Step 3: Process tasks locally (60-80%) - SEM busca duplicada!
+      const processed = processApiTasks(raw, config);
+      setGroupedData(processed);
       setSyncState(prev => ({ ...prev, progress: 80 }));
 
       // Step 4: Save to cache (80-100%)
@@ -202,7 +202,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
         taskCount: raw.length,
         version: '2.0.0'
       });
-      saveProcessedData(processed.grouped);
+      saveProcessedData(processed);
       
       setSyncState({
         status: 'success',
@@ -268,9 +268,9 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
       setMetadata(meta);
       setSyncState(prev => ({ ...prev, progress: 70 }));
 
-      // Re-process using fetchClickUpData
-      const processed = await fetchClickUpData(config);
-      setGroupedData(processed.grouped);
+      // Re-process locally - SEM busca duplicada!
+      const processed = processApiTasks(merged, config);
+      setGroupedData(processed);
       setSyncState(prev => ({ ...prev, progress: 85 }));
 
       // Save to cache
@@ -282,7 +282,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
         taskCount: merged.length,
         version: '2.0.0'
       });
-      saveProcessedData(processed.grouped);
+      saveProcessedData(processed);
 
       setSyncState({
         status: 'success',

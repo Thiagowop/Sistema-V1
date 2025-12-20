@@ -98,7 +98,7 @@ export const TacticalView = () => {
              <h3 className="text-3xl font-bold text-slate-800">2</h3>
              <AlertTriangle size={20} className="text-amber-500" />
           </div>
-          <span className="text-xs text-amber-600 font-bold bg-amber-50 px-2 py-1 rounded-full mt-2 inline-block w-fit">Sobrecarga > 100%</span>
+          <span className="text-xs text-amber-600 font-bold bg-amber-50 px-2 py-1 rounded-full mt-2 inline-block w-fit">Sobrecarga &gt; 100%</span>
         </div>
 
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-center">

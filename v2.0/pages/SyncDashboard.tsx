@@ -29,6 +29,32 @@ import {
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 
+// Chave para persistir configuração do AutoSync
+const AUTOSYNC_KEY = 'dailyFlow_autoSync_v2';
+
+// Helper para carregar autoSync do localStorage
+const loadAutoSyncSetting = (): boolean => {
+    try {
+        const saved = localStorage.getItem(AUTOSYNC_KEY);
+        if (saved !== null) {
+            return JSON.parse(saved);
+        }
+    } catch (e) {
+        console.warn('[PAGE-SYNC-001] Erro ao carregar autoSync:', e);
+    }
+    return false; // Default: desativado para não fazer sync automático sem o usuário querer
+};
+
+// Helper para salvar autoSync no localStorage
+const saveAutoSyncSetting = (value: boolean): void => {
+    try {
+        localStorage.setItem(AUTOSYNC_KEY, JSON.stringify(value));
+        console.log(`[PAGE-SYNC-001] AutoSync ${value ? 'ativado' : 'desativado'} e salvo`);
+    } catch (e) {
+        console.warn('[PAGE-SYNC-001] Erro ao salvar autoSync:', e);
+    }
+};
+
 export const SyncDashboard: React.FC = () => {
     const {
         syncState,
@@ -37,13 +63,24 @@ export const SyncDashboard: React.FC = () => {
         loadFromCache,
         clearCache,
         metadata,
-        groupedData
+        groupedData,
+        isInitialized,
+        hasCacheData
     } = useData();
 
-    const [autoSync, setAutoSync] = useState(true);
+    // Carregar autoSync do localStorage na inicialização
+    const [autoSync, setAutoSync] = useState<boolean>(loadAutoSyncSetting);
     const [logs, setLogs] = useState<string[]>([]);
     const [hasAttemptedCacheLoad, setHasAttemptedCacheLoad] = useState(false);
+    const [hasAttemptedAutoSync, setHasAttemptedAutoSync] = useState(false);
     const logsEndRef = useRef<HTMLDivElement>(null);
+
+    // Salvar autoSync quando muda
+    const handleToggleAutoSync = () => {
+        const newValue = !autoSync;
+        setAutoSync(newValue);
+        saveAutoSyncSetting(newValue);
+    };
 
     // Auto-scroll terminal
     useEffect(() => {
@@ -70,6 +107,24 @@ export const SyncDashboard: React.FC = () => {
             });
         }
     }, [hasAttemptedCacheLoad, loadFromCache, syncState.taskCount]);
+
+    // AUTO-SYNC: Executar sync automático quando ativado e app inicializado
+    useEffect(() => {
+        // Só executar uma vez, quando app está inicializado e autoSync está ativado
+        if (!hasAttemptedAutoSync && isInitialized && autoSync) {
+            setHasAttemptedAutoSync(true);
+
+            // Se não tem cache ou cache está vazio, fazer sync completo
+            // Se tem cache, fazer sync incremental (mais rápido)
+            if (hasCacheData && syncState.lastSync) {
+                addLog("🔄 Auto-sync incremental iniciado...");
+                syncIncremental();
+            } else if (!hasCacheData) {
+                addLog("🔄 Auto-sync completo iniciado (sem cache)...");
+                syncFull();
+            }
+        }
+    }, [hasAttemptedAutoSync, isInitialized, autoSync, hasCacheData, syncState.lastSync, syncIncremental, syncFull]);
 
     // Watch sync state changes
     useEffect(() => {
@@ -173,15 +228,17 @@ export const SyncDashboard: React.FC = () => {
 
                             <div className="flex flex-col items-end">
                                 <button
-                                    onClick={() => !isLoading && setAutoSync(!autoSync)}
+                                    onClick={() => !isLoading && handleToggleAutoSync()}
                                     className={`group/toggle cursor-pointer ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    title="Alternar Atualização Automática"
+                                    title={autoSync ? "Desativar Auto-Sync (não vai sincronizar ao iniciar)" : "Ativar Auto-Sync (sincroniza automaticamente ao iniciar)"}
                                 >
                                     <div className={`transition-colors duration-300 ${autoSync ? 'text-indigo-400' : 'text-slate-600'}`}>
                                         {autoSync ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}
                                     </div>
                                 </button>
-                                <span className="text-[10px] font-bold text-slate-500 uppercase mt-1 mr-1">Auto-Sync</span>
+                                <span className={`text-[10px] font-bold uppercase mt-1 mr-1 ${autoSync ? 'text-indigo-400' : 'text-slate-500'}`}>
+                                    Auto-Sync {autoSync ? 'ON' : 'OFF'}
+                                </span>
                             </div>
                         </div>
 

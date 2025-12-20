@@ -1,45 +1,82 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Lock, Mail, ArrowRight } from 'lucide-react';
+import {
+  authenticateUser,
+  saveRememberedEmail,
+  getRememberedEmail,
+  clearRememberedEmail,
+  type AuthorizedUser
+} from '../../services/supabaseService';
 
 interface LoginScreenProps {
-  onLogin: () => void;
+  onLogin: (user: AuthorizedUser) => void;
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Carregar email salvo ao montar o componente
+  useEffect(() => {
+    const savedEmail = getRememberedEmail();
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      if (email && password) {
-        setIsLoading(false);
-        onLogin();
-      } else {
-        setIsLoading(false);
+    try {
+      // Validar campos
+      if (!email || !password) {
         setError('Por favor, preencha todos os campos.');
+        setIsLoading(false);
+        return;
       }
-    }, 800);
+
+      // Autenticar via Supabase
+      const result = await authenticateUser(email, password);
+
+      if (result.success && result.user) {
+        // Salvar ou limpar email lembrado
+        if (rememberMe) {
+          saveRememberedEmail(email);
+        } else {
+          clearRememberedEmail();
+        }
+
+        setIsLoading(false);
+        onLogin(result.user);
+      } else {
+        setError(result.error || 'Erro ao autenticar. Tente novamente.');
+        setIsLoading(false);
+      }
+    } catch (err: any) {
+      console.error('[LoginScreen] Erro na autenticação:', err);
+      setError('Erro de conexão. Verifique sua internet.');
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="min-h-[100dvh] flex items-center justify-center bg-slate-900 relative overflow-hidden font-sans p-4">
-      
+
       {/* Background Decorative Elements */}
       <div className="absolute top-0 left-0 w-full h-full bg-slate-50 opacity-5 z-0" />
       <div className="absolute -top-24 -right-24 w-64 h-64 md:w-96 md:h-96 bg-indigo-500 rounded-full blur-3xl opacity-20 pointer-events-none" />
       <div className="absolute -bottom-24 -left-24 w-64 h-64 md:w-96 md:h-96 bg-blue-500 rounded-full blur-3xl opacity-20 pointer-events-none" />
-      
+
       {/* Main Card */}
       <div className="bg-white p-6 sm:p-10 md:p-12 rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-[420px] relative z-10 border border-slate-200">
-        
+
         {/* MCSA Logo Branding - Responsive & Aligned */}
         <div className="flex flex-col items-center justify-center mb-8 md:mb-10">
              <div className="relative">
@@ -58,7 +95,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
-          
+
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">E-mail Corporativo</label>
             <div className="relative group">
@@ -99,6 +136,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                 id="remember-me"
                 name="remember-me"
                 type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
                 className="h-4 w-4 text-slate-800 focus:ring-slate-800 border-slate-300 rounded cursor-pointer"
               />
               <label htmlFor="remember-me" className="ml-2 block text-xs font-medium text-slate-500 cursor-pointer select-none">

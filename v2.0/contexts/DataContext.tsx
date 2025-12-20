@@ -33,21 +33,23 @@ export interface DataContextValue {
   groupedData: GroupedData[];
   metadata: FilterMetadata | null;
   standups: StandupEntry[];
-  
+
   // Sync State
   syncState: SyncState;
-  
+  isInitialized: boolean;  // True quando o cache foi carregado
+  hasCacheData: boolean;   // True se tem dados no cache
+
   // Config
   config: AppConfig | null;
   setConfig: (config: AppConfig) => void;
-  
+
   // Actions
   syncFull: () => Promise<void>;
   syncIncremental: () => Promise<void>;
   loadFromCache: () => Promise<boolean>;
   clearCache: () => Promise<void>;
   fetchStandups: (options?: { limit?: number; forDate?: Date }) => Promise<void>;
-  
+
   // Helpers
   getTaskById: (id: string) => Task | null;
   getTasksByAssignee: (assignee: string) => Task[];
@@ -85,6 +87,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
   const [standups, setStandups] = useState<StandupEntry[]>([]);
   const [syncState, setSyncState] = useState<SyncState>(defaultSyncState);
   const [config, setConfigState] = useState<AppConfig | null>(initialConfig || null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [hasCacheData, setHasCacheData] = useState(false);
 
   // ============================================
   // CONFIG
@@ -114,17 +118,41 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
   }, [initialConfig]);
 
   // ============================================
+  // AUTO-LOAD CACHE ON MOUNT
+  // ============================================
+
+  useEffect(() => {
+    const initializeFromCache = async () => {
+      if (isInitialized) return;
+
+      console.log('[CTX-DATA-001] 🚀 Initializing - loading cache automatically...');
+      const hasCache = await loadFromCache();
+
+      if (hasCache) {
+        console.log('[CTX-DATA-001] ✅ App ready with cached data!');
+      } else {
+        console.log('[CTX-DATA-001] ℹ️ No cache found - waiting for sync');
+      }
+
+      setIsInitialized(true);
+    };
+
+    initializeFromCache();
+  }, [isInitialized, loadFromCache]);
+
+  // ============================================
   // LOAD FROM CACHE
   // ============================================
   
   const loadFromCache = useCallback(async (): Promise<boolean> => {
-    console.log('[CTX-DATA-001] Loading from cache...');
-    
+    console.log('[CTX-DATA-001] 📦 Loading from cache...');
+
     try {
-      // Load metadata first (fastest)
+      let hasData = false;
+
+      // Load metadata first (fastest) - Layer 1
       const cachedMeta = loadMetadata();
       if (cachedMeta) {
-        // Convert MetadataCache to FilterMetadata format
         const filterMeta: FilterMetadata = {
           tags: cachedMeta.tags,
           statuses: cachedMeta.statuses,
@@ -136,28 +164,32 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
         setSyncState(prev => ({
           ...prev,
           lastSync: cachedMeta.lastSync,
-          taskCount: cachedMeta.taskCount
+          taskCount: cachedMeta.taskCount,
+          status: 'success' // Marcar como success se tem cache
         }));
+        console.log('[CTX-DATA-001] ✅ Layer 1 (metadata) loaded');
       }
 
-      // Load processed data
+      // Load processed data - Layer 2 (fastest for display)
       const cachedProcessed = loadProcessedData();
-      if (cachedProcessed) {
+      if (cachedProcessed && cachedProcessed.length > 0) {
         setGroupedData(cachedProcessed);
-        console.log('[CTX-DATA-001] Loaded processed data from cache');
+        hasData = true;
+        console.log(`[CTX-DATA-001] ✅ Layer 2 (processed) loaded: ${cachedProcessed.length} groups`);
       }
 
-      // Load raw data from IndexedDB (slower)
+      // Load raw data from IndexedDB - Layer 3 (slower but complete)
       const cachedRaw = await loadRawData();
       if (cachedRaw && cachedRaw.length > 0) {
         setRawTasks(cachedRaw);
-        console.log(`[CTX-DATA-001] Loaded ${cachedRaw.length} raw tasks from cache`);
-        return true;
+        hasData = true;
+        console.log(`[CTX-DATA-001] ✅ Layer 3 (raw) loaded: ${cachedRaw.length} tasks`);
       }
 
-      return false;
+      setHasCacheData(hasData);
+      return hasData;
     } catch (error) {
-      console.error('[CTX-DATA-001] Error loading cache:', error);
+      console.error('[CTX-DATA-001] ❌ Error loading cache:', error);
       return false;
     }
   }, []);
@@ -215,15 +247,27 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
       console.log(`[CTX-DATA-001] FULL sync complete: ${raw.length} tasks`);
 
     } catch (error: any) {
-      console.error('[CTX-DATA-001] Sync error:', error);
-      setSyncState(prev => ({
-        ...prev,
-        status: 'error',
-        error: error.message || 'Erro desconhecido na sincronização',
-        progress: 0
-      }));
+      console.error('[CTX-DATA-001] ❌ Sync error:', error);
+
+      // FALLBACK: Se tiver dados no cache, manter e mostrar aviso
+      if (hasCacheData && groupedData.length > 0) {
+        console.log('[CTX-DATA-001] ⚠️ Sync failed but using cached data');
+        setSyncState(prev => ({
+          ...prev,
+          status: 'error',
+          error: `Erro na sincronização: ${error.message}. Usando dados do cache.`,
+          // Manter lastSync e taskCount anteriores
+        }));
+      } else {
+        setSyncState(prev => ({
+          ...prev,
+          status: 'error',
+          error: error.message || 'Erro desconhecido na sincronização',
+          progress: 0
+        }));
+      }
     }
-  }, [config]);
+  }, [config, hasCacheData, groupedData.length]);
 
   // ============================================
   // INCREMENTAL SYNC
@@ -295,15 +339,26 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
       console.log(`[CTX-DATA-001] INCREMENTAL sync complete: ${updatedTasks.length} updated, ${merged.length} total`);
 
     } catch (error: any) {
-      console.error('[CTX-DATA-001] Incremental sync error:', error);
-      setSyncState(prev => ({
-        ...prev,
-        status: 'error',
-        error: error.message || 'Erro na sincronização incremental',
-        progress: 0
-      }));
+      console.error('[CTX-DATA-001] ❌ Incremental sync error:', error);
+
+      // FALLBACK: Se tiver dados no cache, manter e mostrar aviso
+      if (hasCacheData && groupedData.length > 0) {
+        console.log('[CTX-DATA-001] ⚠️ Incremental sync failed but using cached data');
+        setSyncState(prev => ({
+          ...prev,
+          status: 'error',
+          error: `Erro na sincronização: ${error.message}. Usando dados do cache.`,
+        }));
+      } else {
+        setSyncState(prev => ({
+          ...prev,
+          status: 'error',
+          error: error.message || 'Erro na sincronização incremental',
+          progress: 0
+        }));
+      }
     }
-  }, [config, syncState.lastSync, rawTasks, syncFull]);
+  }, [config, syncState.lastSync, rawTasks, syncFull, hasCacheData, groupedData.length]);
 
   // ============================================
   // CLEAR CACHE
@@ -381,21 +436,23 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
     groupedData,
     metadata,
     standups,
-    
+
     // Sync State
     syncState,
-    
+    isInitialized,
+    hasCacheData,
+
     // Config
     config,
     setConfig,
-    
+
     // Actions
     syncFull,
     syncIncremental,
     loadFromCache,
     clearCache,
     fetchStandups,
-    
+
     // Helpers
     getTaskById,
     getTasksByAssignee,

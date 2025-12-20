@@ -48,13 +48,7 @@ interface TooltipData {
   actual: number;
 }
 
-// Props opcionais para integração com dados reais
-interface TimesheetDashboardProps {
-  teamMembers?: Member[];
-  months?: MonthOption[];
-}
-
-const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: externalTeamMembers, months: externalMonths }) => {
+const TimesheetDashboard: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const themeButtonRef = useRef<HTMLButtonElement>(null);
   const [expandedProjects, setExpandedProjects] = useState<string[]>([]);
@@ -64,7 +58,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
   const [activeTab, setActiveTab] = useState<'timeline' | 'calendar'>('timeline');
   const [isDark, setIsDark] = useState<boolean>(false);
   const [tooltipData, setTooltipData] = useState<TooltipData | null>(null);
-
+  
   // Dropdown states
   const [isTeamDropdownOpen, setIsTeamDropdownOpen] = useState(false);
   const [isMonthDropdownOpen, setIsMonthDropdownOpen] = useState(false);
@@ -86,8 +80,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
     document.documentElement.style.backgroundColor = newTheme ? '#111827' : '#f9fafb';
   }, [isDark]);
 
-  // Usar meses fornecidos via props ou fallback para mockados
-  const months: MonthOption[] = externalMonths || [
+  const months: MonthOption[] = [
     { value: '2025-11', label: 'Novembro 2025' },
     { value: '2025-12', label: 'Dezembro 2025' },
     { value: '2026-01', label: 'Janeiro 2026' },
@@ -96,7 +89,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
   const handleMonthNavigate = (direction: 'prev' | 'next') => {
     const currentIndex = months.findIndex(m => m.value === selectedMonth);
     if (currentIndex === -1) return;
-
+    
     let newIndex = direction === 'prev' ? currentIndex - 1 : currentIndex + 1;
     if (newIndex >= 0 && newIndex < months.length) {
       setSelectedMonth(months[newIndex].value);
@@ -108,12 +101,12 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
     const days: DayData[] = [];
     const daysInMonth = new Date(year, month, 0).getDate();
     const today = new Date();
-
+    
     for (let i = 1; i <= daysInMonth; i++) {
       const date = new Date(year, month - 1, i);
       const dayOfWeek = date.getDay();
-
-      const isToday =
+      
+      const isToday = 
         date.getDate() === today.getDate() &&
         date.getMonth() === today.getMonth() &&
         date.getFullYear() === today.getFullYear();
@@ -160,57 +153,44 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
     return { planned: Math.round(totalPlanned * 10) / 10, actual: Math.round(totalActual * 10) / 10 };
   };
 
-  // Usar teamMembers fornecidos via props ou fallback para mockados
-  const teamMembers = useMemo<Member[]>(() => {
-    if (externalTeamMembers && externalTeamMembers.length > 0) {
-      return externalTeamMembers;
+  const teamMembers = useMemo<Member[]>(() => [
+    {
+      id: 'brozinga', name: 'Brozinga', initials: 'BR',
+      projects: [
+        { id: 'brozinga-proj-1', name: 'Integração API Bancária',
+          tasks: [
+            { id: 'task-1', name: 'Desenvolvimento de Feature', hours: generateProjectHours('brozinga-task-1', allDays.length) },
+            { id: 'task-2', name: 'Code Review', hours: generateProjectHours('brozinga-task-2', allDays.length) }
+          ]
+        },
+        { id: 'brozinga-proj-2', name: 'Suporte & Sustentação',
+          tasks: [{ id: 'task-5', name: 'Atendimento N3', hours: generateProjectHours('brozinga-task-5', allDays.length) }]
+        }
+      ]
+    },
+    {
+      id: 'rafael', name: 'Rafael', initials: 'RA',
+      projects: [
+        { id: 'rafael-proj-1', name: 'Integração API Bancária',
+          tasks: [
+            { id: 'task-1', name: 'Desenvolvimento de Feature', hours: generateProjectHours('rafael-task-1', allDays.length) },
+            { id: 'task-3', name: 'Testes Integrados', hours: generateProjectHours('rafael-task-3', allDays.length) }
+          ]
+        }
+      ]
+    },
+    {
+      id: 'pedro', name: 'Pedro', initials: 'PE',
+      projects: [
+        { id: 'pedro-proj-1', name: 'Integração API Bancária',
+          tasks: [{ id: 'task-2', name: 'Testes Integrados', hours: generateProjectHours('pedro-task-2', allDays.length) }]
+        },
+        { id: 'pedro-proj-2', name: 'Refatoração Legacy',
+          tasks: [{ id: 'task-4', name: 'Análise de Performance', hours: generateProjectHours('pedro-task-4', allDays.length) }]
+        }
+      ]
     }
-
-    // Fallback para dados mockados
-    return [
-      {
-        id: 'brozinga', name: 'Brozinga', initials: 'BR',
-        projects: [
-          {
-            id: 'brozinga-proj-1', name: 'Integração API Bancária',
-            tasks: [
-              { id: 'task-1', name: 'Desenvolvimento de Feature', hours: generateProjectHours('brozinga-task-1', allDays.length) },
-              { id: 'task-2', name: 'Code Review', hours: generateProjectHours('brozinga-task-2', allDays.length) }
-            ]
-          },
-          {
-            id: 'brozinga-proj-2', name: 'Suporte & Sustentação',
-            tasks: [{ id: 'task-5', name: 'Atendimento N3', hours: generateProjectHours('brozinga-task-5', allDays.length) }]
-          }
-        ]
-      },
-      {
-        id: 'rafael', name: 'Rafael', initials: 'RA',
-        projects: [
-          {
-            id: 'rafael-proj-1', name: 'Integração API Bancária',
-            tasks: [
-              { id: 'task-1', name: 'Desenvolvimento de Feature', hours: generateProjectHours('rafael-task-1', allDays.length) },
-              { id: 'task-3', name: 'Testes Integrados', hours: generateProjectHours('rafael-task-3', allDays.length) }
-            ]
-          }
-        ]
-      },
-      {
-        id: 'pedro', name: 'Pedro', initials: 'PE',
-        projects: [
-          {
-            id: 'pedro-proj-1', name: 'Integração API Bancária',
-            tasks: [{ id: 'task-2', name: 'Testes Integrados', hours: generateProjectHours('pedro-task-2', allDays.length) }]
-          },
-          {
-            id: 'pedro-proj-2', name: 'Refatoração Legacy',
-            tasks: [{ id: 'task-4', name: 'Análise de Performance', hours: generateProjectHours('pedro-task-4', allDays.length) }]
-          }
-        ]
-      }
-    ];
-  }, [externalTeamMembers, allDays.length, generateProjectHours]);
+  ], [allDays.length, generateProjectHours]);
 
   const filteredMembers = selectedMemberFilter === 'all' ? teamMembers : teamMembers.filter(m => m.id === selectedMemberFilter);
 
@@ -262,10 +242,10 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
     const firstDay = new Date(year, month - 1, 1);
     const daysInMonth = new Date(year, month, 0).getDate();
     const startingDay = firstDay.getDay();
-
+    
     let calendarDays: (number | null)[] = [];
     if (showWeekends) {
-      calendarDays = [...Array(startingDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+      calendarDays = [...Array(startingDay).fill(null), ...Array.from({length: daysInMonth}, (_, i) => i + 1)];
     } else {
       for (let i = 1; i <= daysInMonth; i++) {
         const date = new Date(year, month - 1, i);
@@ -275,8 +255,8 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
         }
       }
     }
-
-    const weekDays = showWeekends
+    
+    const weekDays = showWeekends 
       ? ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
       : ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
 
@@ -290,8 +270,8 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
         if (dayIndex !== -1) {
           const hours = sumTaskHours(project.tasks, dayIndex);
           if (hours.actual > 0 || hours.planned > 0) {
-            projects.push({
-              name: project.name,
+            projects.push({ 
+              name: project.name, 
               planned: hours.planned,
               actual: hours.actual,
               status: hours.actual > hours.planned * 1.1 ? 'over' : hours.actual < hours.planned * 0.9 ? 'under' : 'ok'
@@ -336,32 +316,34 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
                 const projects = day ? getProjectsForDay(day) : [];
                 const totalPlanned = projects.reduce((sum, p) => sum + p.planned, 0);
                 const totalActual = projects.reduce((sum, p) => sum + p.actual, 0);
-                const isToday = day
-                  ? new Date(year, month - 1, day).toDateString() === new Date().toDateString()
+                const isToday = day 
+                  ? new Date(year, month - 1, day).toDateString() === new Date().toDateString() 
                   : false;
-
+                
                 return (
-                  <div key={index} className={`min-h-36 p-2 border-b border-r ${isDark ? 'border-gray-700' : 'border-gray-200'} ${isToday
-                    ? (isDark ? 'bg-blue-500/10 ring-2 ring-inset ring-blue-500' : 'bg-blue-50 ring-2 ring-inset ring-blue-400')
-                    : (index % (showWeekends ? 7 : 5) === (showWeekends ? 0 : -1) || index % (showWeekends ? 7 : 5) === (showWeekends ? 6 : -1) ? (isDark ? 'bg-gray-850' : 'bg-gray-50') : (isDark ? 'bg-gray-800' : 'bg-white'))
-                    } ${!day ? 'opacity-30' : ''}`}>
+                  <div key={index} className={`min-h-36 p-2 border-b border-r ${isDark ? 'border-gray-700' : 'border-gray-200'} ${
+                    isToday
+                      ? (isDark ? 'bg-blue-500/10 ring-2 ring-inset ring-blue-500' : 'bg-blue-50 ring-2 ring-inset ring-blue-400')
+                      : (index % (showWeekends ? 7 : 5) === (showWeekends ? 0 : -1) || index % (showWeekends ? 7 : 5) === (showWeekends ? 6 : -1) ? (isDark ? 'bg-gray-850' : 'bg-gray-50') : (isDark ? 'bg-gray-800' : 'bg-white'))
+                  } ${!day ? 'opacity-30' : ''}`}>
                     {day && (
                       <>
                         <div className="flex items-center justify-between mb-2">
                           <span className={`text-sm font-bold ${isToday ? 'text-blue-500' : (isDark ? 'text-gray-300' : 'text-gray-700')}`}>{day}</span>
                           {totalActual > 0 && (
-                            <span className={`text-xs px-1.5 py-0.5 rounded font-semibold ${isDark ? 'bg-emerald-900/50 text-emerald-200 border border-emerald-800' : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                              }`}>
+                            <span className={`text-xs px-1.5 py-0.5 rounded font-semibold ${
+                              isDark ? 'bg-emerald-900/50 text-emerald-200 border border-emerald-800' : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                            }`}>
                               {formatHours(totalActual)}
                             </span>
                           )}
                         </div>
                         <div className="space-y-1.5">
                           {projects.slice(0, 3).map((project, idx) => {
-                            // Determine card style based on status
-                            const cardStyle = project.status === 'over'
-                              ? (isDark ? 'bg-rose-900/20 border-rose-800/50 text-rose-100' : 'bg-rose-50 border-rose-100 text-rose-900')
-                              : project.status === 'under'
+                             // Determine card style based on status
+                             const cardStyle = project.status === 'over'
+                                ? (isDark ? 'bg-rose-900/20 border-rose-800/50 text-rose-100' : 'bg-rose-50 border-rose-100 text-rose-900')
+                                : project.status === 'under'
                                 ? (isDark ? 'bg-amber-900/20 border-amber-800/50 text-amber-100' : 'bg-amber-50 border-amber-100 text-amber-900')
                                 : (isDark ? 'bg-emerald-900/20 border-emerald-800/50 text-emerald-100' : 'bg-emerald-50 border-emerald-100 text-emerald-900');
 
@@ -410,14 +392,14 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
               <h1 className={`text-2xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Timesheet</h1>
               <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'} mt-1`}>Gestão de horas da equipe</p>
             </div>
-
+            
             <div className="flex items-center gap-3">
               {/* Integrated Control Bar: Team & Month */}
               <div className={`flex items-center rounded-lg border shadow-sm ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-
+                
                 {/* Team Selector Dropdown */}
                 <div className="relative">
-                  <button
+                  <button 
                     onClick={() => { setIsTeamDropdownOpen(!isTeamDropdownOpen); setIsMonthDropdownOpen(false); }}
                     className={`flex items-center gap-2 px-3 py-2 text-sm font-medium border-r ${isDark ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-50'} transition-colors rounded-l-lg`}
                   >
@@ -460,16 +442,16 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
 
                 {/* Month Selector Control */}
                 <div className="flex items-center relative">
-                  <button
+                  <button 
                     onClick={() => handleMonthNavigate('prev')}
                     disabled={months.findIndex(m => m.value === selectedMonth) <= 0}
                     className={`p-2 ${isDark ? 'text-gray-400 hover:text-white disabled:opacity-30' : 'text-gray-400 hover:text-gray-900 disabled:opacity-30'}`}
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
-
+                  
                   <div className="relative">
-                    <button
+                    <button 
                       onClick={() => { setIsMonthDropdownOpen(!isMonthDropdownOpen); setIsTeamDropdownOpen(false); }}
                       className={`flex items-center gap-2 px-2 py-2 text-sm font-medium ${isDark ? 'text-gray-200 hover:text-white' : 'text-gray-700 hover:text-gray-900'}`}
                     >
@@ -496,7 +478,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
                     )}
                   </div>
 
-                  <button
+                  <button 
                     onClick={() => handleMonthNavigate('next')}
                     disabled={months.findIndex(m => m.value === selectedMonth) >= months.length - 1}
                     className={`p-2 ${isDark ? 'text-gray-400 hover:text-white disabled:opacity-30' : 'text-gray-400 hover:text-gray-900 disabled:opacity-30'}`}
@@ -510,22 +492,24 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
 
               {/* View Switcher Icons */}
               <div className={`flex p-1 rounded-lg border ${isDark ? 'border-gray-600 bg-gray-900' : 'border-gray-200 bg-gray-100'}`}>
-                <button
+                <button 
                   onClick={() => setActiveTab('timeline')}
-                  className={`p-1.5 rounded-md transition-all ${activeTab === 'timeline'
-                    ? (isDark ? 'bg-gray-700 text-white shadow-sm' : 'bg-white text-gray-900 shadow-sm')
-                    : (isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
-                    }`}
+                  className={`p-1.5 rounded-md transition-all ${
+                    activeTab === 'timeline' 
+                      ? (isDark ? 'bg-gray-700 text-white shadow-sm' : 'bg-white text-gray-900 shadow-sm') 
+                      : (isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
+                  }`}
                   title="Timeline"
                 >
                   <LayoutGrid className="w-4 h-4" />
                 </button>
-                <button
+                <button 
                   onClick={() => setActiveTab('calendar')}
-                  className={`p-1.5 rounded-md transition-all ml-1 ${activeTab === 'calendar'
-                    ? (isDark ? 'bg-gray-700 text-white shadow-sm' : 'bg-white text-gray-900 shadow-sm')
-                    : (isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
-                    }`}
+                  className={`p-1.5 rounded-md transition-all ml-1 ${
+                    activeTab === 'calendar' 
+                      ? (isDark ? 'bg-gray-700 text-white shadow-sm' : 'bg-white text-gray-900 shadow-sm') 
+                      : (isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
+                  }`}
                   title="Calendário"
                 >
                   <Calendar className="w-4 h-4" />
@@ -541,8 +525,9 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
                 </button>
 
                 <button onClick={() => setShowWeekends(!showWeekends)}
-                  className={`p-2 rounded-lg ${showWeekends ? (isDark ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-700') : (isDark ? 'bg-blue-900 text-blue-200' : 'bg-blue-50 text-blue-700')
-                    }`}
+                  className={`p-2 rounded-lg ${
+                    showWeekends ? (isDark ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-700') : (isDark ? 'bg-blue-900 text-blue-200' : 'bg-blue-50 text-blue-700')
+                  }`}
                   title={showWeekends ? 'Ocultar Finais de Semana' : 'Mostrar Finais de Semana'}
                 >
                   {showWeekends ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -563,10 +548,10 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
               )}
             </div>
           </div>
-
+          
           <div className={`mt-6 pt-4 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'} flex items-center gap-6 text-xs`}>
             <span className={`font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Legenda:</span>
-
+            
             <div className="flex items-center gap-2">
               <div className={`w-3 h-3 rounded-full bg-emerald-500`}></div>
               <span className={isDark ? 'text-gray-300' : 'text-gray-600'}>Dentro da meta (±10%)</span>
@@ -579,7 +564,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
 
             <div className="flex items-center gap-2">
               <div className={`w-3 h-3 rounded-full bg-rose-500`}></div>
-              <span className={isDark ? 'text-gray-300' : 'text-gray-600'}>Crítico (&gt;20%)</span>
+              <span className={isDark ? 'text-gray-300' : 'text-gray-600'}>Crítico (>20%)</span>
             </div>
           </div>
         </div>
@@ -588,8 +573,8 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
           <div className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border rounded-lg overflow-hidden`}>
             <div className="flex">
               {/* Sidebar (Left) */}
-              <div
-                className={`w-80 flex-shrink-0 border-r ${isDark ? 'border-gray-700' : 'border-gray-200'} overflow-y-auto sidebar-scroll-container`}
+              <div 
+                className={`w-80 flex-shrink-0 border-r ${isDark ? 'border-gray-700' : 'border-gray-200'} overflow-y-auto sidebar-scroll-container`} 
                 style={{ maxHeight: '700px' }}
                 onScroll={(e) => {
                   setTooltipData(null);
@@ -603,7 +588,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
                 <div className={`h-16 border-b ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-gray-50'} flex items-center px-4 sticky top-0 z-20`}>
                   <span className={`text-xs font-semibold ${isDark ? 'text-gray-300' : 'text-gray-600'} uppercase tracking-wider`}>Projetos / Tarefas</span>
                 </div>
-
+                
                 <div className="pb-20">
                   {filteredMembers.map((member, memberIdx) => (
                     <div key={member.id} className={memberIdx > 0 ? 'mt-8' : ''}>
@@ -628,14 +613,15 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
                             </div>
 
                             {isExpanded && (
-                              <>
+                                <>
                                 {project.tasks.map((task, taskIdx) => (
-                                  <div key={task.id} className={`h-16 px-6 ${isDark ? 'bg-gray-850 hover:bg-gray-800' : 'bg-gray-50 hover:bg-gray-100'} transition-colors flex items-center ${taskIdx > 0 ? `border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}` : 'border-t border-gray-200 dark:border-gray-700'
-                                    }`}>
+                                  <div key={task.id} className={`h-16 px-6 ${isDark ? 'bg-gray-850 hover:bg-gray-800' : 'bg-gray-50 hover:bg-gray-100'} transition-colors flex items-center ${
+                                    taskIdx > 0 ? `border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}` : 'border-t border-gray-200 dark:border-gray-700'
+                                  }`}>
                                     <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{task.name}</span>
                                   </div>
                                 ))}
-                              </>
+                                </>
                             )}
                           </div>
                         );
@@ -646,9 +632,9 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
               </div>
 
               {/* Timeline (Right) */}
-              <div
-                className="flex-1 overflow-x-auto overflow-y-auto timeline-scroll-container"
-                ref={scrollRef}
+              <div 
+                className="flex-1 overflow-x-auto overflow-y-auto timeline-scroll-container" 
+                ref={scrollRef} 
                 style={{ maxHeight: '700px' }}
                 onScroll={(e) => {
                   setTooltipData(null);
@@ -662,9 +648,10 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
                 <div className="inline-block min-w-full pb-20">
                   <div className={`h-16 flex border-b ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-gray-50'} sticky top-0 z-20`}>
                     {days.map((day, idx) => (
-                      <div key={idx} className={`w-28 min-w-28 flex-shrink-0 flex flex-col items-center justify-center border-r ${isDark ? 'border-gray-700' : 'border-gray-100'} ${day.isToday ? (isDark ? 'bg-blue-500/10 border-blue-600 ring-2 ring-blue-500' : 'bg-blue-100 border-blue-400 ring-2 ring-blue-400') :
+                      <div key={idx} className={`w-28 min-w-28 flex-shrink-0 flex flex-col items-center justify-center border-r ${isDark ? 'border-gray-700' : 'border-gray-100'} ${
+                        day.isToday ? (isDark ? 'bg-blue-500/10 border-blue-600 ring-2 ring-blue-500' : 'bg-blue-100 border-blue-400 ring-2 ring-blue-400') :
                         day.isWeekend ? (isDark ? 'bg-gray-800' : 'bg-gray-100') : (isDark ? 'bg-gray-900' : 'bg-white')
-                        }`}>
+                      }`}>
                         <span className={`text-xs font-medium ${day.isToday ? (isDark ? 'text-blue-200' : 'text-blue-700') : (isDark ? 'text-gray-400' : 'text-gray-500')} uppercase`}>{day.weekday}</span>
                         <span className={`text-lg font-semibold ${day.isToday ? (isDark ? 'text-blue-100' : 'text-blue-900') : (isDark ? 'text-gray-200' : 'text-gray-900')} mt-0.5`}>{day.day}</span>
                       </div>
@@ -690,11 +677,12 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
                                   const dayIndexInAll = allDays.findIndex(d => d.day === day.day && d.month === day.month);
                                   const hours = sumTaskHours(project.tasks, dayIndexInAll);
                                   return (
-                                    <div
-                                      key={dayIdx}
-                                      className={`w-28 min-w-28 flex-shrink-0 border-r ${isDark ? 'border-gray-700' : 'border-gray-100'} p-2.5 flex items-center justify-center ${day.isToday ? (isDark ? 'bg-blue-500/10 border-l-2 border-r-2 border-blue-600' : 'bg-blue-50 border-l-2 border-r-2 border-blue-300') :
+                                    <div 
+                                      key={dayIdx} 
+                                      className={`w-28 min-w-28 flex-shrink-0 border-r ${isDark ? 'border-gray-700' : 'border-gray-100'} p-2.5 flex items-center justify-center ${
+                                        day.isToday ? (isDark ? 'bg-blue-500/10 border-l-2 border-r-2 border-blue-600' : 'bg-blue-50 border-l-2 border-r-2 border-blue-300') :
                                         day.isWeekend ? (isDark ? 'bg-gray-850' : 'bg-gray-50') : ''
-                                        }`}
+                                      }`}
                                       onMouseEnter={(e) => !isExpanded && !day.isWeekend && hours.actual > 0 && showTooltip(e, project.name, hours.planned, hours.actual)}
                                       onMouseLeave={hideTooltip}
                                     >
@@ -709,17 +697,19 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
                               </div>
 
                               {isExpanded && project.tasks.map((task, taskIdx) => (
-                                <div key={task.id} className={`h-16 flex ${isDark ? 'bg-gray-850' : 'bg-gray-50'} ${taskIdx > 0 ? `border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}` : 'border-t border-gray-200 dark:border-gray-700'
-                                  }`}>
+                                <div key={task.id} className={`h-16 flex ${isDark ? 'bg-gray-850' : 'bg-gray-50'} ${
+                                  taskIdx > 0 ? `border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}` : 'border-t border-gray-200 dark:border-gray-700'
+                                }`}>
                                   {days.map((day, dayIdx) => {
                                     const dayIndexInAll = allDays.findIndex(d => d.day === day.day && d.month === day.month);
                                     const hours = task.hours[dayIndexInAll];
                                     return (
-                                      <div
-                                        key={dayIdx}
-                                        className={`w-28 min-w-28 flex-shrink-0 border-r ${isDark ? 'border-gray-700' : 'border-gray-100'} p-2 flex items-center justify-center ${day.isToday ? (isDark ? 'bg-blue-500/10 border-l-2 border-r-2 border-blue-600' : 'bg-blue-50 border-l-2 border-r-2 border-blue-300') :
+                                      <div 
+                                        key={dayIdx} 
+                                        className={`w-28 min-w-28 flex-shrink-0 border-r ${isDark ? 'border-gray-700' : 'border-gray-100'} p-2 flex items-center justify-center ${
+                                          day.isToday ? (isDark ? 'bg-blue-500/10 border-l-2 border-r-2 border-blue-600' : 'bg-blue-50 border-l-2 border-r-2 border-blue-300') :
                                           day.isWeekend ? (isDark ? 'bg-gray-800' : 'bg-white') : ''
-                                          }`}
+                                        }`}
                                         onMouseEnter={(e) => !day.isWeekend && hours?.actual > 0 && showTooltip(e, task.name, hours.planned, hours.actual)}
                                         onMouseLeave={hideTooltip}
                                       >
@@ -747,7 +737,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
       </div>
 
       {tooltipData && tooltipData.visible && (
-        <div
+        <div 
           className="fixed z-[100] transform -translate-x-1/2 -translate-y-full pointer-events-none"
           style={{ left: tooltipData.x, top: tooltipData.y - 10 }}
         >

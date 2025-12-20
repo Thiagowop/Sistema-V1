@@ -305,7 +305,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
 
       // Merge with existing data
       setSyncState(prev => ({ ...prev, progress: 50 }));
-      const merged = mergeIncrementalData(rawTasks, updatedTasks);
+      const merged = await mergeIncrementalData(rawTasks, updatedTasks);
       setRawTasks(merged);
 
       // Re-extract metadata

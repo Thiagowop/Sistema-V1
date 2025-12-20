@@ -17,7 +17,7 @@ import { TeamWorkloadWrapper } from './pages/TeamWorkloadWrapper';
 import { QualityWrapper } from './pages/QualityWrapper';
 import { LibraryBrowser } from './pages/LibraryBrowser';
 import { AdminDashboard } from './pages/AdminDashboard';
-import TimesheetDashboard from './pages/TimesheetDashboard'; // NEW: Timesheet (default export)
+import { TimesheetWrapper } from './pages/TimesheetWrapper'; // Timesheet com dados reais do ClickUp
 import { GeneralTeamWrapper } from './pages/GeneralTeamWrapper';
 import { FiltersWrapper } from './pages/FiltersWrapper';
 import { CompletedProjectsWrapper } from './pages/CompletedProjectsWrapper';
@@ -91,7 +91,7 @@ export const App: React.FC = () => {
                         {activeView === 'sync' && <SyncDashboard />}
                         {activeView === 'daily' && <DailyAlignmentDashboard />}
                         {activeView === 'projects' && <ProjectsDashboard />}
-                        {activeView === 'gestao' && <TimesheetDashboard />}
+                        {activeView === 'gestao' && <TimesheetWrapper />}
                         {activeView === 'quality' && <QualityWrapper />}
                         {activeView === 'library' && <LibraryBrowser />}
                         {activeView === 'admin' && <AdminDashboard />}

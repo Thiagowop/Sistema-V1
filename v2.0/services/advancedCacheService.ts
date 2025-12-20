@@ -545,5 +545,5 @@ export const loadMetadata = () => advancedCache.loadMetadata();
 export const saveProcessedData = (data: GroupedData[]) => advancedCache.saveProcessedData(data);
 export const loadProcessedData = () => advancedCache.loadProcessedData();
 export const clearAllCache = () => advancedCache.clearAll();
-export const mergeIncrementalData = (existing: ClickUpApiTask[], updated: ClickUpApiTask[]) =>
-  advancedCache.mergeIncrementalUpdate(updated);
+export const mergeIncrementalData = async (existing: ClickUpApiTask[], updated: ClickUpApiTask[]): Promise<ClickUpApiTask[]> =>
+  await advancedCache.mergeIncrementalUpdate(updated);

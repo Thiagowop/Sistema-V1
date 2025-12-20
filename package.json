@@ -13,6 +13,7 @@
   "dependencies": {
     "@google/genai": "^1.30.0",
     "@react-oauth/google": "^0.12.2",
+    "@supabase/supabase-js": "^2.89.0",
     "clsx": "^2.1.1",
     "cors": "^2.8.5",
     "express": "^4.21.2",

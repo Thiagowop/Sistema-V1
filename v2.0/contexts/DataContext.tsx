@@ -10,8 +10,9 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { GroupedData, AppConfig, Task, StandupEntry, TeamMemberData } from '../types';
 import { FilterMetadata } from '../types/FilterConfig';
-import { ClickUpApiTask, fetchRawClickUpData, processApiTasks, extractFilterMetadata, fetchStandupSummaries } from '../services/clickup';
+import { ClickUpApiTask, fetchRawClickUpData, processApiTasks, extractFilterMetadata, fetchStandupSummaries, SyncFilterOptions } from '../services/clickup';
 import { saveRawData, loadRawData, saveMetadata, loadMetadata, saveProcessedData, loadProcessedData, clearAllCache, mergeIncrementalData } from '../services/advancedCacheService';
+import { SyncFilters, loadSyncFilters, saveSyncFilters, createDefaultSyncFilters } from '../services/filterService';
 
 // ============================================
 // TYPES
@@ -43,9 +44,13 @@ export interface DataContextValue {
   config: AppConfig | null;
   setConfig: (config: AppConfig) => void;
 
+  // Sync Filters
+  syncFilters: SyncFilters;
+  setSyncFilters: (filters: SyncFilters) => void;
+
   // Actions
-  syncFull: () => Promise<void>;
-  syncIncremental: () => Promise<void>;
+  syncFull: (customFilters?: SyncFilters) => Promise<void>;
+  syncIncremental: (customFilters?: SyncFilters) => Promise<void>;
   loadFromCache: () => Promise<boolean>;
   clearCache: () => Promise<void>;
   fetchStandups: (options?: { limit?: number; forDate?: Date }) => Promise<void>;
@@ -89,6 +94,17 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
   const [config, setConfigState] = useState<AppConfig | null>(initialConfig || null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [hasCacheData, setHasCacheData] = useState(false);
+  const [syncFilters, setSyncFiltersState] = useState<SyncFilters>(loadSyncFilters);
+
+  // ============================================
+  // SYNC FILTERS
+  // ============================================
+
+  const setSyncFilters = useCallback((filters: SyncFilters) => {
+    console.log('[CTX-DATA-001] Sync filters updated:', filters);
+    setSyncFiltersState(filters);
+    saveSyncFilters(filters);
+  }, []);
 
   // ============================================
   // CONFIG
@@ -195,24 +211,40 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
     }
   }, []);
 
-  // ============================================
+    // ============================================
   // FULL SYNC
   // ============================================
 
-  const syncFull = useCallback(async () => {
+  const syncFull = useCallback(async (customFilters?: SyncFilters) => {
     if (!config) {
       console.error('[CTX-DATA-001] No config available for sync');
       setSyncState(prev => ({ ...prev, status: 'error', error: 'Configuração não disponível' }));
       return;
     }
 
-    console.log('[CTX-DATA-001] Starting FULL sync...');
+    // Use custom filters or saved filters
+    const filters = customFilters || syncFilters;
+    const hasFilters = filters.tags.length > 0 || filters.assignees.length > 0;
+
+    console.log('[CTX-DATA-001] Starting FULL sync...', hasFilters ? `with filters: ${JSON.stringify(filters)}` : '(no filters)');
     setSyncState(prev => ({ ...prev, status: 'syncing', error: null, progress: 0 }));
 
     try {
-      // Step 1: Fetch raw data (0-50%)
+      // Step 1: Fetch raw data with filters (0-50%)
       setSyncState(prev => ({ ...prev, progress: 10 }));
-      const raw = await fetchRawClickUpData(config);
+
+      const syncOptions: SyncFilterOptions = {
+        tags: filters.tags,
+        assignees: filters.assignees,
+        includeArchived: filters.includeArchived,
+        onProgress: (current, total, message) => {
+          // Calculate progress: pages are 10-50% of total
+          const pageProgress = Math.min(40, (current / Math.max(total, 1)) * 40);
+          setSyncState(prev => ({ ...prev, progress: 10 + pageProgress }));
+        }
+      };
+
+      const raw = await fetchRawClickUpData(config, syncOptions);
       setRawTasks(raw);
       setSyncState(prev => ({ ...prev, progress: 50 }));
 
@@ -268,13 +300,13 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
         }));
       }
     }
-  }, [config, hasCacheData, groupedData.length]);
+  }, [config, syncFilters, hasCacheData, groupedData.length]);
 
   // ============================================
   // INCREMENTAL SYNC
   // ============================================
 
-  const syncIncremental = useCallback(async () => {
+  const syncIncremental = useCallback(async (customFilters?: SyncFilters) => {
     if (!config) {
       console.error('[CTX-DATA-001] No config available for sync');
       return;
@@ -282,16 +314,27 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
 
     if (!syncState.lastSync) {
       console.log('[CTX-DATA-001] No previous sync, doing full sync instead');
-      return syncFull();
+      return syncFull(customFilters);
     }
+
+    // Use custom filters or saved filters
+    const filters = customFilters || syncFilters;
 
     console.log(`[CTX-DATA-001] Starting INCREMENTAL sync since ${syncState.lastSync}...`);
     setSyncState(prev => ({ ...prev, status: 'syncing', error: null, progress: 0 }));
 
     try {
-      // Fetch only updated tasks
+      // Fetch only updated tasks with filters
       setSyncState(prev => ({ ...prev, progress: 20 }));
-      const updatedTasks = await fetchRawClickUpData(config, syncState.lastSync);
+
+      const syncOptions: SyncFilterOptions = {
+        tags: filters.tags,
+        assignees: filters.assignees,
+        includeArchived: filters.includeArchived,
+        incrementalSince: syncState.lastSync
+      };
+
+      const updatedTasks = await fetchRawClickUpData(config, syncOptions);
 
       if (updatedTasks.length === 0) {
         console.log('[CTX-DATA-001] No updates found');
@@ -359,7 +402,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
         }));
       }
     }
-  }, [config, syncState.lastSync, rawTasks, syncFull, hasCacheData, groupedData.length]);
+  }, [config, syncFilters, syncState.lastSync, rawTasks, syncFull, hasCacheData, groupedData.length]);
+
 
   // ============================================
   // CLEAR CACHE
@@ -446,6 +490,10 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
     // Config
     config,
     setConfig,
+
+    // Sync Filters
+    syncFilters,
+    setSyncFilters,
 
     // Actions
     syncFull,

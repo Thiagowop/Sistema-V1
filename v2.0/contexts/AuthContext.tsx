@@ -1,13 +1,20 @@
 /**
  * @id CTX-AUTH-001
  * @name AuthContext
- * @description Context de autenticação - gerencia token ClickUp e estado de login
- * @dependencies none
+ * @description Context de autenticação - gerencia usuário Supabase e token ClickUp
+ * @dependencies supabaseService
  * @status active
- * @version 2.0.0
+ * @version 2.1.0
  */
 
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import {
+  AuthorizedUser,
+  authenticateUser as supabaseAuth,
+  saveRememberedEmail,
+  getRememberedEmail,
+  clearRememberedEmail
+} from '../services/supabaseService';
 
 // ============================================
 // TYPES
@@ -15,10 +22,9 @@ import React, { createContext, useContext, useState, useCallback, useEffect, Rea
 
 export interface AuthState {
   isAuthenticated: boolean;
-  token: string | null;
+  user: AuthorizedUser | null;  // Usuário do Supabase
+  token: string | null;         // Token ClickUp (para API)
   teamId: string | null;
-  userId: string | null;
-  userName: string | null;
   isLoading: boolean;
   error: string | null;
 }
@@ -26,8 +32,12 @@ export interface AuthState {
 export interface AuthContextValue {
   // State
   auth: AuthState;
-  
-  // Actions
+
+  // Supabase User Actions
+  loginUser: (email: string, password: string, remember?: boolean) => Promise<boolean>;
+  logoutUser: () => void;
+
+  // ClickUp Token Actions (mantido para compatibilidade)
   login: (token: string, teamId?: string) => Promise<boolean>;
   logout: () => void;
   validateToken: (token: string) => Promise<boolean>;
@@ -36,15 +46,15 @@ export interface AuthContextValue {
 
 const defaultAuthState: AuthState = {
   isAuthenticated: false,
+  user: null,
   token: null,
   teamId: null,
-  userId: null,
-  userName: null,
   isLoading: true,
   error: null
 };
 
 const AUTH_STORAGE_KEY = 'dailyFlow_auth_v2';
+const USER_SESSION_KEY = 'dailyFlow_userSession_v2';
 
 // ============================================
 // CONTEXT
@@ -66,31 +76,51 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // ============================================
   // LOAD SAVED AUTH ON MOUNT
   // ============================================
-  
+
   useEffect(() => {
     const loadSavedAuth = async () => {
       console.log('[CTX-AUTH-001] Loading saved auth...');
-      
+
       try {
+        // 1. Primeiro, tentar carregar sessão do usuário (Supabase)
+        const userSession = localStorage.getItem(USER_SESSION_KEY);
+        if (userSession) {
+          const user = JSON.parse(userSession) as AuthorizedUser;
+          console.log('[CTX-AUTH-001] ✅ User session restored:', user.name);
+
+          // 2. Também carregar token ClickUp se existir
+          const saved = localStorage.getItem(AUTH_STORAGE_KEY);
+          const clickupAuth = saved ? JSON.parse(saved) : null;
+
+          setAuth({
+            isAuthenticated: true,
+            user: user,
+            token: clickupAuth?.token || null,
+            teamId: clickupAuth?.teamId || null,
+            isLoading: false,
+            error: null
+          });
+          return;
+        }
+
+        // Fallback: Apenas token ClickUp (sem user Supabase)
         const saved = localStorage.getItem(AUTH_STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
-          
+
           if (parsed.token) {
-            // Validate token is still valid
             const isValid = await validateTokenInternal(parsed.token);
-            
+
             if (isValid) {
               setAuth({
-                isAuthenticated: true,
+                isAuthenticated: false, // Não autenticado sem user Supabase
+                user: null,
                 token: parsed.token,
                 teamId: parsed.teamId || null,
-                userId: parsed.userId || null,
-                userName: parsed.userName || null,
                 isLoading: false,
                 error: null
               });
-              console.log('[CTX-AUTH-001] Auth restored from storage');
+              console.log('[CTX-AUTH-001] ClickUp token restored (no user session)');
               return;
             }
           }
@@ -215,26 +245,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return false;
       }
 
-      const newAuth: AuthState = {
-        isAuthenticated: true,
-        token: cleanToken,
-        teamId: teamId || null,
-        userId: userInfo.user.id?.toString() || null,
-        userName: userInfo.user.username || userInfo.user.email || null,
-        isLoading: false,
-        error: null
-      };
-
-      // Save to storage
+      // Save ClickUp credentials to storage
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({
         token: cleanToken,
         teamId: teamId || null,
-        userId: newAuth.userId,
-        userName: newAuth.userName
+        clickupUserId: userInfo.user.id?.toString() || null,
+        clickupUserName: userInfo.user.username || userInfo.user.email || null
       }));
 
-      setAuth(newAuth);
-      console.log(`[CTX-AUTH-001] Login successful: ${newAuth.userName}`);
+      setAuth(prev => ({
+        ...prev,
+        token: cleanToken,
+        teamId: teamId || null,
+        isLoading: false,
+        error: null
+      }));
+      console.log(`[CTX-AUTH-001] ClickUp login successful: ${userInfo.user.username}`);
       return true;
 
     } catch (e: any) {
@@ -264,12 +290,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // ============================================
   // UPDATE CREDENTIALS
   // ============================================
-  
+
   const updateCredentials = useCallback((token: string, teamId: string) => {
     console.log('[CTX-AUTH-001] Updating credentials...');
-    
+
     const cleanToken = token.replace(/\s/g, '');
-    
+
     setAuth(prev => ({
       ...prev,
       token: cleanToken,
@@ -296,11 +322,100 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   // ============================================
+  // LOGIN USER (Supabase)
+  // ============================================
+
+  const loginUser = useCallback(async (
+    email: string,
+    password: string,
+    remember: boolean = false
+  ): Promise<boolean> => {
+    console.log('[CTX-AUTH-001] 🔐 Logging in user:', email);
+    setAuth(prev => ({ ...prev, isLoading: true, error: null }));
+
+    try {
+      const result = await supabaseAuth(email, password);
+
+      if (result.success && result.user) {
+        // Salvar sessão do usuário
+        localStorage.setItem(USER_SESSION_KEY, JSON.stringify(result.user));
+
+        // Gerenciar "Lembrar-me"
+        if (remember) {
+          saveRememberedEmail(email);
+        } else {
+          clearRememberedEmail();
+        }
+
+        // Carregar token ClickUp existente se houver
+        const saved = localStorage.getItem(AUTH_STORAGE_KEY);
+        const clickupAuth = saved ? JSON.parse(saved) : null;
+
+        setAuth({
+          isAuthenticated: true,
+          user: result.user,
+          token: clickupAuth?.token || null,
+          teamId: clickupAuth?.teamId || null,
+          isLoading: false,
+          error: null
+        });
+
+        console.log('[CTX-AUTH-001] ✅ User logged in:', result.user.name);
+        return true;
+      } else {
+        setAuth(prev => ({
+          ...prev,
+          isLoading: false,
+          error: result.error || 'Credenciais inválidas'
+        }));
+        return false;
+      }
+    } catch (e: any) {
+      console.error('[CTX-AUTH-001] ❌ Login error:', e);
+      setAuth(prev => ({
+        ...prev,
+        isLoading: false,
+        error: e.message || 'Erro ao fazer login'
+      }));
+      return false;
+    }
+  }, []);
+
+  // ============================================
+  // LOGOUT USER (Supabase)
+  // ============================================
+
+  const logoutUser = useCallback(() => {
+    console.log('[CTX-AUTH-001] 🚪 Logging out user...');
+
+    // Remover sessão do usuário
+    localStorage.removeItem(USER_SESSION_KEY);
+
+    // NÃO remover remembered email (para facilitar próximo login)
+    // NÃO remover token ClickUp (mantém configuração)
+
+    setAuth({
+      isAuthenticated: false,
+      user: null,
+      token: auth.token, // Manter token ClickUp
+      teamId: auth.teamId,
+      isLoading: false,
+      error: null
+    });
+
+    console.log('[CTX-AUTH-001] ✅ User logged out');
+  }, [auth.token, auth.teamId]);
+
+  // ============================================
   // CONTEXT VALUE
   // ============================================
-  
+
   const value: AuthContextValue = {
     auth,
+    // Supabase User Actions
+    loginUser,
+    logoutUser,
+    // ClickUp Token Actions
     login,
     logout,
     validateToken,

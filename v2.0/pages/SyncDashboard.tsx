@@ -77,11 +77,27 @@ export const SyncDashboard: React.FC = () => {
         setSyncFilters
     } = useData();
 
+    // Persistir hasAttemptedAutoSync na sessão para não repetir sync ao navegar
+    const getSessionAutoSyncFlag = (): boolean => {
+        try {
+            return sessionStorage.getItem('hasAttemptedAutoSync') === 'true';
+        } catch {
+            return false;
+        }
+    };
+
+    const setSessionAutoSyncFlag = (value: boolean) => {
+        try {
+            sessionStorage.setItem('hasAttemptedAutoSync', String(value));
+        } catch (e) {
+            console.warn('[PAGE-SYNC-001] Erro ao salvar flag de auto-sync:', e);
+        }
+    };
+
     // Carregar autoSync do localStorage na inicialização
     const [autoSync, setAutoSync] = useState<boolean>(loadAutoSyncSetting);
     const [logs, setLogs] = useState<string[]>([]);
-    const [hasAttemptedCacheLoad, setHasAttemptedCacheLoad] = useState(false);
-    const [hasAttemptedAutoSync, setHasAttemptedAutoSync] = useState(false);
+    const [hasAttemptedAutoSync, setHasAttemptedAutoSync] = useState(getSessionAutoSyncFlag);
     const [showFilters, setShowFilters] = useState(false);
     const [tagInput, setTagInput] = useState('');
     const logsEndRef = useRef<HTMLDivElement>(null);
@@ -104,26 +120,12 @@ export const SyncDashboard: React.FC = () => {
         setLogs(prev => [...prev, `[${timestamp}] ${message}`]);
     };
 
-    // Load from cache on mount
-    useEffect(() => {
-        if (!hasAttemptedCacheLoad) {
-            setHasAttemptedCacheLoad(true);
-            addLog("Verificando cache local...");
-            loadFromCache().then(hasCache => {
-                if (hasCache) {
-                    addLog(`✓ Cache encontrado: ${syncState.taskCount} tarefas carregadas`);
-                } else {
-                    addLog("Cache vazio - sincronização necessária");
-                }
-            });
-        }
-    }, [hasAttemptedCacheLoad, loadFromCache, syncState.taskCount]);
-
     // AUTO-SYNC: Executar sync automático quando ativado e app inicializado
     useEffect(() => {
         // Só executar uma vez, quando app está inicializado e autoSync está ativado
         if (!hasAttemptedAutoSync && isInitialized && autoSync) {
             setHasAttemptedAutoSync(true);
+            setSessionAutoSyncFlag(true); // Persistir na sessão
 
             // Se não tem cache ou cache está vazio, fazer sync completo
             // Se tem cache, fazer sync incremental (mais rápido)
@@ -345,11 +347,10 @@ export const SyncDashboard: React.FC = () => {
                             {/* Filter Toggle Button */}
                             <button
                                 onClick={() => setShowFilters(!showFilters)}
-                                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${
-                                    hasActiveFilters
-                                        ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300'
-                                        : 'bg-slate-800/50 border-slate-700/50 text-slate-400 hover:text-white'
-                                }`}
+                                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${hasActiveFilters
+                                    ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300'
+                                    : 'bg-slate-800/50 border-slate-700/50 text-slate-400 hover:text-white'
+                                    }`}
                             >
                                 <div className="flex items-center gap-2">
                                     <Filter size={16} />
@@ -378,11 +379,10 @@ export const SyncDashboard: React.FC = () => {
                                                 <button
                                                     key={preset.name}
                                                     onClick={() => handleApplyPreset(preset)}
-                                                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${
-                                                        JSON.stringify(syncFilters.tags) === JSON.stringify(preset.filters.tags)
-                                                            ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300'
-                                                            : 'bg-slate-700/50 border-slate-600/50 text-slate-300 hover:bg-slate-700'
-                                                    }`}
+                                                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${JSON.stringify(syncFilters.tags) === JSON.stringify(preset.filters.tags)
+                                                        ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300'
+                                                        : 'bg-slate-700/50 border-slate-600/50 text-slate-300 hover:bg-slate-700'
+                                                        }`}
                                                     title={preset.description}
                                                 >
                                                     {preset.name}

@@ -211,7 +211,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
     }
   }, []);
 
-    // ============================================
+  // ============================================
   // FULL SYNC
   // ============================================
 
@@ -240,7 +240,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
         onProgress: (current, total, message) => {
           // Calculate progress: pages are 10-50% of total
           const pageProgress = Math.min(40, (current / Math.max(total, 1)) * 40);
-          setSyncState(prev => ({ ...prev, progress: 10 + pageProgress }));
+          setSyncState(prev => ({ ...prev, progress: Math.round(10 + pageProgress) }));
         }
       };
 

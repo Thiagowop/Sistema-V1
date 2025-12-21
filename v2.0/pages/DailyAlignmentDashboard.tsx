@@ -299,7 +299,7 @@ const ManageBoxesModal = ({
 
 // --- COMPONENTE PRINCIPAL ---
 export const DailyAlignmentDashboard: React.FC = () => {
-  const { groupedData, syncState, syncFull } = useData();
+  const { groupedData, syncState, syncIncremental } = useData();
   const isReadOnly = false;
   const [dashboardData, setDashboardData] = useState<ExtendedGroupedData[]>([]);
   const [activeMemberId, setActiveMemberId] = useState<string | null>(null);
@@ -716,7 +716,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-black text-slate-800 tracking-tight">Alinhamento Diário</h1>
-            <button onClick={() => setIsSyncing(true)} className={`p-2 rounded-full text-slate-400 hover:bg-slate-50 transition-all ${isSyncing ? 'animate-spin text-indigo-600' : ''}`}><RotateCw size={18} /></button>
+            <button onClick={() => syncIncremental()} className={`p-2 rounded-full text-slate-400 hover:bg-slate-50 transition-all ${isSyncing ? 'animate-spin text-indigo-600' : ''}`}><RotateCw size={18} /></button>
           </div>
 
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full pb-1">

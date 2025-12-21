@@ -329,7 +329,7 @@ const fetchTasksFromTeam = async (
   const seenIds = new Set<string>(); // Track unique task IDs
   let page = 0;
   let hasMore = true;
-  const MAX_PAGES = 500; // Increased limit (50000 tasks max)
+  const MAX_PAGES = 300; // Safety limit (30000 tasks max) - ajustado para comportar 28k+ tarefas
   const useProxy = import.meta.env.DEV;
 
   while (hasMore && page < MAX_PAGES) {
@@ -349,6 +349,9 @@ const fetchTasksFromTeam = async (
     if (dateUpdatedAfter) {
       const timestamp = new Date(dateUpdatedAfter).getTime();
       targetUrl += `&date_updated_gt=${timestamp}`;
+      console.log(`📅 [INCREMENTAL] Using date_updated_gt=${timestamp} (${new Date(timestamp).toLocaleString()})`);
+    } else {
+      console.log(`⚠️  [FULL SYNC] No dateUpdatedAfter - fetching ALL tasks`);
     }
 
     // Add tag filters
@@ -356,27 +359,56 @@ const fetchTasksFromTeam = async (
       targetUrl += `&tags[]=${encodeURIComponent(tag)}`;
     });
 
+    // Delay between pages to avoid rate limiting (429 Too Many Requests)
+    if (page > 0) {
+      await new Promise(resolve => setTimeout(resolve, 200)); // 200ms delay
+      console.log(`⏱️  Waiting 200ms to avoid rate limit...`);
+    }
+
     try {
       let data: any;
+      let retries = 0;
+      const MAX_RETRIES = 3;
 
-      if (useProxy) {
-        const response = await fetch(targetUrl, {
-          method: 'GET',
-          cache: 'no-store',
-          headers: {
-            'Authorization': token,
-            'Content-Type': 'application/json'
+      // Retry loop with exponential backoff for rate limiting
+      while (retries <= MAX_RETRIES) {
+        try {
+          if (useProxy) {
+            const response = await fetch(targetUrl, {
+              method: 'GET',
+              cache: 'no-store',
+              headers: {
+                'Authorization': token,
+                'Content-Type': 'application/json'
+              }
+            });
+
+            if (!response.ok) {
+              // Handle rate limiting (429)
+              if (response.status === 429 && retries < MAX_RETRIES) {
+                const waitTime = Math.pow(2, retries) * 1000; // Exponential backoff: 1s, 2s, 4s
+                console.warn(`⚠️  Rate limit (429) - waiting ${waitTime / 1000}s before retry ${retries + 1}/${MAX_RETRIES}...`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+                retries++;
+                continue; // Retry
+              }
+
+              const errorData = await response.json();
+              throw new Error(errorData.error || `Proxy error: ${response.status}`);
+            }
+
+            data = await response.json();
+            break; // Success!
+          } else {
+            data = await fetchWithFallback(targetUrl, token, proxyUrl);
+            break; // Success!
           }
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `Proxy error: ${response.status}`);
+        } catch (err: any) {
+          if (retries >= MAX_RETRIES) {
+            throw err; // Give up after max retries
+          }
+          retries++;
         }
-
-        data = await response.json();
-      } else {
-        data = await fetchWithFallback(targetUrl, token, proxyUrl);
       }
 
       const pageTasks = data.tasks || [];
@@ -397,7 +429,11 @@ const fetchTasksFromTeam = async (
         }
       }
 
-      console.log(`   Page ${page}: ${pageTasks.length} tasks, ${newTasksCount} new, ${pageTasks.length - newTasksCount} duplicates`);
+      const duplicatesCount = pageTasks.length - newTasksCount;
+      console.log(`   Page ${page}: ${pageTasks.length} tasks, ${newTasksCount} new, ${duplicatesCount} duplicates`);
+
+      // Notify progress with meaningful message
+      onProgress?.(page + 1, MAX_PAGES, `Page ${page + 1}: +${newTasksCount} tasks (${allTasks.length} total)`);
 
       // If no new tasks, we're done (API is repeating)
       if (newTasksCount === 0) {

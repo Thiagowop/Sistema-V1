@@ -17,7 +17,7 @@ import { ProjectsDashboard } from './pages/ProjectsDashboard'; // Clean version
 import { TeamWorkloadWrapper } from './pages/TeamWorkloadWrapper';
 import { QualityWrapper } from './pages/QualityWrapper';
 import { AdminDashboard } from './pages/AdminDashboard';
-import TimesheetDashboard from './pages/TimesheetDashboard'; // NEW: Timesheet (default export)
+import { TimesheetDashboard } from './pages/TimesheetDashboard'; // Componente correto segundo seu branch
 import { GeneralTeamWrapper } from './pages/GeneralTeamWrapper';
 import { FiltersWrapper } from './pages/FiltersWrapper';
 import { CompletedProjectsWrapper } from './pages/CompletedProjectsWrapper';
@@ -120,7 +120,6 @@ const AppContent: React.FC = () => {
                                 ))}
                             </div>
                         </div>
-
                         {/* User info & Logout */}
                         <div className="flex items-center gap-4">
                             <div className="text-right">

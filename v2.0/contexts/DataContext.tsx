@@ -109,7 +109,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
   // ============================================
   // CONFIG
   // ============================================
-  
+
   const setConfig = useCallback((newConfig: AppConfig) => {
     console.log('[CTX-DATA-001] Config updated');
     setConfigState(newConfig);
@@ -154,12 +154,13 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
     };
 
     initializeFromCache();
-  }, [isInitialized, loadFromCache]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ============================================
   // LOAD FROM CACHE
   // ============================================
-  
+
   const loadFromCache = useCallback(async (): Promise<boolean> => {
     console.log('[CTX-DATA-001] 📦 Loading from cache...');
 
@@ -210,7 +211,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
     }
   }, []);
 
-  // ============================================
+    // ============================================
   // FULL SYNC
   // ============================================
 
@@ -267,7 +268,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
         version: '2.0.0'
       });
       saveProcessedData(processed);
-      
+
       setSyncState({
         status: 'success',
         lastSync: now,
@@ -334,7 +335,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
       };
 
       const updatedTasks = await fetchRawClickUpData(config, syncOptions);
-      
+
       if (updatedTasks.length === 0) {
         console.log('[CTX-DATA-001] No updates found');
         setSyncState(prev => ({
@@ -347,7 +348,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
 
       // Merge with existing data
       setSyncState(prev => ({ ...prev, progress: 50 }));
-      const merged = mergeIncrementalData(rawTasks, updatedTasks);
+      const merged = await mergeIncrementalData(rawTasks, updatedTasks);
       setRawTasks(merged);
 
       // Re-extract metadata
@@ -403,10 +404,11 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
     }
   }, [config, syncFilters, syncState.lastSync, rawTasks, syncFull, hasCacheData, groupedData.length]);
 
+
   // ============================================
   // CLEAR CACHE
   // ============================================
-  
+
   const clearCache = useCallback(async () => {
     console.log('[CTX-DATA-001] Clearing all cache...');
     await clearAllCache();
@@ -420,7 +422,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
   // ============================================
   // FETCH STANDUPS
   // ============================================
-  
+
   const fetchStandups = useCallback(async (options?: { limit?: number; forDate?: Date }) => {
     if (!config) return;
 
@@ -437,13 +439,13 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
   // ============================================
   // HELPERS
   // ============================================
-  
+
   const getTaskById = useCallback((id: string): Task | null => {
     for (const group of groupedData) {
       for (const project of group.projects) {
         const task = project.tasks.find(t => t.id === id);
         if (task) return task;
-        
+
         // Check subtasks
         for (const t of project.tasks) {
           const sub = t.subtasks?.find(s => s.id === id);
@@ -472,7 +474,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
   // ============================================
   // CONTEXT VALUE
   // ============================================
-  
+
   const value: DataContextValue = {
     // Data
     rawTasks,

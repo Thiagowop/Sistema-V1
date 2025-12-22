@@ -391,10 +391,46 @@ export const SyncDashboard: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {/* Custom Tags */}
+                                    {/* Tags Reais do ClickUp */}
+                                    {metadata?.tags && metadata.tags.length > 0 && (
+                                        <div>
+                                            <label className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2 block">
+                                                Tags do ClickUp ({metadata.tags.length})
+                                            </label>
+                                            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scrollbar">
+                                                {metadata.tags.map(tag => {
+                                                    const isSelected = syncFilters.tags.includes(tag.toLowerCase());
+                                                    return (
+                                                        <button
+                                                            key={tag}
+                                                            onClick={() => {
+                                                                if (isSelected) {
+                                                                    handleRemoveTag(tag.toLowerCase());
+                                                                } else {
+                                                                    handleAddTag(tag);
+                                                                }
+                                                            }}
+                                                            className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all ${
+                                                                isSelected
+                                                                    ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-200'
+                                                                    : 'bg-slate-700/30 border-slate-600/30 text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
+                                                            }`}
+                                                        >
+                                                            <span className="flex items-center gap-1.5">
+                                                                <Tag size={10} />
+                                                                {tag}
+                                                            </span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Tag Personalizada (caso não exista no metadata) */}
                                     <div>
                                         <label className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2 block">
-                                            Tags Personalizadas
+                                            Tag Personalizada
                                         </label>
                                         <div className="flex gap-2">
                                             <input
@@ -418,35 +454,42 @@ export const SyncDashboard: React.FC = () => {
                                                 <Tag size={16} />
                                             </button>
                                         </div>
+                                    </div>
 
-                                        {/* Active Tags */}
-                                        {syncFilters.tags.length > 0 && (
-                                            <div className="flex flex-wrap gap-2 mt-3">
+                                    {/* Tags Selecionadas */}
+                                    {syncFilters.tags.length > 0 && (
+                                        <div className="pt-2 border-t border-slate-700/50">
+                                            <label className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider mb-2 block">
+                                                Tags Ativas ({syncFilters.tags.length})
+                                            </label>
+                                            <div className="flex flex-wrap gap-2">
                                                 {syncFilters.tags.map(tag => (
                                                     <span
                                                         key={tag}
-                                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-500/20 text-indigo-300 text-xs font-medium rounded-lg"
+                                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/20 text-emerald-300 text-xs font-medium rounded-lg border border-emerald-500/30"
                                                     >
                                                         <Tag size={12} />
                                                         {tag}
                                                         <button
                                                             onClick={() => handleRemoveTag(tag)}
-                                                            className="hover:text-white transition-colors"
+                                                            className="hover:text-white transition-colors ml-1"
                                                         >
                                                             <X size={12} />
                                                         </button>
                                                     </span>
                                                 ))}
                                             </div>
-                                        )}
-                                    </div>
+                                        </div>
+                                    )}
 
                                     {/* Info & Clear */}
                                     <div className="flex items-center justify-between pt-2 border-t border-slate-700/50">
                                         <p className="text-[10px] text-slate-500">
-                                            {hasActiveFilters
-                                                ? 'Filtros serão aplicados no próximo sync'
-                                                : 'Nenhum filtro ativo - buscará todas as tarefas'}
+                                            {metadata?.tags?.length
+                                                ? `${metadata.tags.length} tags disponíveis do ClickUp`
+                                                : hasActiveFilters
+                                                    ? 'Filtros serão aplicados no próximo sync'
+                                                    : 'Faça um sync para carregar as tags reais'}
                                         </p>
                                         {hasActiveFilters && (
                                             <button

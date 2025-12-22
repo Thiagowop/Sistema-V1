@@ -236,34 +236,37 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
     // 1. dueDate está no período
     // 2. startDate está no período
     // 3. dateClosed está no período
-    // 4. Tem timeLogged > 0 (trabalharam nela)
+    // 4. O intervalo startDate-dueDate cruza o período
 
     const dueDate = task.dueDate ? new Date(task.dueDate) : null;
     const startDate = task.startDate ? new Date(task.startDate) : null;
     const closedDate = task.dateClosed ? new Date(task.dateClosed) : null;
 
-    // Verificar se alguma data relevante está no período
+    // Verificar se alguma data está dentro do período
     const isInPeriod = (date: Date | null) => {
       if (!date) return false;
       return date >= periodStart && date <= periodEnd;
     };
 
-    // Se tem dueDate ou startDate no período, está ativa
+    // Se tem dueDate, startDate ou dateClosed no período, está ativa
     if (isInPeriod(dueDate) || isInPeriod(startDate) || isInPeriod(closedDate)) {
       return true;
     }
 
-    // Se a tarefa está "em andamento" e tem startDate antes do período e dueDate depois ou sem dueDate
+    // Se a tarefa cruza o período (começou antes E termina depois ou durante)
     if (startDate && startDate < periodStart) {
-      if (!dueDate || dueDate >= periodStart) {
-        // Tarefa começou antes mas ainda está ativa ou termina no período
+      // dueDate depois do início do período OU sem dueDate (tarefa em andamento)
+      if (dueDate && dueDate >= periodStart) {
         return true;
       }
-    }
-
-    // Se tem tempo logado, considerar ativa
-    if (task.timeLogged > 0) {
-      return true;
+      // Se não tem dueDate mas foi fechada no período
+      if (!dueDate && closedDate && closedDate >= periodStart) {
+        return true;
+      }
+      // Se não tem dueDate e não foi fechada, verificar se está em status ativo
+      if (!dueDate && !closedDate && task.status !== 'closed' && task.status !== 'complete') {
+        return true;
+      }
     }
 
     return false;
@@ -287,9 +290,9 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
 
     if (effectiveDays === 0) effectiveDays = 1;
 
-    // Distribuir horas
-    const plannedPerDay = (task.timeEstimate || 0) / 3600000 / effectiveDays; // ms para horas
-    const loggedPerDay = (task.timeLogged || 0) / 3600000 / effectiveDays;
+    // Distribuir horas (timeEstimate e timeLogged já vêm em HORAS do clickup.ts)
+    const plannedPerDay = (task.timeEstimate || 0) / effectiveDays;
+    const loggedPerDay = (task.timeLogged || 0) / effectiveDays;
 
     allDays.forEach((day, idx) => {
       if (!day.isWeekend && day.date >= taskStart && day.date <= taskEnd) {

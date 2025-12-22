@@ -232,12 +232,6 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
 
   // Verificar se tarefa tem atividade no período selecionado
   const isTaskInPeriod = useCallback((task: RealTask, periodStart: Date, periodEnd: Date): boolean => {
-    // Tarefa tem atividade se:
-    // 1. dueDate está no período
-    // 2. startDate está no período
-    // 3. dateClosed está no período
-    // 4. O intervalo startDate-dueDate cruza o período
-
     const dueDate = task.dueDate ? new Date(task.dueDate) : null;
     const startDate = task.startDate ? new Date(task.startDate) : null;
     const closedDate = task.dateClosed ? new Date(task.dateClosed) : null;
@@ -248,25 +242,39 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
       return date >= periodStart && date <= periodEnd;
     };
 
-    // Se tem dueDate, startDate ou dateClosed no período, está ativa
+    // 1. Se tem dueDate, startDate ou dateClosed no período
     if (isInPeriod(dueDate) || isInPeriod(startDate) || isInPeriod(closedDate)) {
       return true;
     }
 
-    // Se a tarefa cruza o período (começou antes E termina depois ou durante)
+    // 2. Se a tarefa cruza o período (começou antes E termina depois ou durante)
     if (startDate && startDate < periodStart) {
-      // dueDate depois do início do período OU sem dueDate (tarefa em andamento)
       if (dueDate && dueDate >= periodStart) {
         return true;
       }
-      // Se não tem dueDate mas foi fechada no período
       if (!dueDate && closedDate && closedDate >= periodStart) {
         return true;
       }
-      // Se não tem dueDate e não foi fechada, verificar se está em status ativo
-      if (!dueDate && !closedDate && task.status !== 'closed' && task.status !== 'complete') {
+      // Tarefa em andamento sem dueDate
+      if (!dueDate && !closedDate) {
         return true;
       }
+    }
+
+    // 3. Se não tem nenhuma data mas tem horas (timeEstimate ou timeLogged),
+    // mostrar no mês atual como fallback
+    if (!startDate && !dueDate && !closedDate) {
+      const now = new Date();
+      const isCurrentMonth = periodStart.getMonth() === now.getMonth() &&
+                            periodStart.getFullYear() === now.getFullYear();
+      if (isCurrentMonth && (task.timeEstimate > 0 || task.timeLogged > 0)) {
+        return true;
+      }
+    }
+
+    // 4. Se dueDate é no futuro e não tem startDate, considerar ativa se dueDate >= periodStart
+    if (!startDate && dueDate && dueDate >= periodStart && dueDate <= periodEnd) {
+      return true;
     }
 
     return false;
@@ -315,6 +323,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
 
     // Se não há dados do sync, retornar vazio
     if (!groupedData || groupedData.length === 0) {
+      console.log('[TIMESHEET] Sem dados do groupedData');
       return [];
     }
 
@@ -322,6 +331,27 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
     const [year, month] = selectedMonth.split('-').map(Number);
     const periodStart = new Date(year, month - 1, 1);
     const periodEnd = new Date(year, month, 0, 23, 59, 59); // Último dia do mês
+
+    console.log('[TIMESHEET] Processando período:', {
+      selectedMonth,
+      periodStart: periodStart.toISOString(),
+      periodEnd: periodEnd.toISOString(),
+      totalGroups: groupedData.length
+    });
+
+    // Debug: analisar amostra dos dados
+    if (groupedData[0]?.projects[0]?.tasks[0]) {
+      const sampleTask = groupedData[0].projects[0].tasks[0];
+      console.log('[TIMESHEET] Amostra de tarefa:', {
+        name: sampleTask.name,
+        startDate: sampleTask.startDate,
+        dueDate: sampleTask.dueDate,
+        dateClosed: sampleTask.dateClosed,
+        timeEstimate: sampleTask.timeEstimate,
+        timeLogged: sampleTask.timeLogged,
+        status: sampleTask.status
+      });
+    }
 
     // Converter cada membro do groupedData
     return groupedData.map(group => {
@@ -366,6 +396,18 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
       };
     }).filter(member => member.projects.length > 0); // Só membros com projetos ativos
   }, [externalTeamMembers, groupedData, selectedMonth, allDays, isTaskInPeriod, distributeTaskHours]);
+
+  // Log do resultado
+  useEffect(() => {
+    console.log('[TIMESHEET] Membros processados:', {
+      total: teamMembers.length,
+      membros: teamMembers.map(m => ({
+        nome: m.name,
+        projetos: m.projects.length,
+        tarefas: m.projects.reduce((sum, p) => sum + p.tasks.length, 0)
+      }))
+    });
+  }, [teamMembers]);
 
   const filteredMembers = selectedMemberFilter === 'all' ? teamMembers : teamMembers.filter(m => m.id === selectedMemberFilter);
 

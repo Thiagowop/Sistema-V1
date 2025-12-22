@@ -7,7 +7,69 @@
  * @version 2.0.0
  */
 
-import { FilterConfig, FilterState, FilterGroup } from '../types/FilterConfig';
+import { FilterConfig, FilterState, FilterGroup, FilterMetadata } from '../types/FilterConfig';
+import { loadMetadata as loadCacheMetadata, MetadataCache } from './advancedCacheService';
+
+// ============================================
+// CACHED METADATA ACCESS
+// ============================================
+
+/**
+ * Carrega metadata do cache (tags, statuses, projects, assignees)
+ * Pode ser usado em qualquer componente para acessar dados sem sync
+ */
+export const getCachedMetadata = (): FilterMetadata | null => {
+  const cached = loadCacheMetadata();
+  if (!cached) return null;
+
+  return {
+    tags: cached.tags || [],
+    statuses: cached.statuses || [],
+    projects: cached.projects || [],
+    assignees: cached.assignees || [],
+    priorities: cached.priorities || []
+  };
+};
+
+/**
+ * Carrega apenas as tags do cache
+ */
+export const getCachedTags = (): string[] => {
+  const cached = loadCacheMetadata();
+  return cached?.tags || [];
+};
+
+/**
+ * Carrega apenas os statuses do cache
+ */
+export const getCachedStatuses = (): string[] => {
+  const cached = loadCacheMetadata();
+  return cached?.statuses || [];
+};
+
+/**
+ * Carrega apenas os projetos do cache
+ */
+export const getCachedProjects = (): string[] => {
+  const cached = loadCacheMetadata();
+  return cached?.projects || [];
+};
+
+/**
+ * Carrega apenas os assignees do cache
+ */
+export const getCachedAssignees = (): string[] => {
+  const cached = loadCacheMetadata();
+  return cached?.assignees || [];
+};
+
+/**
+ * Verifica se há metadata em cache
+ */
+export const hasCachedMetadata = (): boolean => {
+  const cached = loadCacheMetadata();
+  return !!cached && (cached.tags?.length > 0 || cached.statuses?.length > 0);
+};
 
 // ============================================
 // SYNC FILTERS (para configurar ANTES do sync)

@@ -68,6 +68,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
   // Dropdown states
   const [isTeamDropdownOpen, setIsTeamDropdownOpen] = useState(false);
   const [isMonthDropdownOpen, setIsMonthDropdownOpen] = useState(false);
+  const [isYearDropdownOpen, setIsYearDropdownOpen] = useState(false);
 
   useEffect(() => {
     const dark = document.documentElement.classList.contains('dark');
@@ -86,12 +87,74 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
     document.documentElement.style.backgroundColor = newTheme ? '#111827' : '#f9fafb';
   }, [isDark]);
 
-  // Usar meses fornecidos via props ou fallback para mockados
-  const months: MonthOption[] = externalMonths || [
-    { value: '2025-11', label: 'Novembro 2025' },
-    { value: '2025-12', label: 'Dezembro 2025' },
-    { value: '2026-01', label: 'Janeiro 2026' },
+  // Gerar meses dinamicamente (24 meses passados + 12 futuros)
+  const generateMonths = useMemo((): MonthOption[] => {
+    if (externalMonths && externalMonths.length > 0) return externalMonths;
+
+    const result: MonthOption[] = [];
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+
+    // Gerar 24 meses passados + mês atual + 12 meses futuros = 37 meses
+    for (let i = -24; i <= 12; i++) {
+      const date = new Date(currentYear, currentMonth + i, 1);
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      const monthStr = month.toString().padStart(2, '0');
+      const label = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+      // Capitalizar primeira letra
+      const capitalizedLabel = label.charAt(0).toUpperCase() + label.slice(1);
+      result.push({
+        value: `${year}-${monthStr}`,
+        label: capitalizedLabel
+      });
+    }
+    return result;
+  }, [externalMonths]);
+
+  const months = generateMonths;
+
+  // Anos disponíveis (extraídos dos meses)
+  const availableYears = useMemo(() => {
+    const years = new Set(months.map(m => parseInt(m.value.split('-')[0])));
+    return Array.from(years).sort((a, b) => b - a); // Mais recente primeiro
+  }, [months]);
+
+  // Meses do ano selecionado
+  const [selectedYear, selectedMonthNum] = useMemo(() => {
+    const [y, m] = selectedMonth.split('-').map(Number);
+    return [y, m];
+  }, [selectedMonth]);
+
+  // Nomes dos meses em português
+  const monthNames = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
   ];
+
+  // Ir para mês atual
+  const goToToday = useCallback(() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = (today.getMonth() + 1).toString().padStart(2, '0');
+    setSelectedMonth(`${year}-${month}`);
+  }, []);
+
+  // Mudar ano mantendo o mês
+  const changeYear = useCallback((newYear: number) => {
+    const month = selectedMonth.split('-')[1];
+    setSelectedMonth(`${newYear}-${month}`);
+    setIsYearDropdownOpen(false);
+  }, [selectedMonth]);
+
+  // Mudar mês mantendo o ano
+  const changeMonth = useCallback((newMonth: number) => {
+    const year = selectedMonth.split('-')[0];
+    const monthStr = newMonth.toString().padStart(2, '0');
+    setSelectedMonth(`${year}-${monthStr}`);
+    setIsMonthDropdownOpen(false);
+  }, [selectedMonth]);
 
   const handleMonthNavigate = (direction: 'prev' | 'next') => {
     const currentIndex = months.findIndex(m => m.value === selectedMonth);
@@ -399,7 +462,6 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
     );
   };
 
-  const currentMonthLabel = months.find(m => m.value === selectedMonth)?.label || selectedMonth;
 
   return (
     <div className={`min-h-screen ${isDark ? 'bg-gray-900' : 'bg-gray-50'} p-6 transition-colors`}>
@@ -458,37 +520,40 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
                   )}
                 </div>
 
-                {/* Month Selector Control */}
-                <div className="flex items-center relative">
+                {/* Month/Year Selector Control - IMPROVED */}
+                <div className="flex items-center gap-1 relative">
+                  {/* Botão Anterior */}
                   <button
                     onClick={() => handleMonthNavigate('prev')}
                     disabled={months.findIndex(m => m.value === selectedMonth) <= 0}
                     className={`p-2 ${isDark ? 'text-gray-400 hover:text-white disabled:opacity-30' : 'text-gray-400 hover:text-gray-900 disabled:opacity-30'}`}
+                    title="Mês anterior"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
 
+                  {/* Seletor de Mês */}
                   <div className="relative">
                     <button
-                      onClick={() => { setIsMonthDropdownOpen(!isMonthDropdownOpen); setIsTeamDropdownOpen(false); }}
-                      className={`flex items-center gap-2 px-2 py-2 text-sm font-medium ${isDark ? 'text-gray-200 hover:text-white' : 'text-gray-700 hover:text-gray-900'}`}
+                      onClick={() => { setIsMonthDropdownOpen(!isMonthDropdownOpen); setIsTeamDropdownOpen(false); setIsYearDropdownOpen(false); }}
+                      className={`flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg border ${isDark ? 'text-gray-200 hover:bg-gray-700 border-gray-600' : 'text-gray-700 hover:bg-gray-100 border-gray-300'}`}
                     >
-                      <Calendar className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
-                      <span>{currentMonthLabel}</span>
+                      <span>{monthNames[selectedMonthNum - 1]}</span>
+                      <ChevronDown className="w-3 h-3" />
                     </button>
 
                     {isMonthDropdownOpen && (
                       <>
                         <div className="fixed inset-0 z-30" onClick={() => setIsMonthDropdownOpen(false)}></div>
-                        <div className={`absolute top-full right-1/2 translate-x-1/2 mt-2 w-48 rounded-lg border shadow-lg z-40 py-1 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-                          {months.map(m => (
+                        <div className={`absolute top-full left-0 mt-1 w-36 rounded-lg border shadow-lg z-40 py-1 max-h-64 overflow-y-auto ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                          {monthNames.map((name, idx) => (
                             <button
-                              key={m.value}
-                              onClick={() => { setSelectedMonth(m.value); setIsMonthDropdownOpen(false); }}
-                              className={`w-full px-4 py-2 text-left text-sm flex items-center justify-between ${isDark ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700'} ${selectedMonth === m.value ? (isDark ? 'bg-gray-700/50' : 'bg-gray-50') : ''}`}
+                              key={idx}
+                              onClick={() => changeMonth(idx + 1)}
+                              className={`w-full px-3 py-2 text-left text-sm flex items-center justify-between ${isDark ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700'} ${selectedMonthNum === idx + 1 ? (isDark ? 'bg-indigo-600/20 text-indigo-300' : 'bg-indigo-50 text-indigo-700') : ''}`}
                             >
-                              <span>{m.label}</span>
-                              {selectedMonth === m.value && <Check className="w-3 h-3 text-indigo-500" />}
+                              <span>{name}</span>
+                              {selectedMonthNum === idx + 1 && <Check className="w-3 h-3" />}
                             </button>
                           ))}
                         </div>
@@ -496,12 +561,52 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
                     )}
                   </div>
 
+                  {/* Seletor de Ano */}
+                  <div className="relative">
+                    <button
+                      onClick={() => { setIsYearDropdownOpen(!isYearDropdownOpen); setIsTeamDropdownOpen(false); setIsMonthDropdownOpen(false); }}
+                      className={`flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg border ${isDark ? 'text-gray-200 hover:bg-gray-700 border-gray-600' : 'text-gray-700 hover:bg-gray-100 border-gray-300'}`}
+                    >
+                      <span>{selectedYear}</span>
+                      <ChevronDown className="w-3 h-3" />
+                    </button>
+
+                    {isYearDropdownOpen && (
+                      <>
+                        <div className="fixed inset-0 z-30" onClick={() => setIsYearDropdownOpen(false)}></div>
+                        <div className={`absolute top-full left-0 mt-1 w-24 rounded-lg border shadow-lg z-40 py-1 max-h-64 overflow-y-auto ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                          {availableYears.map(year => (
+                            <button
+                              key={year}
+                              onClick={() => changeYear(year)}
+                              className={`w-full px-3 py-2 text-left text-sm flex items-center justify-between ${isDark ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700'} ${selectedYear === year ? (isDark ? 'bg-indigo-600/20 text-indigo-300' : 'bg-indigo-50 text-indigo-700') : ''}`}
+                            >
+                              <span>{year}</span>
+                              {selectedYear === year && <Check className="w-3 h-3" />}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Botão Próximo */}
                   <button
                     onClick={() => handleMonthNavigate('next')}
                     disabled={months.findIndex(m => m.value === selectedMonth) >= months.length - 1}
                     className={`p-2 ${isDark ? 'text-gray-400 hover:text-white disabled:opacity-30' : 'text-gray-400 hover:text-gray-900 disabled:opacity-30'}`}
+                    title="Próximo mês"
                   >
                     <ChevronRight className="w-4 h-4" />
+                  </button>
+
+                  {/* Botão Hoje */}
+                  <button
+                    onClick={goToToday}
+                    className={`ml-2 px-2 py-1.5 text-xs font-medium rounded-lg border ${isDark ? 'text-indigo-300 hover:bg-indigo-600/20 border-indigo-600/50' : 'text-indigo-600 hover:bg-indigo-50 border-indigo-200'}`}
+                    title="Ir para mês atual"
+                  >
+                    Hoje
                   </button>
                 </div>
               </div>

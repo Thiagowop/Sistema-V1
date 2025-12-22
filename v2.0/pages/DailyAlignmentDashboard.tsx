@@ -49,6 +49,8 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { getCachedTags, getCachedStatuses } from '../services/filterService';
+import { Tag } from 'lucide-react';
 
 // --- CONFIGURAÇÕES DE QUALIDADE ---
 const PENALTY_WEIGHTS = {
@@ -254,20 +256,31 @@ const ManageBoxesModal = ({
               )}
             </div>
           ) : (
-            <form onSubmit={handleAdd} className="p-4 space-y-6">
+            <form onSubmit={handleAdd} className="p-4 space-y-5">
+              {/* Tabs Visual / Filtros */}
+              <div className="flex border-b border-slate-200 mb-2">
+                <button type="button" onClick={() => setActiveTab('create')} className="flex-1 py-2 text-xs font-bold text-indigo-600 border-b-2 border-indigo-600">
+                  <span className="flex items-center justify-center gap-1"><Palette size={14} /> Visual</span>
+                </button>
+                <button type="button" onClick={() => setActiveTab('create')} className="flex-1 py-2 text-xs font-bold text-slate-400">
+                  <span className="flex items-center justify-center gap-1"><Tag size={14} /> Filtros & Tags</span>
+                </button>
+              </div>
+
               <div className="space-y-2">
                 <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Nome do Box</label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Ex: Refatoração, Bugs UX..."
+                  placeholder="Ex: Bugs Críticos, Sprint Backlog..."
                   className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all"
                   autoFocus
                 />
               </div>
+
               <div className="space-y-3">
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Cor de Destaque</label>
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Cor do Identificador</label>
                 <div className="flex flex-wrap gap-3">
                   {AVAILABLE_COLORS.map((c) => (
                     <button
@@ -282,12 +295,70 @@ const ManageBoxesModal = ({
                   ))}
                 </div>
               </div>
+
+              {/* Filtrar por Tags (do cache) */}
+              {(() => {
+                const cachedTags = getCachedTags();
+                if (cachedTags.length === 0) return (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                    <p className="text-xs text-amber-700">
+                      <strong>Dica:</strong> Faça um Sync na aba principal para carregar as tags do ClickUp.
+                    </p>
+                  </div>
+                );
+                return (
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">
+                      Filtrar por Tags
+                    </label>
+                    <p className="text-[10px] text-slate-400 ml-1">
+                      Tarefas com QUALQUER UMA das tags selecionadas serão exibidas
+                    </p>
+                    <div className="flex flex-wrap gap-2 max-h-28 overflow-y-auto p-2 bg-slate-50 rounded-xl border border-slate-100">
+                      {cachedTags.slice(0, 20).map(tag => {
+                        const isSelected = selectedTags.includes(tag.toLowerCase());
+                        return (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedTags(selectedTags.filter(t => t !== tag.toLowerCase()));
+                              } else {
+                                setSelectedTags([...selectedTags, tag.toLowerCase()]);
+                              }
+                            }}
+                            className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all ${
+                              isSelected
+                                ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                                : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
+                            }`}
+                          >
+                            + {tag}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {selectedTags.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase">Selecionadas:</span>
+                        {selectedTags.map(tag => (
+                          <span key={tag} className="px-2 py-0.5 bg-indigo-500 text-white text-[10px] font-bold rounded-full">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               <button
                 type="submit"
                 disabled={!name.trim()}
                 className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-2xl font-bold text-sm shadow-xl shadow-indigo-100 transition-all active:scale-95 flex items-center justify-center gap-2"
               >
-                <Plus size={18} /> Adicionar Box
+                <Plus size={18} /> Criar Box
               </button>
             </form>
           )}

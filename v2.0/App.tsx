@@ -17,7 +17,7 @@ import { ProjectsDashboard } from './pages/ProjectsDashboard'; // Clean version
 import { TeamWorkloadWrapper } from './pages/TeamWorkloadWrapper';
 import { QualityWrapper } from './pages/QualityWrapper';
 import { AdminDashboard } from './pages/AdminDashboard';
-import { TimesheetDashboard } from './pages/TimesheetDashboard'; // Componente correto segundo seu branch
+import TimesheetDashboard from './pages/TimesheetDashboard'; // Default export
 import { GeneralTeamWrapper } from './pages/GeneralTeamWrapper';
 import { FiltersWrapper } from './pages/FiltersWrapper';
 import { CompletedProjectsWrapper } from './pages/CompletedProjectsWrapper';

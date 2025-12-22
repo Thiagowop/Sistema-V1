@@ -1,5 +1,7 @@
 import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, Calendar, Eye, EyeOff, Moon, Sun, LayoutGrid, User, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Calendar, Eye, EyeOff, Moon, Sun, LayoutGrid, User, Check, AlertCircle } from 'lucide-react';
+import { useData } from '../contexts/DataContext';
+import { GroupedData, Task as RealTask } from '../types';
 
 interface Hours {
   planned: number;
@@ -116,8 +118,8 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
   const months = generateMonths;
 
   // Anos disponíveis (extraídos dos meses)
-  const availableYears = useMemo(() => {
-    const years = new Set(months.map(m => parseInt(m.value.split('-')[0])));
+  const availableYears = useMemo((): number[] => {
+    const years = new Set<number>(months.map(m => parseInt(m.value.split('-')[0])));
     return Array.from(years).sort((a, b) => b - a); // Mais recente primeiro
   }, [months]);
 
@@ -223,57 +225,144 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
     return { planned: Math.round(totalPlanned * 10) / 10, actual: Math.round(totalActual * 10) / 10 };
   };
 
-  // Usar teamMembers fornecidos via props ou fallback para mockados
+  // ============================================
+  // INTEGRAÇÃO COM DADOS REAIS DO DATACONTEXT
+  // ============================================
+  const { groupedData, metadata, syncState } = useData();
+
+  // Verificar se tarefa tem atividade no período selecionado
+  const isTaskInPeriod = useCallback((task: RealTask, periodStart: Date, periodEnd: Date): boolean => {
+    // Tarefa tem atividade se:
+    // 1. dueDate está no período
+    // 2. startDate está no período
+    // 3. dateClosed está no período
+    // 4. Tem timeLogged > 0 (trabalharam nela)
+
+    const dueDate = task.dueDate ? new Date(task.dueDate) : null;
+    const startDate = task.startDate ? new Date(task.startDate) : null;
+    const closedDate = task.dateClosed ? new Date(task.dateClosed) : null;
+
+    // Verificar se alguma data relevante está no período
+    const isInPeriod = (date: Date | null) => {
+      if (!date) return false;
+      return date >= periodStart && date <= periodEnd;
+    };
+
+    // Se tem dueDate ou startDate no período, está ativa
+    if (isInPeriod(dueDate) || isInPeriod(startDate) || isInPeriod(closedDate)) {
+      return true;
+    }
+
+    // Se a tarefa está "em andamento" e tem startDate antes do período e dueDate depois ou sem dueDate
+    if (startDate && startDate < periodStart) {
+      if (!dueDate || dueDate >= periodStart) {
+        // Tarefa começou antes mas ainda está ativa ou termina no período
+        return true;
+      }
+    }
+
+    // Se tem tempo logado, considerar ativa
+    if (task.timeLogged > 0) {
+      return true;
+    }
+
+    return false;
+  }, []);
+
+  // Distribuir horas da tarefa pelos dias do mês
+  const distributeTaskHours = useCallback((task: RealTask, numDays: number, periodStart: Date, periodEnd: Date): Hours[] => {
+    const hours: Hours[] = Array(numDays).fill(null).map(() => ({ planned: 0, actual: 0 }));
+
+    // Calcular período efetivo da tarefa
+    const taskStart = task.startDate ? new Date(task.startDate) : periodStart;
+    const taskEnd = task.dueDate ? new Date(task.dueDate) : periodEnd;
+
+    // Encontrar dias efetivos no período
+    let effectiveDays = 0;
+    allDays.forEach((day, idx) => {
+      if (!day.isWeekend && day.date >= taskStart && day.date <= taskEnd) {
+        effectiveDays++;
+      }
+    });
+
+    if (effectiveDays === 0) effectiveDays = 1;
+
+    // Distribuir horas
+    const plannedPerDay = (task.timeEstimate || 0) / 3600000 / effectiveDays; // ms para horas
+    const loggedPerDay = (task.timeLogged || 0) / 3600000 / effectiveDays;
+
+    allDays.forEach((day, idx) => {
+      if (!day.isWeekend && day.date >= taskStart && day.date <= taskEnd) {
+        hours[idx] = {
+          planned: Math.round(plannedPerDay * 10) / 10,
+          actual: Math.round(loggedPerDay * 10) / 10
+        };
+      }
+    });
+
+    return hours;
+  }, [allDays]);
+
+  // Converter dados reais para estrutura do Timesheet
   const teamMembers = useMemo<Member[]>(() => {
+    // Se há dados externos, usar
     if (externalTeamMembers && externalTeamMembers.length > 0) {
       return externalTeamMembers;
     }
 
-    // Fallback para dados mockados
-    return [
-      {
-        id: 'brozinga', name: 'Brozinga', initials: 'BR',
-        projects: [
-          {
-            id: 'brozinga-proj-1', name: 'Integração API Bancária',
-            tasks: [
-              { id: 'task-1', name: 'Desenvolvimento de Feature', hours: generateProjectHours('brozinga-task-1', allDays.length) },
-              { id: 'task-2', name: 'Code Review', hours: generateProjectHours('brozinga-task-2', allDays.length) }
-            ]
-          },
-          {
-            id: 'brozinga-proj-2', name: 'Suporte & Sustentação',
-            tasks: [{ id: 'task-5', name: 'Atendimento N3', hours: generateProjectHours('brozinga-task-5', allDays.length) }]
-          }
-        ]
-      },
-      {
-        id: 'rafael', name: 'Rafael', initials: 'RA',
-        projects: [
-          {
-            id: 'rafael-proj-1', name: 'Integração API Bancária',
-            tasks: [
-              { id: 'task-1', name: 'Desenvolvimento de Feature', hours: generateProjectHours('rafael-task-1', allDays.length) },
-              { id: 'task-3', name: 'Testes Integrados', hours: generateProjectHours('rafael-task-3', allDays.length) }
-            ]
-          }
-        ]
-      },
-      {
-        id: 'pedro', name: 'Pedro', initials: 'PE',
-        projects: [
-          {
-            id: 'pedro-proj-1', name: 'Integração API Bancária',
-            tasks: [{ id: 'task-2', name: 'Testes Integrados', hours: generateProjectHours('pedro-task-2', allDays.length) }]
-          },
-          {
-            id: 'pedro-proj-2', name: 'Refatoração Legacy',
-            tasks: [{ id: 'task-4', name: 'Análise de Performance', hours: generateProjectHours('pedro-task-4', allDays.length) }]
-          }
-        ]
-      }
-    ];
-  }, [externalTeamMembers, allDays.length, generateProjectHours]);
+    // Se não há dados do sync, retornar vazio
+    if (!groupedData || groupedData.length === 0) {
+      return [];
+    }
+
+    // Período do mês selecionado
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const periodStart = new Date(year, month - 1, 1);
+    const periodEnd = new Date(year, month, 0, 23, 59, 59); // Último dia do mês
+
+    // Converter cada membro do groupedData
+    return groupedData.map(group => {
+      const initials = group.assignee
+        .split(' ')
+        .map(n => n[0])
+        .join('')
+        .substring(0, 2)
+        .toUpperCase();
+
+      // Filtrar e converter projetos
+      const projects: Project[] = group.projects
+        .map(proj => {
+          // Filtrar tarefas que têm atividade no período
+          const activeTasks = proj.tasks.filter(task =>
+            isTaskInPeriod(task, periodStart, periodEnd)
+          );
+
+          // Se não há tarefas ativas, pular projeto
+          if (activeTasks.length === 0) return null;
+
+          // Converter tarefas
+          const tasks: Task[] = activeTasks.map(task => ({
+            id: task.id,
+            name: task.name,
+            hours: distributeTaskHours(task, allDays.length, periodStart, periodEnd)
+          }));
+
+          return {
+            id: `${group.assignee}-${proj.name}`.replace(/\s/g, '-').toLowerCase(),
+            name: proj.name,
+            tasks
+          };
+        })
+        .filter((p): p is Project => p !== null);
+
+      return {
+        id: group.assignee.toLowerCase().replace(/\s/g, '-'),
+        name: group.assignee,
+        initials,
+        projects
+      };
+    }).filter(member => member.projects.length > 0); // Só membros com projetos ativos
+  }, [externalTeamMembers, groupedData, selectedMonth, allDays, isTaskInPeriod, distributeTaskHours]);
 
   const filteredMembers = selectedMemberFilter === 'all' ? teamMembers : teamMembers.filter(m => m.id === selectedMemberFilter);
 
@@ -463,6 +552,10 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
   };
 
 
+  // Verificar se há dados do sync
+  const hasData = groupedData && groupedData.length > 0;
+  const hasMembersInPeriod = teamMembers.length > 0;
+
   return (
     <div className={`min-h-screen ${isDark ? 'bg-gray-900' : 'bg-gray-50'} p-6 transition-colors`}>
       <div className="max-w-full mx-auto">
@@ -470,7 +563,15 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
           <div className="flex justify-between items-center">
             <div>
               <h1 className={`text-2xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Timesheet</h1>
-              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'} mt-1`}>Gestão de horas da equipe</p>
+              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'} mt-1`}>
+                Gestão de horas da equipe
+                {hasData && !hasMembersInPeriod && (
+                  <span className="ml-2 text-amber-500">• Nenhum projeto com atividade em {monthNames[selectedMonthNum - 1]}/{selectedYear}</span>
+                )}
+                {!hasData && (
+                  <span className="ml-2 text-amber-500">• Faça um sync para carregar dados</span>
+                )}
+              </p>
             </div>
 
             <div className="flex items-center gap-3">

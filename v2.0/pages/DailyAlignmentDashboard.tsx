@@ -27,7 +27,9 @@ import {
   Lock,
   ArrowUp,
   ArrowDown,
-  Save
+  Save,
+  CheckSquare,
+  ListTree
 } from 'lucide-react';
 import { GroupedData, Task, Project } from '../types';
 import { useData } from '../contexts/DataContext';
@@ -84,6 +86,154 @@ const AVAILABLE_COLORS = [
   { name: 'Violet', bg: 'bg-violet-600', dot: '#7c3aed' },
   { name: 'Cyan', bg: 'bg-cyan-600', dot: '#0891b2' },
 ];
+
+// --- COMPONENTES VISUAIS MELHORADOS ---
+
+// Toggle melhorado para filtros
+const ImprovedToggle = ({
+  label,
+  checked,
+  onChange,
+  icon: Icon
+}: {
+  label: string;
+  checked: boolean;
+  onChange: () => void;
+  icon?: any;
+}) => (
+  <button
+    onClick={onChange}
+    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border-2 transition-all duration-200 ${checked
+      ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm'
+      : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
+      }`}
+  >
+    <div className={`relative w-11 h-6 rounded-full transition-colors duration-300 ${checked ? 'bg-indigo-600' : 'bg-slate-300'}`}>
+      <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-300 ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
+    </div>
+    {Icon && <Icon size={16} className={checked ? 'text-indigo-600' : 'text-slate-400'} />}
+    <span className="text-sm font-bold">{label}</span>
+  </button>
+);
+
+// Badge de status com cores FORTES da referência
+const StatusBadge = ({ status }: { status: string }) => {
+  const s = status?.toLowerCase().trim() || '';
+  let styles = 'bg-slate-100 text-slate-600 border-slate-200'; // Default
+
+  // Cores EXATAS da referência (cores fortes, não pasteis)
+  if (s.includes('andamento') || s.includes('progress')) {
+    styles = 'bg-[#FFC107] text-[#374151] border-[#e0a800]'; // Amarelo FORTE
+  }
+  else if (s.includes('conclu') || s.includes('done')) {
+    styles = 'bg-[#22C55E] text-white border-[#16A34A]'; // Verde FORTE
+  }
+  else if (s.includes('iniciar') || s.includes('novo') || s.includes('fazer')) {
+    styles = 'bg-[#334155] text-white border-[#1e293b]'; // Escuro
+  }
+  else if (s.includes('valida') || s.includes('review') || s.includes('revisão')) {
+    styles = 'bg-[#3B82F6] text-white border-[#2563EB]'; // Azul
+  }
+  else if (s.includes('pendente') || s.includes('blocked') || s.includes('bloqueado')) {
+    styles = 'bg-[#DC2626] text-white border-[#B91C1C]'; // Vermelho
+  }
+  else if (s.includes('backlog')) {
+    styles = 'bg-[#64748B] text-white border-[#475569]'; // Cinza médio
+  }
+
+  return (
+    <span className={`inline-flex items-center justify-center w-[120px] h-7 rounded-full text-[10px] uppercase font-bold tracking-wider border shadow-sm ${styles}`}>
+      {status}
+    </span>
+  );
+};
+
+// Bandeira de prioridade colorida COM NÚMERO
+const PriorityFlag = ({ priority }: { priority?: string }) => {
+  // Configuração padrão (P4 - Sem Prioridade)
+  let colorClass = 'text-[#CBD5E1]'; // Cinza Claro
+  let label = '4';
+
+  if (!priority) {
+    return (
+      <div className="flex items-center gap-1.5" title="Prioridade 4">
+        <Flag size={14} className={`${colorClass} fill-current`} />
+        <span className={`text-xs font-bold ${colorClass}`}>{label}</span>
+      </div>
+    );
+  }
+
+  // Normalização para evitar erros de Case Sensitive
+  const p = priority.toLowerCase();
+
+  if (p.includes('0') || p.includes('urgent') || p.includes('urgente')) {
+    colorClass = 'text-[#EF4444]'; // Vermelho (P0)
+    label = '0';
+  }
+  else if (p.includes('1') || p.includes('high') || p.includes('alta')) {
+    colorClass = 'text-[#F97316]'; // Laranja (P1)
+    label = '1';
+  }
+  else if (p.includes('2') || p.includes('normal')) {
+    colorClass = 'text-[#3B82F6]'; // Azul (P2)
+    label = '2';
+  }
+  else if (p.includes('3') || p.includes('low') || p.includes('baixa')) {
+    colorClass = 'text-[#64748B]'; // Cinza Escuro (P3)
+    label = '3';
+  }
+
+
+
+  return (
+    <div className="flex items-center gap-1.5" title={`Prioridade ${label}`}>
+      <Flag size={14} className={`${colorClass} fill-current`} />
+      <span className={`text-xs font-bold ${colorClass}`}>{label}</span>
+    </div>
+  );
+};
+
+// Card Circular SIMPLES de Qualidade (só círculo + %)
+const CircularQualityBadge = ({ score }: { score: number }) => {
+  const radius = 28;
+  const circumference = radius * 2 * Math.PI;
+  const offset = circumference - (score / 100) * circumference;
+
+  // Cores dinâmicas: vermelho <60, amarelo 60-70, verde >70
+  const color = score < 60 ? '#ef4444' : score < 70 ? '#eab308' : '#10b981';
+  const textColor = score < 60 ? 'text-red-600' : score < 70 ? 'text-yellow-600' : 'text-emerald-600';
+
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: 70, height: 70 }}>
+      <svg className="transform -rotate-90 w-full h-full">
+        <circle cx={35} cy={35} r={radius} stroke="#e2e8f0" strokeWidth={4} fill="transparent" />
+        <circle
+          cx={35} cy={35} r={radius}
+          stroke={color} strokeWidth={4} fill="transparent"
+          strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round"
+          className="transition-all duration-1000 ease-out"
+        />
+      </svg>
+      <div className="absolute flex flex-col items-center">
+        <span className={`font-bold ${textColor} text-2xl leading-none`}>{score}%</span>
+      </div>
+    </div>
+  );
+};
+
+// Ícone de HORAS EXCEDIDAS piscante
+const ExceededHoursIcon = ({ timeLogged, timeEstimate }: { timeLogged?: number; timeEstimate?: number }) => {
+  const isOver = (timeLogged || 0) > (timeEstimate || 0);
+
+  if (!isOver || !timeEstimate) return null;
+
+  return (
+    <div className="flex items-center gap-1 text-rose-600 font-bold" title="Estouro de Horas">
+      <AlertTriangle size={12} className="text-rose-500 animate-pulse" />
+      <span className="text-[10px]">Estourado</span>
+    </div>
+  );
+};
 
 // --- COMPONENTES AUXILIARES ---
 
@@ -328,11 +478,10 @@ const ManageBoxesModal = ({
                                 setSelectedTags([...selectedTags, tag.toLowerCase()]);
                               }
                             }}
-                            className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all ${
-                              isSelected
-                                ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
-                                : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
-                            }`}
+                            className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all ${isSelected
+                              ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                              : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
+                              }`}
                           >
                             + {tag}
                           </button>
@@ -378,6 +527,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
   const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set());
   const [isSyncing, setIsSyncing] = useState(false);
   const [showManageModal, setShowManageModal] = useState(false);
+  const [showTasks, setShowTasks] = useState(true);
   const [showCompleted, setShowCompleted] = useState(false);
   const [showSubtasks, setShowSubtasks] = useState(true);
   const [viewScale, setViewScale] = useState(1);
@@ -631,11 +781,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
               {/* Hierarquia visual para subtarefas */}
               {depth > 0 && <span className="text-slate-300 text-xs mr-1">└</span>}
 
-              {/* Dot de status */}
-              <div className={`w-2 h-2 rounded-full shrink-0 ${isDone ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' :
-                isOverdue ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]' :
-                  'bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.6)]'
-                }`} />
+
 
               {/* Nome da tarefa */}
               <span className={`text-sm font-bold tracking-tight ${isDone ? 'text-slate-400 line-through' :
@@ -644,12 +790,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
                 {task.name}
               </span>
 
-              {/* Badge de subtarefas */}
-              {hasSubtasks && (
-                <span className="text-[9px] font-black px-2 py-0.5 bg-indigo-100 text-indigo-600 rounded-full border border-indigo-200">
-                  {task.subtasks.length} subs
-                </span>
-              )}
+
 
               {/* Tooltip de Descrição */}
               <Tooltip content={task.description} />
@@ -672,15 +813,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
               <div className="flex justify-between text-[10px] font-bold items-center">
                 <span className="text-slate-600">{formatHours(task.timeLogged || 0)}</span>
                 <span className="text-slate-400">/ {formatHours(task.timeEstimate || 0)}</span>
-                {(() => {
-                  const overflow = (task.timeLogged || 0) - (task.timeEstimate || 0);
-                  return overflow > 0 ? (
-                    <div className="flex items-center gap-0.5 bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded-md ml-2">
-                      <AlertTriangle size={10} />
-                      <span className="text-[9px] font-black">+{formatHours(overflow)}</span>
-                    </div>
-                  ) : null;
-                })()}
+                <ExceededHoursIcon timeLogged={task.timeLogged} timeEstimate={task.timeEstimate} />
               </div>
               <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
                 <div
@@ -699,16 +832,11 @@ export const DailyAlignmentDashboard: React.FC = () => {
             </div>
           </td>
           <td className="px-4 py-4 text-center">
-            <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${isDone ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-amber-50 text-amber-700 border-amber-100'
-              }`}>
-              {task.status}
-            </span>
+            <StatusBadge status={task.status} />
           </td>
-          <td className="px-8 py-4 text-right">
-            <div className="flex justify-end gap-1">
-              {Array.from({ length: 4 - (parseInt(task.priority || '4')) }).map((_, i) => (
-                <div key={i} className="w-1.5 h-3 rounded-full bg-rose-500 opacity-80 shadow-sm" />
-              ))}
+          <td className="px-8 py-4 text-center">
+            <div className="flex justify-center">
+              <PriorityFlag priority={task.priority} />
             </div>
           </td>
         </tr >
@@ -723,24 +851,6 @@ export const DailyAlignmentDashboard: React.FC = () => {
     );
   };
 
-  // NEW: Circular Quality Badge Component
-  const CircularQualityBadge = ({ score }: { score: number }) => {
-    const color = score >= 80 ? 'emerald' : score >= 60 ? 'amber' : 'rose';
-    const bgClass = `bg-${color}-500`;
-    const textClass = `text-${color}-600`;
-    const borderClass = `border-${color}-500`;
-
-    return (
-      <div className="relative inline-flex items-center justify-center">
-        <div className={`w-16 h-16 rounded-full ${bgClass} flex items-center justify-center shadow-lg`}>
-          <div className="text-center">
-            <div className="text-2xl font-black text-white leading-none">{score}%</div>
-            {score === 100 && <CheckCircle2 size={16} className="text-white mx-auto mt-0.5" />}
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   // Cálculo de Qualidade
   const qualityStats = useMemo(() => {
@@ -803,18 +913,37 @@ export const DailyAlignmentDashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setShowCompleted(!showCompleted)} className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${showCompleted ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-500'}`}>
-              {showCompleted ? 'Ocultar Concluídas' : 'Mostrar Concluídas'}
-            </button>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setIsPresentationMode(!isPresentationMode)} className="flex items-center gap-2 px-4 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">
-              {isPresentationMode ? <Minimize2 size={14} /> : <MonitorPlay size={14} />}
-              <span>{isPresentationMode ? 'Sair do Modo Foco' : 'Modo Apresentação'}</span>
-            </button>
-          </div>
+        {/* Toggles Simples */}
+        <div className="flex items-center gap-6">
+          <button
+            onClick={() => setShowTasks(!showTasks)}
+            className="flex items-center gap-2 cursor-pointer group"
+          >
+            <div className={`w-9 h-5 rounded-full transition-colors ${showTasks ? 'bg-indigo-500' : 'bg-slate-200'}`}>
+              <div className={`w-4 h-4 mt-0.5 rounded-full bg-white shadow-md transform transition-transform ${showTasks ? 'translate-x-4 ml-0.5' : 'translate-x-0.5'}`} />
+            </div>
+            <span className="text-sm font-semibold text-slate-700">Tarefas</span>
+          </button>
+
+          <button
+            onClick={() => setShowSubtasks(!showSubtasks)}
+            className="flex items-center gap-2 cursor-pointer group"
+          >
+            <div className={`w-9 h-5 rounded-full transition-colors ${showSubtasks ? 'bg-indigo-500' : 'bg-slate-200'}`}>
+              <div className={`w-4 h-4 mt-0.5 rounded-full bg-white shadow-md transform transition-transform ${showSubtasks ? 'translate-x-4 ml-0.5' : 'translate-x-0.5'}`} />
+            </div>
+            <span className="text-sm font-semibold text-slate-700">Subtarefas</span>
+          </button>
+
+          <button
+            onClick={() => setShowCompleted(!showCompleted)}
+            className="flex items-center gap-2 cursor-pointer group"
+          >
+            <div className={`w-9 h-5 rounded-full transition-colors ${showCompleted ? 'bg-emerald-500' : 'bg-slate-200'}`}>
+              <div className={`w-4 h-4 mt-0.5 rounded-full bg-white shadow-md transform transition-transform ${showCompleted ? 'translate-x-4 ml-0.5' : 'translate-x-0.5'}`} />
+            </div>
+            <span className="text-sm font-semibold text-slate-700">Concluídas</span>
+          </button>
         </div>
       </div>
 
@@ -828,37 +957,11 @@ export const DailyAlignmentDashboard: React.FC = () => {
               <button onClick={() => setShowManageModal(true)} className="p-2 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-indigo-600 hover:border-indigo-200 shadow-sm transition-all"><Settings size={20} /></button>
             </div>
 
-            {/* NEW: Circular Quality Badge */}
-            <div className="flex items-center gap-3">
-              <div className="text-right">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Qualidade dos Dados</p>
-              </div>
-              <CircularQualityBadge score={qualityStats.score} />
-            </div>
+            {/* Card Circular de Qualidade */}
+            <CircularQualityBadge score={qualityStats.score} />
           </div>
 
-          {/* Toggles de Visualização */}
-          <div className="flex items-center gap-6 px-2">
-            <button
-              onClick={() => setShowSubtasks(!showSubtasks)}
-              className="flex items-center gap-2 cursor-pointer group"
-            >
-              <div className={`w-9 h-5 rounded-full transition-colors ${showSubtasks ? 'bg-indigo-500' : 'bg-slate-200'}`}>
-                <div className={`w-4 h-4 mt-0.5 rounded-full bg-white shadow-md transform transition-transform ${showSubtasks ? 'translate-x-4 ml-0.5' : 'translate-x-0.5'}`} />
-              </div>
-              <span className="text-xs font-bold text-slate-600 group-hover:text-indigo-600 transition-colors">Subtarefas</span>
-            </button>
 
-            <button
-              onClick={() => setShowCompleted(!showCompleted)}
-              className="flex items-center gap-2 cursor-pointer group"
-            >
-              <div className={`w-9 h-5 rounded-full transition-colors ${showCompleted ? 'bg-emerald-500' : 'bg-slate-200'}`}>
-                <div className={`w-4 h-4 mt-0.5 rounded-full bg-white shadow-md transform transition-transform ${showCompleted ? 'translate-x-4 ml-0.5' : 'translate-x-0.5'}`} />
-              </div>
-              <span className="text-xs font-bold text-slate-600 group-hover:text-emerald-600 transition-colors">Concluídas</span>
-            </button>
-          </div>
 
           {/* Projects Grid */}
           <div className="grid gap-6">
@@ -892,7 +995,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
                         <h3 className="text-white font-black text-lg tracking-tight uppercase">{displayName}</h3>
                       )}
 
-                      <span className="bg-white/10 text-white/80 text-[10px] font-black px-3 py-1 rounded-full border border-white/10 tracking-widest">{filteredTasks.length} TAREFAS</span>
+
                     </div>
 
                     {/* NEW: Rename icon */}
@@ -919,7 +1022,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
                             <th className="px-4 py-4">Datas</th>
                             <th className="px-4 py-4">Estimado / Real</th>
                             <th className="px-4 py-4 text-center">Status</th>
-                            <th className="px-8 py-4 text-right">Prio</th>
+                            <th className="px-8 py-4 text-center">PRIORIDADE</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
@@ -952,7 +1055,25 @@ export const DailyAlignmentDashboard: React.FC = () => {
             </div>
           )
         }
-      </div >
-    </div >
+      </div>
+
+      {/* CSS para animações */}
+      <style>{`
+        @keyframes blink {
+          0%, 50%, 100% { opacity: 1; }
+          25%, 75% { opacity: 0.3; }
+        }
+        .blink-delay {
+          animation: blink 2s infinite;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-out;
+        }
+      `}</style>
+    </div>
   );
 };

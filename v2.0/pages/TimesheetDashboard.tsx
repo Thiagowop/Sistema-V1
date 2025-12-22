@@ -349,8 +349,22 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
         dateClosed: sampleTask.dateClosed,
         timeEstimate: sampleTask.timeEstimate,
         timeLogged: sampleTask.timeLogged,
-        status: sampleTask.status
+        status: sampleTask.status,
+        weeklyDistribution: sampleTask.weeklyDistribution // Check if this exists!
       });
+
+      // Contar tarefas com horas > 0
+      let tasksWithHours = 0;
+      let totalTasks = 0;
+      groupedData.forEach(g => {
+        g.projects.forEach(p => {
+          p.tasks.forEach(t => {
+            totalTasks++;
+            if (t.timeEstimate > 0 || t.timeLogged > 0) tasksWithHours++;
+          });
+        });
+      });
+      console.log(`[TIMESHEET] Tarefas com horas: ${tasksWithHours}/${totalTasks}`);
     }
 
     // Converter cada membro do groupedData

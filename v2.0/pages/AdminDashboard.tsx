@@ -10,11 +10,16 @@ import { useData } from '../contexts/DataContext';
 import {
     Save, Key, Plus, Trash2, Upload, HardDrive, Eye, EyeOff, Check,
     Shield, AlertTriangle, Users, Globe, Lock, Unlock, ToggleRight,
-    ToggleLeft, Download, RotateCcw, Database, Settings, BookOpen
+    ToggleLeft, Download, RotateCcw, Database, Settings, BookOpen, FolderOpen, Settings2, Calendar
 } from 'lucide-react';
 import { DailySpace } from '../components/DailySpace';
 import { FilterMetadata } from '../types/FilterConfig';
 import { extractFilterMetadata } from '../services/clickup';
+import { getCachedMetadata } from '../services/filterService';
+import { useGlobalFilters } from '../contexts/GlobalFilterContext';
+import { GlobalFilterBar } from '../components/GlobalFilterBar';
+import { Tag, CheckCircle, Filter } from 'lucide-react';
+import { SyncFiltersModal } from '../components/SyncFiltersModal';
 
 const DEV_DEFAULTS = {
     apiKey: "",
@@ -25,6 +30,238 @@ const DEV_DEFAULTS = {
 };
 
 type AdminTab = 'api' | 'security' | 'team' | 'data' | 'filters' | 'diario';
+
+// ============================================
+// GLOBAL FILTERS SECTION COMPONENT (Redesigned)
+// ============================================
+const GlobalFiltersSection: React.FC<{ filterMetadata: FilterMetadata | null }> = ({ filterMetadata }) => {
+    const {
+        filters,
+        setTagFilter,
+        setStatusFilter,
+        setAssigneeFilter,
+        setProjectFilter,
+        hasActiveFilters,
+        clearAllFilters
+    } = useGlobalFilters();
+
+    const toggleItem = (list: string[], item: string, setter: (items: string[]) => void) => {
+        const lower = item.toLowerCase();
+        if (list.includes(lower)) {
+            setter(list.filter(i => i !== lower));
+        } else {
+            setter([...list, lower]);
+        }
+    };
+
+    const totalFilters = filters.tags.length + filters.statuses.length + filters.assignees.length + filters.projects.length;
+
+    const [showSaved, setShowSaved] = React.useState(false);
+
+    // Show "saved" feedback when filters change
+    React.useEffect(() => {
+        if (hasActiveFilters) {
+            setShowSaved(true);
+            const timer = setTimeout(() => setShowSaved(false), 2000);
+            return () => clearTimeout(timer);
+        }
+    }, [filters]);
+
+    return (
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white">
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                    <div className="flex items-center gap-3">
+                        <Filter size={24} />
+                        <div>
+                            <h3 className="text-lg font-bold">Central de Filtros Globais</h3>
+                            <p className="text-indigo-100 text-sm">
+                                Esses filtros serão aplicados em <strong>todas</strong> as telas do sistema.
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        {/* Auto-save indicator */}
+                        {showSaved && (
+                            <span className="bg-emerald-500 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 animate-pulse">
+                                <Check size={14} />
+                                Salvo automaticamente!
+                            </span>
+                        )}
+
+                        {hasActiveFilters && (
+                            <>
+                                <span className="bg-white/20 px-3 py-1.5 rounded-lg text-sm font-bold">
+                                    {totalFilters} filtro{totalFilters > 1 ? 's' : ''} ativo{totalFilters > 1 ? 's' : ''}
+                                </span>
+                                <button
+                                    onClick={clearAllFilters}
+                                    className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white text-sm font-bold rounded-lg transition-colors flex items-center gap-2"
+                                >
+                                    <RotateCcw size={14} />
+                                    Limpar
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </div>
+
+                {/* Info: Auto-save */}
+                <div className="mt-4 pt-4 border-t border-white/20 flex items-center gap-2 text-indigo-100 text-xs">
+                    <Check size={12} />
+                    <span><strong>Salva automaticamente:</strong> Filtros são salvos instantaneamente e mantidos entre sessões.</span>
+                </div>
+            </div>
+
+            {/* Grid de Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Card: Status */}
+                <div className="bg-white rounded-xl border border-slate-200 p-5">
+                    <div className="flex items-center gap-2 mb-4">
+                        <CheckCircle size={18} className="text-emerald-600" />
+                        <h4 className="font-bold text-slate-800">Status</h4>
+                        {filters.statuses.length > 0 && (
+                            <span className="ml-auto bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                                {filters.statuses.length}
+                            </span>
+                        )}
+                    </div>
+                    <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
+                        {filterMetadata?.statuses?.map(status => {
+                            const isSelected = filters.statuses.includes(status.toLowerCase());
+                            return (
+                                <button
+                                    key={status}
+                                    onClick={() => toggleItem(filters.statuses, status, setStatusFilter)}
+                                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${isSelected
+                                        ? 'bg-emerald-500 border-emerald-500 text-white'
+                                        : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-300'
+                                        }`}
+                                >
+                                    {status}
+                                </button>
+                            );
+                        })}
+                        {(!filterMetadata?.statuses || filterMetadata.statuses.length === 0) && (
+                            <p className="text-slate-400 text-xs">Faça um sync primeiro</p>
+                        )}
+                    </div>
+                </div>
+
+                {/* Card: Equipe */}
+                <div className="bg-white rounded-xl border border-slate-200 p-5">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Users size={18} className="text-purple-600" />
+                        <h4 className="font-bold text-slate-800">Equipe</h4>
+                        {filters.assignees.length > 0 && (
+                            <span className="ml-auto bg-purple-100 text-purple-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                                {filters.assignees.length}
+                            </span>
+                        )}
+                    </div>
+                    <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
+                        {filterMetadata?.assignees?.map(assignee => {
+                            const isSelected = filters.assignees.includes(assignee.toLowerCase());
+                            return (
+                                <button
+                                    key={assignee}
+                                    onClick={() => toggleItem(filters.assignees, assignee, setAssigneeFilter)}
+                                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${isSelected
+                                        ? 'bg-purple-500 border-purple-500 text-white'
+                                        : 'bg-white border-slate-200 text-slate-600 hover:border-purple-300'
+                                        }`}
+                                >
+                                    {assignee}
+                                </button>
+                            );
+                        })}
+                        {(!filterMetadata?.assignees || filterMetadata.assignees.length === 0) && (
+                            <p className="text-slate-400 text-xs">Faça um sync primeiro</p>
+                        )}
+                    </div>
+                </div>
+
+                {/* Card: Projetos */}
+                <div className="bg-white rounded-xl border border-slate-200 p-5">
+                    <div className="flex items-center gap-2 mb-4">
+                        <FolderOpen size={18} className="text-amber-600" />
+                        <h4 className="font-bold text-slate-800">Projetos</h4>
+                        {filters.projects.length > 0 && (
+                            <span className="ml-auto bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                                {filters.projects.length}
+                            </span>
+                        )}
+                    </div>
+                    <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
+                        {filterMetadata?.projects?.map(project => {
+                            const isSelected = filters.projects.includes(project.toLowerCase());
+                            return (
+                                <button
+                                    key={project}
+                                    onClick={() => toggleItem(filters.projects, project, setProjectFilter)}
+                                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${isSelected
+                                        ? 'bg-amber-500 border-amber-500 text-white'
+                                        : 'bg-white border-slate-200 text-slate-600 hover:border-amber-300'
+                                        }`}
+                                >
+                                    {project}
+                                </button>
+                            );
+                        })}
+                        {(!filterMetadata?.projects || filterMetadata.projects.length === 0) && (
+                            <p className="text-slate-400 text-xs">Faça um sync primeiro</p>
+                        )}
+                    </div>
+                </div>
+
+                {/* Card: Tags (Full Width) */}
+                <div className="bg-white rounded-xl border border-slate-200 p-5 md:col-span-2 lg:col-span-3">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Tag size={18} className="text-indigo-600" />
+                        <h4 className="font-bold text-slate-800">Tags</h4>
+                        {filters.tags.length > 0 && (
+                            <span className="ml-auto bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                                {filters.tags.length}
+                            </span>
+                        )}
+                        <span className="text-slate-400 text-xs ml-2">
+                            {filterMetadata?.tags?.length || 0} disponíveis
+                        </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto">
+                        {filterMetadata?.tags?.map(tag => {
+                            const isSelected = filters.tags.includes(tag.toLowerCase());
+                            return (
+                                <button
+                                    key={tag}
+                                    onClick={() => toggleItem(filters.tags, tag, setTagFilter)}
+                                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${isSelected
+                                        ? 'bg-indigo-500 border-indigo-500 text-white'
+                                        : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300'
+                                        }`}
+                                >
+                                    #{tag}
+                                </button>
+                            );
+                        })}
+                        {(!filterMetadata?.tags || filterMetadata.tags.length === 0) && (
+                            <p className="text-slate-400 text-xs">Faça um sync primeiro</p>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Preview dos filtros ativos */}
+            {hasActiveFilters && (
+                <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
+                    <p className="text-xs font-bold text-slate-500 uppercase mb-3">📋 Filtros Ativos</p>
+                    <GlobalFilterBar />
+                </div>
+            )}
+        </div>
+    );
+};
 
 export const AdminDashboard: React.FC = () => {
     const { config, setConfig, clearCache } = useData();
@@ -44,6 +281,7 @@ export const AdminDashboard: React.FC = () => {
     // NEW: Filters state
     const [apiTagFilters, setApiTagFilters] = useState<string[]>([]);
     const [filterMetadata, setFilterMetadata] = useState<FilterMetadata | null>(null);
+    const [showFiltersModal, setShowFiltersModal] = useState(false);
 
     // Load from config on mount
     useEffect(() => {
@@ -65,6 +303,17 @@ export const AdminDashboard: React.FC = () => {
         }
     }, [config]);
 
+    // NEW: Load filter metadata from cache on mount
+    useEffect(() => {
+        const loadMetadata = () => {
+            const cached = getCachedMetadata();
+            if (cached) {
+                setFilterMetadata(cached);
+            }
+        };
+        loadMetadata();
+    }, []);
+
     const handleSave = () => {
         if (isReadOnly) return;
 
@@ -83,6 +332,7 @@ export const AdminDashboard: React.FC = () => {
         if (setConfig) {
             setConfig(newConfig);
         }
+
 
         setIsSaved(true);
         setTimeout(() => alert('✅ Configurações salvas com sucesso!'), 100);
@@ -126,12 +376,14 @@ export const AdminDashboard: React.FC = () => {
     };
 
     const handleClearCache = () => {
-        if (confirm('Limpar todo o cache? Você precisará sincronizar novamente.')) {
+        if (confirm('Limpar cache de DADOS? (Configurações e filtros serão MANTIDOS)')) {
             if (clearCache) clearCache();
+            // Limpar apenas dados de sync, NÃO configurações
             localStorage.removeItem('dailyFlow_cache_v2');
             localStorage.removeItem('dailyFlow_rawCache_v2');
-            localStorage.removeItem('dailyFlow_filters_v2');
-            alert('✅ Cache limpo com sucesso!');
+            // NÃO APAGAR: dailyFlow_config_v2, dailyFlow_syncFilters_v2, api_tag_filters
+            // localStorage.removeItem('dailyFlow_filters_v2'); // REMOVIDO - manter filtros
+            alert('✅ Cache de dados limpo! Configurações e filtros foram mantidos.');
         }
     };
 
@@ -241,91 +493,327 @@ export const AdminDashboard: React.FC = () => {
 
                 {/* Filters Tab */}
                 {activeTab === 'filters' && (
-                    <div className="max-w-4xl mx-auto space-y-8 animate-fadeIn p-4 md:p-8">
-                        <div>
-                            <h3 className="text-xl font-bold text-slate-800 mb-2">Filtros de Sincronização</h3>
-                            <p className="text-sm text-slate-500">Configure quais tags serão incluídas na sincronização com ClickUp API</p>
-                        </div>
-
-                        {/* API Tag Filters */}
-                        <div className="bg-white rounded-2xl border border-slate-200 p-6">
-                            <div className="flex items-start gap-4 mb-6">
-                                <div className="p-3 rounded-xl bg-indigo-50 text-indigo-600">
-                                    <Settings size={24} />
-                                </div>
-                                <div className="flex-1">
-                                    <h4 className="font-bold text-slate-800 mb-1">🏷️ Filtros de Tags (API)</h4>
-                                    <p className="text-sm text-slate-500">
-                                        Selecione as tags para filtrar diretamente na API do ClickUp.
-                                        Apenas tarefas com pelo menos UMA dessas tags serão importadas.
-                                        {apiTagFilters.length > 0 && (
-                                            <strong className="block mt-2 text-indigo-600">
-                                                {apiTagFilters.length} tag{apiTagFilters.length > 1 ? 's' : ''} selecionada{apiTagFilters.length > 1 ? 's' : ''}
-                                            </strong>
-                                        )}
+                    <div className="max-w-7xl mx-auto space-y-6 animate-fadeIn p-4 md:p-8">
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white">
+                            <div className="flex items-center gap-3 mb-2">
+                                <Settings size={28} />
+                                <div>
+                                    <h3 className="text-2xl font-bold">Filtros de Sincronização</h3>
+                                    <p className="text-indigo-100 text-sm mt-1">
+                                        Configure TODOS os filtros para importar apenas os dados necessários da API do ClickUp
                                     </p>
                                 </div>
                             </div>
+                        </div>
 
-                            {filterMetadata && filterMetadata.tags.length > 0 ? (
-                                <div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-96 overflow-y-auto p-1">
+                        {/* ============================================ */}
+                        {/* 1. TAGS FILTER */}
+                        {/* ============================================ */}
+                        <div className="bg-white rounded-2xl border-2 border-slate-200 overflow-hidden">
+                            <div className="bg-indigo-50 px-6 py-4 border-b border-indigo-100">
+                                <div className="flex items-center gap-3">
+                                    <Tag size={20} className="text-indigo-600" />
+                                    <div>
+                                        <h4 className="font-bold text-slate-800">Tags</h4>
+                                        <p className="text-xs text-slate-500">
+                                            Filtrar tarefas por tags específicas (OR logic - qualquer tag selecionada)
+                                        </p>
+                                    </div>
+                                    {apiTagFilters.length > 0 && (
+                                        <span className="ml-auto bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-bold">
+                                            {apiTagFilters.length} selecionada{apiTagFilters.length > 1 ? 's' : ''}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="p-6">
+                                {filterMetadata && filterMetadata.tags.length > 0 ? (
+                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                                         {filterMetadata.tags.map(tag => (
                                             <label
                                                 key={tag}
-                                                className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all
-                                                    ${apiTagFilters.includes(tag)
-                                                        ? 'border-indigo-500 bg-indigo-50'
-                                                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                                                className={`flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all ${apiTagFilters.includes(tag)
+                                                    ? 'border-indigo-500 bg-indigo-50'
+                                                    : 'border-slate-200 hover:border-slate-300'
                                                     }`}
                                             >
                                                 <input
                                                     type="checkbox"
                                                     checked={apiTagFilters.includes(tag)}
                                                     onChange={() => toggleTag(tag)}
-                                                    className="w-4 h-4 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500"
+                                                    className="w-4 h-4 text-indigo-600"
                                                 />
-                                                <span className="text-sm font-medium text-slate-700">{tag}</span>
+                                                <span className="text-sm font-medium">#{tag}</span>
                                             </label>
                                         ))}
                                     </div>
+                                ) : (
+                                    <p className="text-center text-slate-400 py-4">Nenhuma tag disponível. Faça um sync primeiro.</p>
+                                )}
+                            </div>
+                        </div>
 
-                                    <div className="flex gap-3 mt-6 pt-6 border-t border-slate-200">
-                                        <button
-                                            onClick={handleSaveFilters}
-                                            className="flex-1 px-6 py-3 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
-                                        >
-                                            <Save size={16} />
-                                            Salvar Filtros
-                                        </button>
-                                        <button
-                                            onClick={() => setApiTagFilters([])}
-                                            className="px-6 py-3 bg-slate-100 text-slate-600 text-sm font-bold rounded-lg hover:bg-slate-200 transition-colors"
-                                        >
-                                            Limpar Todos
-                                        </button>
+                        {/* ============================================ */}
+                        {/* 2. ASSIGNEES/RESPONSÁVEIS FILTER */}
+                        {/* ============================================ */}
+                        <div className="bg-white rounded-2xl border-2 border-slate-200 overflow-hidden">
+                            <div className="bg-purple-50 px-6 py-4 border-b border-purple-100">
+                                <div className="flex items-center gap-3">
+                                    <Users size={20} className="text-purple-600" />
+                                    <div>
+                                        <h4 className="font-bold text-slate-800">Responsáveis (Assignees)</h4>
+                                        <p className="text-xs text-slate-500">
+                                            Filtrar apenas tarefas de membros específicos da equipe
+                                        </p>
                                     </div>
                                 </div>
-                            ) : (
-                                <div className="text-center py-8">
-                                    <p className="text-slate-400 text-sm">
-                                        Nenhuma tag disponível. Sincronize dados primeiro para ver as tags disponíveis.
-                                    </p>
+                            </div>
+                            <div className="p-6">
+                                {filterMetadata && filterMetadata.assignees.length > 0 ? (
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                        {filterMetadata.assignees.map(assignee => (
+                                            <label
+                                                key={assignee}
+                                                className="flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all border-slate-200 hover:border-slate-300"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    className="w-4 h-4 text-purple-600"
+                                                />
+                                                <span className="text-sm font-medium">{assignee}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-center text-slate-400 py-4">Nenhum responsável disponível. Faça um sync primeiro.</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* ============================================ */}
+                        {/* 3. STATUS FILTER */}
+                        {/* ============================================ */}
+                        <div className="bg-white rounded-2xl border-2 border-slate-200 overflow-hidden">
+                            <div className="bg-emerald-50 px-6 py-4 border-b border-emerald-100">
+                                <div className="flex items-center gap-3">
+                                    <CheckCircle size={20} className="text-emerald-600" />
+                                    <div>
+                                        <h4 className="font-bold text-slate-800">Status</h4>
+                                        <p className="text-xs text-slate-500">
+                                            Filtrar tarefas por status específicos
+                                        </p>
+                                    </div>
                                 </div>
-                            )}
+                            </div>
+                            <div className="p-6">
+                                {filterMetadata && filterMetadata.statuses.length > 0 ? (
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                        {filterMetadata.statuses.map(status => (
+                                            <label
+                                                key={status}
+                                                className="flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all border-slate-200 hover:border-slate-300"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    className="w-4 h-4 text-emerald-600"
+                                                />
+                                                <span className="text-sm font-medium">{status}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-center text-slate-400 py-4">Nenhum status disponível. Faça um sync primeiro.</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* ============================================ */}
+                        {/* 4. PRIORITY FILTER */}
+                        {/* ============================================ */}
+                        <div className="bg-white rounded-2xl border-2 border-slate-200 overflow-hidden">
+                            <div className="bg-amber-50 px-6 py-4 border-b border-amber-100">
+                                <div className="flex items-center gap-3">
+                                    <AlertTriangle size={20} className="text-amber-600" />
+                                    <div>
+                                        <h4 className="font-bold text-slate-800">Prioridade</h4>
+                                        <p className="text-xs text-slate-500">
+                                            Filtrar tarefas por nível de prioridade
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="p-6">
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                    {['URGENT', 'HIGH', 'NORMAL', 'LOW'].map(priority => (
+                                        <label
+                                            key={priority}
+                                            className="flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all border-slate-200 hover:border-slate-300"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                className="w-4 h-4 text-amber-600"
+                                            />
+                                            <span className="text-sm font-medium">{priority}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* ============================================ */}
+                        {/* 5. DATE RANGE FILTERS */}
+                        {/* ============================================ */}
+                        <div className="bg-white rounded-2xl border-2 border-slate-200 overflow-hidden">
+                            <div className="bg-blue-50 px-6 py-4 border-b border-blue-100">
+                                <div className="flex items-center gap-3">
+                                    <Calendar size={20} className="text-blue-600" />
+                                    <div>
+                                        <h4 className="font-bold text-slate-800">Período de Datas</h4>
+                                        <p className="text-xs text-slate-500">
+                                            Filtrar tarefas por datas de criação, atualização ou entrega
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="p-6 space-y-4">
+                                {/* Due Date Range */}
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 mb-2">Data de Entrega - Início</label>
+                                        <input
+                                            type="date"
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 mb-2">Data de Entrega - Fim</label>
+                                        <input
+                                            type="date"
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Date Created Range */}
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 mb-2">Data de Criação - Início</label>
+                                        <input
+                                            type="date"
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 mb-2">Data de Criação - Fim</label>
+                                        <input
+                                            type="date"
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Date Updated Range */}
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 mb-2">Data de Atualização - Início</label>
+                                        <input
+                                            type="date"
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 mb-2">Data de Atualização - Fim</label>
+                                        <input
+                                            type="date"
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* ============================================ */}
+                        {/* 6. ADDITIONAL OPTIONS */}
+                        {/* ============================================ */}
+                        <div className="bg-white rounded-2xl border-2 border-slate-200 overflow-hidden">
+                            <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
+                                <div className="flex items-center gap-3">
+                                    <Settings2 size={20} className="text-slate-600" />
+                                    <div>
+                                        <h4 className="font-bold text-slate-800">Opções Adicionais</h4>
+                                        <p className="text-xs text-slate-500">
+                                            Configurações extras para refinar a sincronização
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="p-6 space-y-4">
+                                <label className="flex items-center gap-3 p-4 rounded-lg border-2 border-slate-200 cursor-pointer hover:border-slate-300 transition-all">
+                                    <input type="checkbox" className="w-5 h-5 text-indigo-600" />
+                                    <div>
+                                        <span className="text-sm font-bold text-slate-800 block">Incluir Subtarefas</span>
+                                        <span className="text-xs text-slate-500">Importar subtasks junto com as tarefas principais</span>
+                                    </div>
+                                </label>
+
+                                <label className="flex items-center gap-3 p-4 rounded-lg border-2 border-slate-200 cursor-pointer hover:border-slate-300 transition-all">
+                                    <input type="checkbox" className="w-5 h-5 text-indigo-600" />
+                                    <div>
+                                        <span className="text-sm font-bold text-slate-800 block">Incluir Tarefas Arquivadas</span>
+                                        <span className="text-xs text-slate-500">Importar tarefas marcadas como arquivadas</span>
+                                    </div>
+                                </label>
+
+                                <label className="flex items-center gap-3 p-4 rounded-lg border-2 border-slate-200 cursor-pointer hover:border-slate-300 transition-all">
+                                    <input type="checkbox" className="w-5 h-5 text-indigo-600" />
+                                    <div>
+                                        <span className="text-sm font-bold text-slate-800 block">Incluir Tarefas Sem Responsável</span>
+                                        <span className="text-xs text-slate-500">Importar tarefas que não têm assignee definido</span>
+                                    </div>
+                                </label>
+
+                                <label className="flex items-center gap-3 p-4 rounded-lg border-2 border-slate-200 cursor-pointer hover:border-slate-300 transition-all">
+                                    <input type="checkbox" className="w-5 h-5 text-indigo-600" />
+                                    <div>
+                                        <span className="text-sm font-bold text-slate-800 block">Apenas Tarefas Abertas</span>
+                                        <span className="text-xs text-slate-500">Filtrar apenas tarefas que não estão concluídas</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        {/* ============================================ */}
+                        {/* SAVE BUTTON */}
+                        {/* ============================================ */}
+                        <div className="flex items-center justify-between gap-4 bg-white rounded-2xl border-2 border-slate-200 p-6">
+                            <div>
+                                <p className="text-sm font-bold text-slate-800">Salvar Configuração de Filtros</p>
+                                <p className="text-xs text-slate-500 mt-1">
+                                    Essas configurações serão aplicadas na próxima sincronização
+                                </p>
+                            </div>
+                            <button
+                                onClick={handleSaveFilters}
+                                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg transition-colors flex items-center gap-2"
+                            >
+                                <Save size={16} />
+                                Salvar Filtros
+                            </button>
                         </div>
 
                         {/* Info Box */}
-                        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6">
-                            <h4 className="font-bold text-blue-900 mb-2 flex items-center gap-2">
-                                <AlertTriangle size={18} />
-                                Como Funciona
+                        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
+                            <h4 className="font-bold text-blue-900 mb-3 flex items-center gap-2">
+                                <Database size={18} />
+                                Como Funcionam os Filtros de Sync
                             </h4>
                             <ul className="text-sm text-blue-800 space-y-2">
-                                <li>✅ <strong>Filtro API:</strong> Tags selecionadas são enviadas direto para ClickUp API</li>
-                                <li>⚡ <strong>Performance:</strong> 10-50x mais rápido ao filtrar por tags</li>
-                                <li>🎯 <strong>Lógica OR:</strong> Tarefas com pelo menos UMA tag selecionada serão importadas</li>
-                                <li>💾 <strong>Automático:</strong> Filtros são aplicados automaticamente no próximo sync</li>
+                                <li>🎯 <strong>Filtros aplicados na API:</strong> Reduzem dados antes de importar (10-50x mais rápido)</li>
+                                <li>🔗 <strong>Lógica OR (OU):</strong> Tarefas com QUALQUER filtro selecionado serão importadas</li>
+                                <li>💾 <strong>Performance:</strong> Menos dados = sync mais rápido + menor uso de memória</li>
+                                <li>⚡ <strong>Aplicação automática:</strong> Filtros salvos são usados em todas as sincronizações</li>
+                                <li>🔄 <strong>Sync incremental:</strong> Atualizações respeitam os mesmos filtros</li>
                             </ul>
                         </div>
                     </div>
@@ -367,199 +855,206 @@ export const AdminDashboard: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                )}
+                )
+                }
 
                 {/* API Tab */}
-                {activeTab === 'api' && (
-                    <div className="max-w-4xl mx-auto space-y-8 animate-fadeIn p-4 md:p-8">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h3 className="text-xl font-bold text-slate-800">Conexão ClickUp API</h3>
-                                <p className="text-sm text-slate-500">Gerencie as chaves de acesso.</p>
+                {
+                    activeTab === 'api' && (
+                        <div className="max-w-4xl mx-auto space-y-8 animate-fadeIn p-4 md:p-8">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="text-xl font-bold text-slate-800">Conexão ClickUp API</h3>
+                                    <p className="text-sm text-slate-500">Gerencie as chaves de acesso.</p>
+                                </div>
+                                <div className={`px-3 py-1 text-xs font-bold rounded-full border flex items-center gap-1 ${apiKey && apiKey.length > 20 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                                    <Check size={12} /> {apiKey && apiKey.length > 20 ? 'Online' : 'Offline'}
+                                </div>
                             </div>
-                            <div className={`px-3 py-1 text-xs font-bold rounded-full border flex items-center gap-1 ${apiKey && apiKey.length > 20 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
-                                <Check size={12} /> {apiKey && apiKey.length > 20 ? 'Online' : 'Offline'}
-                            </div>
-                        </div>
 
-                        <div className={`bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5 ${isReadOnly ? 'opacity-70 pointer-events-none' : ''}`}>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">API Token</label>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Key size={16} className="text-slate-400" />
+                            <div className={`bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5 ${isReadOnly ? 'opacity-70 pointer-events-none' : ''}`}>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">API Token</label>
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <Key size={16} className="text-slate-400" />
+                                        </div>
+                                        <input
+                                            type={showApiKey ? "text" : "password"}
+                                            value={apiKey}
+                                            onChange={(e) => { setApiKey(e.target.value); markUnsaved(); }}
+                                            placeholder="pk_..."
+                                            className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                        />
+                                        <button
+                                            onClick={() => setShowApiKey(!showApiKey)}
+                                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                                        >
+                                            {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                                        </button>
                                     </div>
-                                    <input
-                                        type={showApiKey ? "text" : "password"}
-                                        value={apiKey}
-                                        onChange={(e) => { setApiKey(e.target.value); markUnsaved(); }}
-                                        placeholder="pk_..."
-                                        className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                                    />
-                                    <button
-                                        onClick={() => setShowApiKey(!showApiKey)}
-                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
-                                    >
-                                        {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                                    </button>
                                 </div>
-                            </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Team ID</label>
+                                        <input
+                                            type="text"
+                                            value={teamId}
+                                            onChange={(e) => { setTeamId(e.target.value); markUnsaved(); }}
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            placeholder="Ex: 9015..."
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">View ID</label>
+                                        <input
+                                            type="text"
+                                            value={viewId}
+                                            onChange={(e) => { setViewId(e.target.value); markUnsaved(); }}
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            placeholder="Ex: 8c9k-..."
+                                        />
+                                    </div>
+                                </div>
+
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Team ID</label>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-2">
+                                        CORS Proxy URL <Globe size={12} />
+                                    </label>
                                     <input
                                         type="text"
-                                        value={teamId}
-                                        onChange={(e) => { setTeamId(e.target.value); markUnsaved(); }}
+                                        value={corsProxy}
+                                        onChange={(e) => { setCorsProxy(e.target.value); markUnsaved(); }}
                                         className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                        placeholder="Ex: 9015..."
+                                        placeholder="https://corsproxy.io/?"
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">View ID</label>
-                                    <input
-                                        type="text"
-                                        value={viewId}
-                                        onChange={(e) => { setViewId(e.target.value); markUnsaved(); }}
-                                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                        placeholder="Ex: 8c9k-..."
-                                    />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-2">
-                                    CORS Proxy URL <Globe size={12} />
-                                </label>
-                                <input
-                                    type="text"
-                                    value={corsProxy}
-                                    onChange={(e) => { setCorsProxy(e.target.value); markUnsaved(); }}
-                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                    placeholder="https://corsproxy.io/?"
-                                />
                             </div>
                         </div>
-                    </div>
-                )}
+                    )
+                }
 
                 {/* Team Tab */}
-                {activeTab === 'team' && (
-                    <div className="max-w-4xl mx-auto space-y-8 animate-fadeIn p-4 md:p-8">
-                        <div>
-                            <h3 className="text-xl font-bold text-slate-800">Mapeamento de Equipe</h3>
-                            <p className="text-sm text-slate-500">Padronize nomes e funções.</p>
-                        </div>
+                {
+                    activeTab === 'team' && (
+                        <div className="max-w-4xl mx-auto space-y-8 animate-fadeIn p-4 md:p-8">
+                            <div>
+                                <h3 className="text-xl font-bold text-slate-800">Mapeamento de Equipe</h3>
+                                <p className="text-sm text-slate-500">Padronize nomes e funções.</p>
+                            </div>
 
-                        <div className={`bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden ${isReadOnly ? 'opacity-70 pointer-events-none' : ''}`}>
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm text-left min-w-[600px]">
-                                    <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase font-bold text-slate-500">
-                                        <tr>
-                                            <th className="px-6 py-3">Original (ClickUp)</th>
-                                            <th className="px-6 py-3">Exibição</th>
-                                            <th className="px-6 py-3">Função</th>
-                                            <th className="px-6 py-3 text-right">Ações</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100">
-                                        {mappings.length === 0 && (
-                                            <tr><td colSpan={4} className="px-6 py-12 text-center text-slate-400 italic">Nenhum mapeamento configurado.</td></tr>
-                                        )}
-                                        {mappings.map((item, idx) => (
-                                            <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                                                <td className="px-6 py-3 font-mono text-slate-600">
-                                                    <input type="text" value={item.original} onChange={(e) => updateMapping(idx, 'original', e.target.value)} className="w-full bg-transparent outline-none" placeholder="Nome ClickUp" />
-                                                </td>
-                                                <td className="px-6 py-3">
-                                                    <input type="text" value={item.display} onChange={(e) => updateMapping(idx, 'display', e.target.value)} className="w-full bg-transparent outline-none font-bold" placeholder="Nome exibido" />
-                                                </td>
-                                                <td className="px-6 py-3">
-                                                    <input type="text" value={item.role || ''} onChange={(e) => updateMapping(idx, 'role', e.target.value)} className="w-full bg-transparent outline-none" placeholder="Cargo/Função" />
-                                                </td>
-                                                <td className="px-6 py-3 text-right">
-                                                    <button onClick={() => removeMapping(idx)} className="text-slate-300 hover:text-rose-500 p-2"><Trash2 size={16} /></button>
-                                                </td>
+                            <div className={`bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden ${isReadOnly ? 'opacity-70 pointer-events-none' : ''}`}>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm text-left min-w-[600px]">
+                                        <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase font-bold text-slate-500">
+                                            <tr>
+                                                <th className="px-6 py-3">Original (ClickUp)</th>
+                                                <th className="px-6 py-3">Exibição</th>
+                                                <th className="px-6 py-3">Função</th>
+                                                <th className="px-6 py-3 text-right">Ações</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div className="p-4 bg-slate-50 border-t border-slate-200">
-                                <button onClick={addMapping} className="flex items-center gap-2 text-sm font-bold text-indigo-600 hover:text-indigo-700">
-                                    <Plus size={16} /> Adicionar Mapeamento
-                                </button>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {mappings.length === 0 && (
+                                                <tr><td colSpan={4} className="px-6 py-12 text-center text-slate-400 italic">Nenhum mapeamento configurado.</td></tr>
+                                            )}
+                                            {mappings.map((item, idx) => (
+                                                <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                                                    <td className="px-6 py-3 font-mono text-slate-600">
+                                                        <input type="text" value={item.original} onChange={(e) => updateMapping(idx, 'original', e.target.value)} className="w-full bg-transparent outline-none" placeholder="Nome ClickUp" />
+                                                    </td>
+                                                    <td className="px-6 py-3">
+                                                        <input type="text" value={item.display} onChange={(e) => updateMapping(idx, 'display', e.target.value)} className="w-full bg-transparent outline-none font-bold" placeholder="Nome exibido" />
+                                                    </td>
+                                                    <td className="px-6 py-3">
+                                                        <input type="text" value={item.role || ''} onChange={(e) => updateMapping(idx, 'role', e.target.value)} className="w-full bg-transparent outline-none" placeholder="Cargo/Função" />
+                                                    </td>
+                                                    <td className="px-6 py-3 text-right">
+                                                        <button onClick={() => removeMapping(idx)} className="text-slate-300 hover:text-rose-500 p-2"><Trash2 size={16} /></button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div className="p-4 bg-slate-50 border-t border-slate-200">
+                                    <button onClick={addMapping} className="flex items-center gap-2 text-sm font-bold text-indigo-600 hover:text-indigo-700">
+                                        <Plus size={16} /> Adicionar Mapeamento
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
+                    )
+                }
 
                 {/* Data Tab */}
-                {activeTab === 'data' && (
-                    <div className="max-w-4xl mx-auto space-y-8 animate-fadeIn p-4 md:p-8">
-                        <h3 className="text-xl font-bold text-slate-800">Manutenção de Dados</h3>
+                {
+                    activeTab === 'data' && (
+                        <div className="max-w-4xl mx-auto space-y-8 animate-fadeIn p-4 md:p-8">
+                            <h3 className="text-xl font-bold text-slate-800">Manutenção de Dados</h3>
 
-                        {/* Export Config */}
-                        <div className="bg-white rounded-2xl border border-slate-200 p-6">
-                            <div className="flex items-start gap-4">
-                                <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600">
-                                    <Download size={24} />
+                            {/* Export Config */}
+                            <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                                <div className="flex items-start gap-4">
+                                    <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600">
+                                        <Download size={24} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <h4 className="font-bold text-slate-800 mb-1">Exportar Configurações</h4>
+                                        <p className="text-sm text-slate-500 mb-4">Baixe um backup das suas configurações.</p>
+                                        <button
+                                            onClick={handleExportConfig}
+                                            className="px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700 transition-colors"
+                                        >
+                                            Exportar JSON
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className="flex-1">
-                                    <h4 className="font-bold text-slate-800 mb-1">Exportar Configurações</h4>
-                                    <p className="text-sm text-slate-500 mb-4">Baixe um backup das suas configurações.</p>
+                            </div>
+
+                            {/* Clear Cache */}
+                            <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                                <div className="flex items-start gap-4">
+                                    <div className="p-3 rounded-xl bg-amber-50 text-amber-600">
+                                        <Database size={24} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <h4 className="font-bold text-slate-800 mb-1">Limpar Cache</h4>
+                                        <p className="text-sm text-slate-500 mb-4">Remove dados em cache e filtros salvos.</p>
+                                        <button
+                                            onClick={handleClearCache}
+                                            className="px-4 py-2 bg-amber-600 text-white text-sm font-bold rounded-lg hover:bg-amber-700 transition-colors"
+                                        >
+                                            Limpar Cache
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Danger Zone */}
+                            <div className="pt-4 border-t border-slate-200">
+                                <h3 className="text-xl font-bold text-rose-600 flex items-center gap-2">
+                                    <AlertTriangle size={20} /> Zona de Perigo
+                                </h3>
+                                <div className="bg-rose-50 border border-rose-100 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4 mt-4">
+                                    <div>
+                                        <h4 className="font-bold text-rose-800 text-sm">Resetar Sistema Completo</h4>
+                                        <p className="text-xs text-rose-600 mt-1">Remove TODAS as configurações, cache e dados. Esta ação não pode ser desfeita.</p>
+                                    </div>
                                     <button
-                                        onClick={handleExportConfig}
-                                        className="px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700 transition-colors"
+                                        onClick={handleReset}
+                                        className="px-4 py-2 bg-white border border-rose-200 text-rose-600 font-bold rounded-lg text-sm hover:bg-rose-600 hover:text-white transition-colors"
                                     >
-                                        Exportar JSON
+                                        ⚠️ Resetar Tudo
                                     </button>
                                 </div>
                             </div>
                         </div>
-
-                        {/* Clear Cache */}
-                        <div className="bg-white rounded-2xl border border-slate-200 p-6">
-                            <div className="flex items-start gap-4">
-                                <div className="p-3 rounded-xl bg-amber-50 text-amber-600">
-                                    <Database size={24} />
-                                </div>
-                                <div className="flex-1">
-                                    <h4 className="font-bold text-slate-800 mb-1">Limpar Cache</h4>
-                                    <p className="text-sm text-slate-500 mb-4">Remove dados em cache e filtros salvos.</p>
-                                    <button
-                                        onClick={handleClearCache}
-                                        className="px-4 py-2 bg-amber-600 text-white text-sm font-bold rounded-lg hover:bg-amber-700 transition-colors"
-                                    >
-                                        Limpar Cache
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Danger Zone */}
-                        <div className="pt-4 border-t border-slate-200">
-                            <h3 className="text-xl font-bold text-rose-600 flex items-center gap-2">
-                                <AlertTriangle size={20} /> Zona de Perigo
-                            </h3>
-                            <div className="bg-rose-50 border border-rose-100 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4 mt-4">
-                                <div>
-                                    <h4 className="font-bold text-rose-800 text-sm">Resetar Sistema Completo</h4>
-                                    <p className="text-xs text-rose-600 mt-1">Remove TODAS as configurações, cache e dados. Esta ação não pode ser desfeita.</p>
-                                </div>
-                                <button
-                                    onClick={handleReset}
-                                    className="px-4 py-2 bg-white border border-rose-200 text-rose-600 font-bold rounded-lg text-sm hover:bg-rose-600 hover:text-white transition-colors"
-                                >
-                                    ⚠️ Resetar Tudo
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </main>
-        </div>
+                    )
+                }
+            </main >
+        </div >
     );
 };
 

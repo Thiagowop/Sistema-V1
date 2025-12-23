@@ -139,39 +139,36 @@ export const TimesheetWrapper: React.FC = () => {
 
                         // Determinar período da task no mês selecionado
                         const monthStart = new Date(filterYear, filterMonth - 1, 1);
+                        monthStart.setHours(0, 0, 0, 0);
                         const monthEnd = new Date(filterYear, filterMonth, 0);
+                        monthEnd.setHours(23, 59, 59, 999);
 
                         // Verificar se task tem interseção com o mês
                         const effectiveStart = taskStart || taskEnd!;
                         const effectiveEnd = taskEnd || taskStart!;
 
-                        // DEBUG: Log das datas
-                        console.log(`[TIMESHEET DEBUG] Task "${task.name}": start=${effectiveStart.toISOString().split('T')[0]}, end=${effectiveEnd.toISOString().split('T')[0]}, monthStart=${monthStart.toISOString().split('T')[0]}, monthEnd=${monthEnd.toISOString().split('T')[0]}`);
+                        // Normalizar horas para comparação justa
+                        effectiveStart.setHours(0, 0, 0, 0);
+                        effectiveEnd.setHours(23, 59, 59, 999);
 
-                        // Se task termina antes do mês ou começa depois, skip
+                        // Se task termina ANTES do primeiro dia do mês OU começa DEPOIS do último dia, skip
                         if (effectiveEnd < monthStart || effectiveStart > monthEnd) {
-                            console.log(`[TIMESHEET DEBUG] SKIPPING "${task.name}" - outside month range`);
+                            return; // Task completamente fora do mês
+                        }
+
+                        // Verificar se pelo menos uma data está no mês correto
+                        const startInMonth = effectiveStart >= monthStart && effectiveStart <= monthEnd;
+                        const endInMonth = effectiveEnd >= monthStart && effectiveEnd <= monthEnd;
+                        const spansMonth = effectiveStart < monthStart && effectiveEnd > monthEnd;
+
+                        // Se nenhuma interseção, skip
+                        if (!startInMonth && !endInMonth && !spansMonth) {
                             return;
                         }
 
-                        // Só considerar se as datas estão no mesmo mês/ano
-                        const startInThisMonth = effectiveStart.getFullYear() === filterYear &&
-                            effectiveStart.getMonth() + 1 === filterMonth;
-                        const endInThisMonth = effectiveEnd.getFullYear() === filterYear &&
-                            effectiveEnd.getMonth() + 1 === filterMonth;
-
-                        // Se nenhuma data está no mês, verificar se período atravessa o mês
-                        if (!startInThisMonth && !endInThisMonth) {
-                            if (effectiveStart < monthStart && effectiveEnd > monthEnd) {
-                                // OK - atravessa o mês
-                            } else {
-                                return;
-                            }
-                        }
-
                         // Determinar início e fim efetivo no mês
-                        const startDay = startInThisMonth ? effectiveStart.getDate() : 1;
-                        const endDay = endInThisMonth ? effectiveEnd.getDate() : daysInMonth;
+                        const startDay = startInMonth ? effectiveStart.getDate() : 1;
+                        const endDay = endInMonth ? effectiveEnd.getDate() : daysInMonth;
 
                         // Verificar se é tarefa de mesmo dia
                         const isSameDay = startDay === endDay;
@@ -254,32 +251,24 @@ export const TimesheetWrapper: React.FC = () => {
         return transformedMembers;
     }, [groupedData, selectedMonth, showCompleted]);
 
-    // Props para o TimesheetDashboard
-    const timesheetProps: TimesheetProps = {
+    // Props para o TimesheetDashboard - INCLUIR TODOS OS CALLBACKS
+    const timesheetProps = {
         teamMembers,
-        months
+        months,
+        initialMonth: selectedMonth,
+        showCompleted,
+        onMonthChange: (newMonth: string) => {
+            console.log('[TIMESHEET] Month changed to:', newMonth);
+            setSelectedMonth(newMonth);
+        },
+        onCompletedChange: (show: boolean) => {
+            console.log('[TIMESHEET] ShowCompleted changed to:', show);
+            setShowCompleted(show);
+        }
     };
 
-    // Se não há dados
-    if (syncState.status === 'idle' || teamMembers.length === 0) {
-        return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="text-center">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Nenhum dado disponível</h2>
-                    <p className="text-gray-600 mb-4">
-                        {groupedData?.length === 0
-                            ? 'Sincronize os dados do ClickUp na aba "Atualizar Dados" primeiro.'
-                            : `Nenhum projeto encontrado para ${months.find(m => m.value === selectedMonth)?.label || selectedMonth}.`
-                        }
-                    </p>
-                    <p className="text-sm text-gray-500">
-                        groupedData: {groupedData?.length || 0} membros, filtrados: {teamMembers.length}
-                    </p>
-                </div>
-            </div>
-        );
-    }
-
+    // SEMPRE renderizar TimesheetDashboard - ele lida com o estado vazio internamente
+    // mantendo o header ativo para navegação
     return <TimesheetDashboard {...timesheetProps} />;
 };
 

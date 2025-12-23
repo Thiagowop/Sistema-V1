@@ -53,6 +53,8 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { getCachedTags, getCachedStatuses } from '../services/filterService';
 import { Tag } from 'lucide-react';
+import { useGlobalFilters } from '../contexts/GlobalFilterContext';
+import { SyncControlsBar } from '../components/SyncControlsBar';
 
 // --- CONFIGURAÇÕES DE QUALIDADE ---
 const PENALTY_WEIGHTS = {
@@ -69,6 +71,8 @@ interface ExtendedProject extends Omit<Project, 'stats'> {
   color?: string;
   isCustom?: boolean;
   stats?: { planned: number; logged: number; };
+  filterTags?: string[];      // Tags used to filter when creating this box
+  filterStatuses?: string[];  // Statuses used to filter when creating this box
 }
 
 interface ExtendedGroupedData {
@@ -622,18 +626,39 @@ export const DailyAlignmentDashboard: React.FC = () => {
   };
 
   // Handlers de Estado
-  const handleAddProject = useCallback((name: string, color: string) => {
+  const handleAddProject = useCallback((name: string, color: string, tags?: string[]) => {
     if (isReadOnly || !activeMemberId) return;
     setDashboardData(prev => {
       const newData = [...prev];
       const mIdx = newData.findIndex(m => m.assignee === activeMemberId);
       if (mIdx === -1) return prev;
 
+      // NEW: If tags provided, filter tasks from existing projects that have any of the tags
+      let filteredTasks: ExtendedProject['tasks'] = [];
+      if (tags && tags.length > 0) {
+        newData[mIdx].projects.forEach(project => {
+          project.tasks.forEach(task => {
+            // Check if task has any of the selected tags
+            const taskTags = (task.tags || []).map((t: any) =>
+              (typeof t === 'string' ? t : t.name || '').toLowerCase()
+            );
+            const hasMatchingTag = tags.some(selectedTag =>
+              taskTags.includes(selectedTag.toLowerCase())
+            );
+            if (hasMatchingTag) {
+              filteredTasks.push(task);
+            }
+          });
+        });
+        console.log(`[DAILY] Created box "${name}" with ${filteredTasks.length} tasks matching tags:`, tags);
+      }
+
       const newProject: ExtendedProject = {
         name: name.trim(),
-        tasks: [],
+        tasks: filteredTasks,
         color: color,
-        isCustom: true
+        isCustom: true,
+        filterTags: tags // Store the filter tags for future reference
       };
 
       newData[mIdx] = {
@@ -893,6 +918,9 @@ export const DailyAlignmentDashboard: React.FC = () => {
         onDelete={handleDeleteProject}
         readOnly={isReadOnly}
       />
+
+      {/* Unified Sync Controls - Sync, Clear Cache, Filters */}
+      <SyncControlsBar className="mx-4 mt-4" />
 
       {/* HEADER DE NAVEGAÇÃO ENTRE MEMBROS */}
       <div className="bg-white px-6 py-4 border-b border-slate-100 flex flex-col gap-4 shrink-0 shadow-sm">

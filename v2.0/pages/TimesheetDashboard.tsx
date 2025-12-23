@@ -562,6 +562,12 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
             <p className="text-lg font-medium">Selecione um membro da equipe</p>
             <p className="text-sm mt-1">Para visualizar o calendário individual, escolha uma pessoa acima</p>
           </div>
+        ) : !selectedMember ? (
+          <div className={`p-8 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+            <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p className="text-lg font-medium">Nenhum dado disponível</p>
+            <p className="text-sm mt-1">Não há projetos para este membro no mês selecionado</p>
+          </div>
         ) : (
           <>
             <div className={`p-4 border-b ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-gray-50'}`}>

@@ -79,15 +79,9 @@ class AdvancedCacheService {
 
       // Validar versão
       if (metadata.version !== CACHE_VERSION) {
-        console.log('🔄 [SERV-CACHE-001] Metadata version mismatch, clearing...');
         this.clearMetadata();
         return null;
       }
-
-      console.log('✅ [SERV-CACHE-001] Metadata loaded:', {
-        tags: metadata.tags.length,
-        lastSync: metadata.lastSync
-      });
 
       return metadata;
     } catch (error) {

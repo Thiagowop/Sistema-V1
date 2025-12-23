@@ -10,6 +10,7 @@
 import React, { useState } from 'react';
 import { DataProvider } from './contexts/DataContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { GlobalFilterProvider } from './contexts/GlobalFilterContext';
 import { LoginScreen } from './components/LoginScreen';
 import { SyncDashboard } from './pages/SyncDashboard';
 import { DailyAlignmentDashboard } from './pages/DailyAlignmentDashboard';
@@ -61,8 +62,8 @@ const SidebarItem = ({
     <button
         onClick={onClick}
         className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 group relative ${isActive
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
-                : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
+            ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
+            : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
             }`}
     >
         <Icon size={18} className={isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'} />
@@ -290,7 +291,9 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
     return (
         <AuthProvider>
-            <AppContent />
+            <GlobalFilterProvider>
+                <AppContent />
+            </GlobalFilterProvider>
         </AuthProvider>
     );
 };

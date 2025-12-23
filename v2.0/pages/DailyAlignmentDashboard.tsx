@@ -314,7 +314,6 @@ const ManageBoxesModal = ({
   projects: ExtendedProject[];
   onAdd: (name: string, color: string, tags?: string[]) => void; // NEW: tags parameter
   onDelete: (memberName: string, projectName: string) => void;
-  onReorder?: (projects: ExtendedProject[]) => void; // NEW: reorder callback
   readOnly: boolean;
   allTags?: string[]; // NEW: all available tags from tasks
 }) => {
@@ -578,14 +577,17 @@ export const DailyAlignmentDashboard: React.FC = () => {
     const savedOrder = boxOrder[activeMemberId];
     if (!savedOrder || savedOrder.length === 0) return group;
 
+    // Extract projects to help TypeScript understand it's not null
+    const groupProjects = group.projects;
     const ordered: ExtendedProject[] = [];
+
     savedOrder.forEach(projectName => {
-      const proj = group.projects.find(p => p.name === projectName);
+      const proj = groupProjects.find(p => p.name === projectName);
       if (proj) ordered.push(proj);
     });
 
     // Add new projects not in saved order
-    group.projects.forEach(p => {
+    groupProjects.forEach(p => {
       if (!savedOrder.includes(p.name)) ordered.push(p);
     });
 

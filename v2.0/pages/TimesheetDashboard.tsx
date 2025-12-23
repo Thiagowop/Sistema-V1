@@ -266,7 +266,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
     if (!startDate && !dueDate && !closedDate) {
       const now = new Date();
       const isCurrentMonth = periodStart.getMonth() === now.getMonth() &&
-                            periodStart.getFullYear() === now.getFullYear();
+        periodStart.getFullYear() === now.getFullYear();
       if (isCurrentMonth && (task.timeEstimate > 0 || task.timeLogged > 0)) {
         return true;
       }
@@ -365,6 +365,13 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
       // Filtrar e converter projetos
       const projects: Project[] = group.projects
         .map(proj => {
+          console.log(`[DEBUG RAW] Project "${proj.name}" has ${proj.tasks.length} tasks:`);
+          proj.tasks.forEach((task, idx) => {
+            if (idx < 3) { // Log first 3 tasks only
+              console.log(`  [DEBUG RAW] Task "${task.name}": timeEstimate=${task.timeEstimate}h, timeLogged=${task.timeLogged}h, has ${task.subtasks?.length || 0} subtasks`);
+            }
+          });
+
           // Filtrar tarefas que têm atividade no período
           const activeTasks = proj.tasks.filter(task =>
             isTaskInPeriod(task, periodStart, periodEnd)
@@ -373,12 +380,40 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
           // Se não há tarefas ativas, pular projeto
           if (activeTasks.length === 0) return null;
 
-          // Converter tarefas
-          const tasks: Task[] = activeTasks.map(task => ({
-            id: task.id,
-            name: task.name,
-            hours: distributeTaskHours(task, allDays.length, periodStart, periodEnd)
-          }));
+          // Helper: Agregar horas recursivamente de todas as subtasks
+          const aggregateTaskHours = (task: RealTask): { estimate: number; logged: number } => {
+            let totalEstimate = task.timeEstimate || 0;
+            let totalLogged = task.timeLogged || 0;
+
+            // Se tem subtasks, somar recursivamente
+            if (task.subtasks && task.subtasks.length > 0) {
+              task.subtasks.forEach(subtask => {
+                const subHours = aggregateTaskHours(subtask);
+                totalEstimate += subHours.estimate;
+                totalLogged += subHours.logged;
+              });
+            }
+
+            return { estimate: totalEstimate, logged: totalLogged };
+          };
+
+          // Converter tarefas COM agregação de horas das subtasks
+          const tasks: Task[] = activeTasks.map(task => {
+            const aggregated = aggregateTaskHours(task);
+
+            // Criar tarefa temporária com horas agregadas para distribuição
+            const taskWithAggregatedHours: RealTask = {
+              ...task,
+              timeEstimate: aggregated.estimate,
+              timeLogged: aggregated.logged
+            };
+
+            return {
+              id: task.id,
+              name: task.name,
+              hours: distributeTaskHours(taskWithAggregatedHours, allDays.length, periodStart, periodEnd)
+            };
+          });
 
           return {
             id: `${group.assignee}-${proj.name}`.replace(/\s/g, '-').toLowerCase(),

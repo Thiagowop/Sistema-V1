@@ -144,14 +144,16 @@ export const TimesheetWrapper: React.FC = () => {
                     }
 
                     // Calcular horas totais da task
-                    const totalEstimateMs = task.timeEstimate || 0;
-                    const totalLoggedMs = task.timeLogged || 0;
-                    const totalEstimateHours = totalEstimateMs / 3600000;
-                    const totalLoggedHours = totalLoggedMs / 3600000;
+                    // IMPORTANTE: timeEstimate e timeLogged JÁ VÊM EM HORAS do clickup.ts (já convertidos)
+                    const totalEstimateHours = task.timeEstimate || 0;
+                    const totalLoggedHours = task.timeLogged || 0;
 
                     // Determinar início e fim efetivo no mês
                     const startDay = startInThisMonth ? effectiveStart.getDate() : 1;
                     const endDay = endInThisMonth ? effectiveEnd.getDate() : daysInMonth;
+
+                    // Verificar se é tarefa de mesmo dia
+                    const isSameDay = startDay === endDay;
 
                     // Contar dias úteis da task no mês
                     let workingDays = 0;
@@ -160,11 +162,17 @@ export const TimesheetWrapper: React.FC = () => {
                         if (dayOfWeek !== 0 && dayOfWeek !== 6) workingDays++;
                     }
 
-                    // Horas por dia
-                    const hoursPerDay = workingDays > 0 ? totalEstimateHours / workingDays : 0;
-                    const loggedPerDay = workingDays > 0 ? totalLoggedHours / workingDays : 0;
+                    // Se é tarefa de mesmo dia, NÃO DIVIDIR - todas horas naquele dia
+                    // Se é tarefa multi-dia, distribuir igualmente
+                    const hoursPerDay = isSameDay
+                        ? totalEstimateHours  // Todas as horas no mesmo dia
+                        : (workingDays > 0 ? totalEstimateHours / workingDays : 0); // Dividir por dias úteis
 
-                    console.log(`[TIMESHEET] Task "${task.name}": dias ${startDay}-${endDay}, ${workingDays} úteis, ${totalEstimateHours.toFixed(1)}h estimadas`);
+                    const loggedPerDay = isSameDay
+                        ? totalLoggedHours  // Todas as horas no mesmo dia
+                        : (workingDays > 0 ? totalLoggedHours / workingDays : 0);
+
+                    console.log(`[TIMESHEET] Task "${task.name}": ${isSameDay ? 'MESMO DIA' : `${startDay}-${endDay}`}, ${workingDays} úteis, ${totalEstimateHours.toFixed(1)}h estimadas, ${totalLoggedHours.toFixed(1)}h logadas, ${hoursPerDay.toFixed(2)}h/dia`);
 
                     // Gerar array de horas para cada dia do mês
                     const hours: Hours[] = Array.from({ length: daysInMonth }, (_, dayIndex) => {
@@ -174,6 +182,11 @@ export const TimesheetWrapper: React.FC = () => {
 
                         // Se é fim de semana OU dia está fora do período da task
                         if (isWeekend || day < startDay || day > endDay) {
+                            return { planned: 0, actual: 0 };
+                        }
+
+                        // Para tarefas de mesmo dia, só mostrar horas no dia específico
+                        if (isSameDay && day !== startDay) {
                             return { planned: 0, actual: 0 };
                         }
 

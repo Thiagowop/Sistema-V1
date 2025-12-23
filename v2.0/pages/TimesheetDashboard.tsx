@@ -54,18 +54,30 @@ interface TooltipData {
 interface TimesheetDashboardProps {
   teamMembers?: Member[];
   months?: MonthOption[];
+  initialMonth?: string;
+  showCompleted?: boolean;
+  onMonthChange?: (month: string) => void;
+  onCompletedChange?: (show: boolean) => void;
 }
 
-const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: externalTeamMembers, months: externalMonths }) => {
+const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
+  teamMembers: externalTeamMembers,
+  months: externalMonths,
+  initialMonth,
+  showCompleted = false,
+  onMonthChange,
+  onCompletedChange
+}) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const themeButtonRef = useRef<HTMLButtonElement>(null);
   const [expandedProjects, setExpandedProjects] = useState<string[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState<string>('2025-12');
+  const [selectedMonth, setSelectedMonth] = useState<string>(initialMonth || '2025-12');
   const [selectedMemberFilter, setSelectedMemberFilter] = useState<string>('all');
   const [showWeekends, setShowWeekends] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<'timeline' | 'calendar'>('timeline');
   const [isDark, setIsDark] = useState<boolean>(false);
   const [tooltipData, setTooltipData] = useState<TooltipData | null>(null);
+  const [internalShowCompleted, setInternalShowCompleted] = useState<boolean>(showCompleted);
 
   // Dropdown states
   const [isTeamDropdownOpen, setIsTeamDropdownOpen] = useState(false);
@@ -140,23 +152,29 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
     const today = new Date();
     const year = today.getFullYear();
     const month = (today.getMonth() + 1).toString().padStart(2, '0');
-    setSelectedMonth(`${year}-${month}`);
-  }, []);
+    const newMonth = `${year}-${month}`;
+    setSelectedMonth(newMonth);
+    onMonthChange?.(newMonth);
+  }, [onMonthChange]);
 
   // Mudar ano mantendo o mês
   const changeYear = useCallback((newYear: number) => {
     const month = selectedMonth.split('-')[1];
-    setSelectedMonth(`${newYear}-${month}`);
+    const newMonth = `${newYear}-${month}`;
+    setSelectedMonth(newMonth);
+    onMonthChange?.(newMonth);
     setIsYearDropdownOpen(false);
-  }, [selectedMonth]);
+  }, [selectedMonth, onMonthChange]);
 
   // Mudar mês mantendo o ano
   const changeMonth = useCallback((newMonth: number) => {
     const year = selectedMonth.split('-')[0];
     const monthStr = newMonth.toString().padStart(2, '0');
-    setSelectedMonth(`${year}-${monthStr}`);
+    const newMonthValue = `${year}-${monthStr}`;
+    setSelectedMonth(newMonthValue);
+    onMonthChange?.(newMonthValue);
     setIsMonthDropdownOpen(false);
-  }, [selectedMonth]);
+  }, [selectedMonth, onMonthChange]);
 
   const handleMonthNavigate = (direction: 'prev' | 'next') => {
     const currentIndex = months.findIndex(m => m.value === selectedMonth);
@@ -164,7 +182,9 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
 
     let newIndex = direction === 'prev' ? currentIndex - 1 : currentIndex + 1;
     if (newIndex >= 0 && newIndex < months.length) {
-      setSelectedMonth(months[newIndex].value);
+      const newMonth = months[newIndex].value;
+      setSelectedMonth(newMonth);
+      onMonthChange?.(newMonth);
     }
   };
 
@@ -780,6 +800,23 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({ teamMembers: ex
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
+
+                  {/* Toggle Concluídas */}
+                  <div className="flex items-center gap-2 pl-4 border-l border-gray-300 dark:border-gray-600">
+                    <button
+                      onClick={() => {
+                        const newValue = !internalShowCompleted;
+                        setInternalShowCompleted(newValue);
+                        onCompletedChange?.(newValue);
+                      }}
+                      className="flex items-center gap-2 cursor-pointer group"
+                    >
+                      <div className={`w-9 h-5 rounded-full transition-colors ${internalShowCompleted ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-gray-700'}`}>
+                        <div className={`w-4 h-4 mt-0.5 rounded-full bg-white shadow-md transform transition-transform ${internalShowCompleted ? 'translate-x-4 ml-0.5' : 'translate-x-0.5'}`} />
+                      </div>
+                      <span className="text-sm font-semibold text-slate-700 dark:text-gray-300">Concluídas</span>
+                    </button>
+                  </div>
 
                   {/* Botão Hoje */}
                   <button

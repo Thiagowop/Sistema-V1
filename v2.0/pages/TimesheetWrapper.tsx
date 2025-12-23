@@ -69,11 +69,12 @@ export const TimesheetWrapper: React.FC = () => {
         return result;
     }, []);
 
-    // Estado para mês selecionado
+    // Estado para mês selecionado e filtro de concluídas
     const [selectedMonth, setSelectedMonth] = React.useState(() => {
         const today = new Date();
         return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
     });
+    const [showCompleted, setShowCompleted] = React.useState(false);
 
     // Transformar dados do ClickUp em formato do Timesheet
     const teamMembers = useMemo<Member[]>(() => {
@@ -102,105 +103,124 @@ export const TimesheetWrapper: React.FC = () => {
                 const projectName = projectGroup.name;
                 const tasks: Task[] = [];
 
-                projectGroup.tasks.forEach(task => {
-                    // Pegar datas da task
-                    const taskStart = task.startDate ? new Date(task.startDate) : null;
-                    const taskEnd = task.dueDate ? new Date(task.dueDate) : null;
-
-                    // Se não tem datas, skip
-                    if (!taskStart && !taskEnd) return;
-
-                    // Determinar período da task no mês selecionado
-                    const monthStart = new Date(filterYear, filterMonth - 1, 1);
-                    const monthEnd = new Date(filterYear, filterMonth, 0);
-
-                    // Verificar se task tem interseção com o mês
-                    const effectiveStart = taskStart || taskEnd!;
-                    const effectiveEnd = taskEnd || taskStart!;
-
-                    // Se task termina antes do mês ou começa depois, skip
-                    if (effectiveEnd < monthStart || effectiveStart > monthEnd) {
+                projectGroup.tasks.forEach(parentTask => {
+                    // FILTRO: Se showCompleted é false, pular tarefas PAI concluídas
+                    if (!showCompleted && parentTask.status && parentTask.status.toLowerCase().includes('complete')) {
+                        return;
+                    }
+                    if (!showCompleted && parentTask.dateClosed) {
                         return;
                     }
 
-                    // Calcular dias em que a task está ativa no mês
-                    const taskStartInMonth = Math.max(1, effectiveStart.getDate());
-                    const taskEndInMonth = Math.min(daysInMonth, effectiveEnd.getDate());
+                    // Processar SUBTAREFAS individualmente (se existirem)
+                    const subtasksToProcess = parentTask.subtasks && parentTask.subtasks.length > 0
+                        ? parentTask.subtasks
+                        : [parentTask]; // Se não tem subtarefas, processar a própria tarefa
 
-                    // Só considerar se as datas estão no mesmo mês/ano
-                    const startInThisMonth = effectiveStart.getFullYear() === filterYear &&
-                        effectiveStart.getMonth() + 1 === filterMonth;
-                    const endInThisMonth = effectiveEnd.getFullYear() === filterYear &&
-                        effectiveEnd.getMonth() + 1 === filterMonth;
-
-                    // Se nenhuma data está no mês, verificar se período atravessa o mês
-                    if (!startInThisMonth && !endInThisMonth) {
-                        // Task atravessa o mês inteiro?
-                        if (effectiveStart < monthStart && effectiveEnd > monthEnd) {
-                            // Task cobre o mês todo - distribuir horas em todos dias úteis
-                        } else {
-                            return; // Não está neste mês
+                    subtasksToProcess.forEach(task => {
+                        // FILTRO: pular SUBTAREFAS concluídas
+                        if (!showCompleted && task.status && task.status.toLowerCase().includes('complete')) {
+                            return;
                         }
-                    }
-
-                    // Calcular horas totais da task
-                    // IMPORTANTE: timeEstimate e timeLogged JÁ VÊM EM HORAS do clickup.ts (já convertidos)
-                    const totalEstimateHours = task.timeEstimate || 0;
-                    const totalLoggedHours = task.timeLogged || 0;
-
-                    // Determinar início e fim efetivo no mês
-                    const startDay = startInThisMonth ? effectiveStart.getDate() : 1;
-                    const endDay = endInThisMonth ? effectiveEnd.getDate() : daysInMonth;
-
-                    // Verificar se é tarefa de mesmo dia
-                    const isSameDay = startDay === endDay;
-
-                    // Contar dias úteis da task no mês
-                    let workingDays = 0;
-                    for (let d = startDay; d <= endDay; d++) {
-                        const dayOfWeek = new Date(filterYear, filterMonth - 1, d).getDay();
-                        if (dayOfWeek !== 0 && dayOfWeek !== 6) workingDays++;
-                    }
-
-                    // Se é tarefa de mesmo dia, NÃO DIVIDIR - todas horas naquele dia
-                    // Se é tarefa multi-dia, distribuir igualmente
-                    const hoursPerDay = isSameDay
-                        ? totalEstimateHours  // Todas as horas no mesmo dia
-                        : (workingDays > 0 ? totalEstimateHours / workingDays : 0); // Dividir por dias úteis
-
-                    const loggedPerDay = isSameDay
-                        ? totalLoggedHours  // Todas as horas no mesmo dia
-                        : (workingDays > 0 ? totalLoggedHours / workingDays : 0);
-
-                    console.log(`[TIMESHEET] Task "${task.name}": ${isSameDay ? 'MESMO DIA' : `${startDay}-${endDay}`}, ${workingDays} úteis, ${totalEstimateHours.toFixed(1)}h estimadas, ${totalLoggedHours.toFixed(1)}h logadas, ${hoursPerDay.toFixed(2)}h/dia`);
-
-                    // Gerar array de horas para cada dia do mês
-                    const hours: Hours[] = Array.from({ length: daysInMonth }, (_, dayIndex) => {
-                        const day = dayIndex + 1;
-                        const dayOfWeek = new Date(filterYear, filterMonth - 1, day).getDay();
-                        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-
-                        // Se é fim de semana OU dia está fora do período da task
-                        if (isWeekend || day < startDay || day > endDay) {
-                            return { planned: 0, actual: 0 };
+                        if (!showCompleted && task.dateClosed) {
+                            return;
                         }
 
-                        // Para tarefas de mesmo dia, só mostrar horas no dia específico
-                        if (isSameDay && day !== startDay) {
-                            return { planned: 0, actual: 0 };
+                        // Usar as PRÓPRIAS horas da subtarefa (não agregadas)
+                        const taskEstimate = task.timeEstimate || 0;
+                        const taskLogged = task.timeLogged || 0;
+
+                        // Pegar datas da subtarefa
+                        const taskStart = task.startDate ? new Date(task.startDate) : null;
+                        const taskEnd = task.dueDate ? new Date(task.dueDate) : null;
+
+                        // Se não tem datas, skip
+                        if (!taskStart && !taskEnd) return;
+
+                        // Determinar período da task no mês selecionado
+                        const monthStart = new Date(filterYear, filterMonth - 1, 1);
+                        const monthEnd = new Date(filterYear, filterMonth, 0);
+
+                        // Verificar se task tem interseção com o mês
+                        const effectiveStart = taskStart || taskEnd!;
+                        const effectiveEnd = taskEnd || taskStart!;
+
+                        // DEBUG: Log das datas
+                        console.log(`[TIMESHEET DEBUG] Task "${task.name}": start=${effectiveStart.toISOString().split('T')[0]}, end=${effectiveEnd.toISOString().split('T')[0]}, monthStart=${monthStart.toISOString().split('T')[0]}, monthEnd=${monthEnd.toISOString().split('T')[0]}`);
+
+                        // Se task termina antes do mês ou começa depois, skip
+                        if (effectiveEnd < monthStart || effectiveStart > monthEnd) {
+                            console.log(`[TIMESHEET DEBUG] SKIPPING "${task.name}" - outside month range`);
+                            return;
                         }
 
-                        // Dia útil dentro do período da task
-                        return {
-                            planned: Math.round(hoursPerDay * 100) / 100,
-                            actual: Math.round(loggedPerDay * 100) / 100
-                        };
-                    });
+                        // Só considerar se as datas estão no mesmo mês/ano
+                        const startInThisMonth = effectiveStart.getFullYear() === filterYear &&
+                            effectiveStart.getMonth() + 1 === filterMonth;
+                        const endInThisMonth = effectiveEnd.getFullYear() === filterYear &&
+                            effectiveEnd.getMonth() + 1 === filterMonth;
 
-                    tasks.push({
-                        id: task.id,
-                        name: task.name,
-                        hours
+                        // Se nenhuma data está no mês, verificar se período atravessa o mês
+                        if (!startInThisMonth && !endInThisMonth) {
+                            if (effectiveStart < monthStart && effectiveEnd > monthEnd) {
+                                // OK - atravessa o mês
+                            } else {
+                                return;
+                            }
+                        }
+
+                        // Determinar início e fim efetivo no mês
+                        const startDay = startInThisMonth ? effectiveStart.getDate() : 1;
+                        const endDay = endInThisMonth ? effectiveEnd.getDate() : daysInMonth;
+
+                        // Verificar se é tarefa de mesmo dia
+                        const isSameDay = startDay === endDay;
+
+                        // Contar dias úteis
+                        let workingDays = 0;
+                        for (let d = startDay; d <= endDay; d++) {
+                            const dayOfWeek = new Date(filterYear, filterMonth - 1, d).getDay();
+                            if (dayOfWeek !== 0 && dayOfWeek !== 6) workingDays++;
+                        }
+
+                        // MESMO DIA: todas horas naquele dia
+                        // MULTI-DIA: dividir proporcionalmente (pois não sabemos a distribuição exata)
+                        const hoursPerDay = isSameDay
+                            ? taskEstimate
+                            : (workingDays > 0 ? taskEstimate / workingDays : 0);
+
+                        const loggedPerDay = isSameDay
+                            ? taskLogged
+                            : (workingDays > 0 ? taskLogged / workingDays : 0);
+
+                        console.log(`[TIMESHEET] "${task.name}": ${isSameDay ? `DIA ${startDay}` : `dias ${startDay}-${endDay}`}, ${taskEstimate.toFixed(1)}h est, ${taskLogged.toFixed(1)}h log`);
+
+                        // Gerar array de horas
+                        const hours: Hours[] = Array.from({ length: daysInMonth }, (_, dayIndex) => {
+                            const day = dayIndex + 1;
+                            const dayOfWeek = new Date(filterYear, filterMonth - 1, day).getDay();
+                            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+                            if (isWeekend || day < startDay || day > endDay) {
+                                return { planned: 0, actual: 0 };
+                            }
+
+                            // Para mesmo dia, só no dia específico
+                            if (isSameDay && day !== startDay) {
+                                return { planned: 0, actual: 0 };
+                            }
+
+                            return {
+                                planned: Math.round(hoursPerDay * 100) / 100,
+                                actual: Math.round(loggedPerDay * 100) / 100
+                            };
+                        });
+
+                        tasks.push({
+                            id: task.id,
+                            name: task.name,
+                            hours
+                        });
                     });
                 });
 
@@ -232,7 +252,7 @@ export const TimesheetWrapper: React.FC = () => {
 
         console.log('[TIMESHEET] Transformed', transformedMembers.length, 'members with data');
         return transformedMembers;
-    }, [groupedData, selectedMonth]);
+    }, [groupedData, selectedMonth, showCompleted]);
 
     // Props para o TimesheetDashboard
     const timesheetProps: TimesheetProps = {
@@ -260,29 +280,7 @@ export const TimesheetWrapper: React.FC = () => {
         );
     }
 
-    return (
-        <div>
-            {/* Filtro de mês */}
-            <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-4">
-                <label className="text-sm font-medium text-gray-700">Mês:</label>
-                <select
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                    {months.map(month => (
-                        <option key={month.value} value={month.value}>
-                            {month.label}
-                        </option>
-                    ))}
-                </select>
-                <span className="text-xs text-gray-500">
-                    Exibindo {teamMembers.length} pessoas com projetos em {months.find(m => m.value === selectedMonth)?.label}
-                </span>
-            </div>
-            <TimesheetDashboard {...timesheetProps} />
-        </div>
-    );
+    return <TimesheetDashboard {...timesheetProps} />;
 };
 
 export default TimesheetWrapper;

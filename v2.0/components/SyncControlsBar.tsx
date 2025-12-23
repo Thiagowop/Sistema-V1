@@ -6,23 +6,16 @@
  */
 
 import React, { useState } from 'react';
-import { RefreshCw, Trash2, Filter, Check, Clock, Database, ToggleRight, ToggleLeft } from 'lucide-react';
+import { RefreshCw, Trash2, Check, Clock, Database, ToggleRight, ToggleLeft } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
-import { useGlobalFilters } from '../contexts/GlobalFilterContext';
-import { FilterModal } from './FilterModal';
 
 export const SyncControlsBar: React.FC<{ className?: string }> = ({ className = '' }) => {
     const {
         syncState,
         syncIncremental,
         clearCache,
-        metadata,
         groupedData
     } = useData();
-
-    const { hasActiveFilters } = useGlobalFilters();
-
-    const [showFilterModal, setShowFilterModal] = useState(false);
     const [autoSync, setAutoSync] = useState(() => {
         try {
             return localStorage.getItem('dailyFlow_autoSync_v2') === 'true';
@@ -64,96 +57,72 @@ export const SyncControlsBar: React.FC<{ className?: string }> = ({ className = 
     const isSyncing = syncState.status === 'syncing';
 
     return (
-        <>
-            <div className={`bg-gradient-to-r from-slate-800 to-slate-900 text-white rounded-xl px-4 py-3 flex items-center justify-between gap-4 shadow-lg ${className}`}>
-                {/* Left Side: Actions */}
-                <div className="flex items-center gap-2">
-                    {/* Sync Button */}
-                    <button
-                        onClick={handleSync}
-                        disabled={isSyncing}
-                        className={`px-4 py-2 rounded-lg font-bold text-sm transition-all flex items-center gap-2 ${isSyncing
-                            ? 'bg-indigo-500/50 cursor-not-allowed'
-                            : 'bg-indigo-600 hover:bg-indigo-700 active:scale-95'
-                            }`}
-                    >
-                        <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
-                        {isSyncing ? 'Sincronizando...' : 'Sincronizar'}
-                    </button>
+        <div className={`bg-gradient-to-r from-slate-800 to-slate-900 text-white rounded-xl px-4 py-3 flex items-center justify-between gap-4 shadow-lg ${className}`}>
+            {/* Left Side: Actions */}
+            <div className="flex items-center gap-2">
+                {/* Sync Button */}
+                <button
+                    onClick={handleSync}
+                    disabled={isSyncing}
+                    className={`px-4 py-2 rounded-lg font-bold text-sm transition-all flex items-center gap-2 ${isSyncing
+                        ? 'bg-indigo-500/50 cursor-not-allowed'
+                        : 'bg-indigo-600 hover:bg-indigo-700 active:scale-95'
+                        }`}
+                >
+                    <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
+                    {isSyncing ? 'Sincronizando...' : 'Sincronizar'}
+                </button>
 
-                    {/* Clear Cache Button */}
-                    <button
-                        onClick={handleClearCache}
-                        className="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm font-medium transition-all flex items-center gap-2"
-                        title="Limpar cache de dados"
-                    >
-                        <Trash2 size={14} />
-                        <span className="hidden md:inline">Limpar</span>
-                    </button>
-
-                    {/* Filter Button */}
-                    <button
-                        onClick={() => setShowFilterModal(true)}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${hasActiveFilters
-                            ? 'bg-emerald-600 hover:bg-emerald-700'
-                            : 'bg-slate-700 hover:bg-slate-600'
-                            }`}
-                        title="Abrir filtros"
-                    >
-                        <Filter size={14} />
-                        <span className="hidden md:inline">Filtros</span>
-                        {hasActiveFilters && (
-                            <span className="bg-white/20 px-1.5 py-0.5 rounded text-xs">●</span>
-                        )}
-                    </button>
-                </div>
-
-                {/* Right Side: Info */}
-                <div className="flex items-center gap-4 text-xs">
-                    {/* Task Count */}
-                    {taskCount > 0 && (
-                        <div className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-lg">
-                            <Database size={12} />
-                            <span className="font-bold">{taskCount.toLocaleString()}</span>
-                            <span className="text-slate-300">tarefas</span>
-                        </div>
-                    )}
-
-                    {/* Last Sync */}
-                    {timeSinceSync && (
-                        <div className="flex items-center gap-1.5 text-slate-300">
-                            <Clock size={12} />
-                            <span>{timeSinceSync}</span>
-                        </div>
-                    )}
-
-                    {/* Auto-Sync Toggle */}
-                    <button
-                        onClick={toggleAutoSync}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-all"
-                        title={`Auto-sync: ${autoSync ? 'Ativo' : 'Inativo'}`}
-                    >
-                        {autoSync ? (
-                            <>
-                                <ToggleRight size={16} className="text-emerald-400" />
-                                <span className="hidden lg:inline text-emerald-400 font-medium">Auto-Sync</span>
-                            </>
-                        ) : (
-                            <>
-                                <ToggleLeft size={16} className="text-slate-400" />
-                                <span className="hidden lg:inline text-slate-400">Auto-Sync</span>
-                            </>
-                        )}
-                    </button>
-                </div>
+                {/* Clear Cache Button */}
+                <button
+                    onClick={handleClearCache}
+                    className="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm font-medium transition-all flex items-center gap-2"
+                    title="Limpar cache de dados"
+                >
+                    <Trash2 size={14} />
+                    <span className="hidden md:inline">Limpar</span>
+                </button>
             </div>
 
-            {/* Filter Modal */}
-            <FilterModal
-                isOpen={showFilterModal}
-                onClose={() => setShowFilterModal(false)}
-            />
-        </>
+            {/* Right Side: Info */}
+            <div className="flex items-center gap-4 text-xs">
+                {/* Task Count */}
+                {taskCount > 0 && (
+                    <div className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-lg">
+                        <Database size={12} />
+                        <span className="font-bold">{taskCount.toLocaleString()}</span>
+                        <span className="text-slate-300">tarefas</span>
+                    </div>
+                )}
+
+                {/* Last Sync */}
+                {timeSinceSync && (
+                    <div className="flex items-center gap-1.5 text-slate-300">
+                        <Clock size={12} />
+                        <span>{timeSinceSync}</span>
+                    </div>
+                )}
+
+                {/* Auto-Sync Toggle */}
+                <button
+                    onClick={toggleAutoSync}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-all"
+                    title={`Auto-sync: ${autoSync ? 'Ativo' : 'Inativo'}`}
+                >
+                    {autoSync ? (
+                        <>
+                            <ToggleRight size={16} className="text-emerald-400" />
+                            <span className="hidden lg:inline text-emerald-400 font-medium">Auto-Sync</span>
+                        </>
+                    ) : (
+                        <>
+                            <ToggleLeft size={16} className="text-slate-400" />
+                            <span className="hidden lg:inline text-slate-400">Auto-Sync</span>
+                        </>
+                    )}
+                </button>
+            </div>
+        </div>
     );
 };
 

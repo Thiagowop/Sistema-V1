@@ -34,7 +34,7 @@ import {
     Settings2
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
-import { SyncFilters, SYNC_FILTER_PRESETS } from '../services/filterService';
+import { SyncFilters, SYNC_FILTER_PRESETS, createDefaultSyncFilters } from '../services/filterService';
 
 // Chave para persistir configuração do AutoSync
 const AUTOSYNC_KEY = 'dailyFlow_autoSync_v2';
@@ -213,7 +213,7 @@ export const SyncDashboard: React.FC = () => {
     };
 
     const handleClearFilters = () => {
-        setSyncFilters({ tags: [], assignees: [], includeArchived: false });
+        setSyncFilters(createDefaultSyncFilters());
         addLog('🗑️ Filtros limpos');
     };
 
@@ -410,11 +410,10 @@ export const SyncDashboard: React.FC = () => {
                                                                     handleAddTag(tag);
                                                                 }
                                                             }}
-                                                            className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all ${
-                                                                isSelected
+                                                            className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all ${isSelected
                                                                     ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-200'
                                                                     : 'bg-slate-700/30 border-slate-600/30 text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
-                                                            }`}
+                                                                }`}
                                                         >
                                                             <span className="flex items-center gap-1.5">
                                                                 <Tag size={10} />

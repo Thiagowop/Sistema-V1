@@ -15,9 +15,8 @@ import {
 import { DailySpace } from '../components/DailySpace';
 import { FilterMetadata } from '../types/FilterConfig';
 import { extractFilterMetadata } from '../services/clickup';
-import { getCachedMetadata } from '../services/filterService';
-import { useGlobalFilters } from '../contexts/GlobalFilterContext';
-import { GlobalFilterBar } from '../components/GlobalFilterBar';
+import { getCachedMetadata, saveSyncFilters } from '../services/filterService';
+
 import { Tag, CheckCircle, Filter } from 'lucide-react';
 import { SyncFiltersModal } from '../components/SyncFiltersModal';
 
@@ -31,240 +30,10 @@ const DEV_DEFAULTS = {
 
 type AdminTab = 'api' | 'security' | 'team' | 'data' | 'filters' | 'diario';
 
-// ============================================
-// GLOBAL FILTERS SECTION COMPONENT (Redesigned)
-// ============================================
-const GlobalFiltersSection: React.FC<{ filterMetadata: FilterMetadata | null }> = ({ filterMetadata }) => {
-    const {
-        filters,
-        setTagFilter,
-        setStatusFilter,
-        setAssigneeFilter,
-        setProjectFilter,
-        hasActiveFilters,
-        clearAllFilters
-    } = useGlobalFilters();
-
-    const toggleItem = (list: string[], item: string, setter: (items: string[]) => void) => {
-        const lower = item.toLowerCase();
-        if (list.includes(lower)) {
-            setter(list.filter(i => i !== lower));
-        } else {
-            setter([...list, lower]);
-        }
-    };
-
-    const totalFilters = filters.tags.length + filters.statuses.length + filters.assignees.length + filters.projects.length;
-
-    const [showSaved, setShowSaved] = React.useState(false);
-
-    // Show "saved" feedback when filters change
-    React.useEffect(() => {
-        if (hasActiveFilters) {
-            setShowSaved(true);
-            const timer = setTimeout(() => setShowSaved(false), 2000);
-            return () => clearTimeout(timer);
-        }
-    }, [filters]);
-
-    return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white">
-                <div className="flex items-center justify-between flex-wrap gap-4">
-                    <div className="flex items-center gap-3">
-                        <Filter size={24} />
-                        <div>
-                            <h3 className="text-lg font-bold">Central de Filtros Globais</h3>
-                            <p className="text-indigo-100 text-sm">
-                                Esses filtros serão aplicados em <strong>todas</strong> as telas do sistema.
-                            </p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        {/* Auto-save indicator */}
-                        {showSaved && (
-                            <span className="bg-emerald-500 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 animate-pulse">
-                                <Check size={14} />
-                                Salvo automaticamente!
-                            </span>
-                        )}
-
-                        {hasActiveFilters && (
-                            <>
-                                <span className="bg-white/20 px-3 py-1.5 rounded-lg text-sm font-bold">
-                                    {totalFilters} filtro{totalFilters > 1 ? 's' : ''} ativo{totalFilters > 1 ? 's' : ''}
-                                </span>
-                                <button
-                                    onClick={clearAllFilters}
-                                    className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white text-sm font-bold rounded-lg transition-colors flex items-center gap-2"
-                                >
-                                    <RotateCcw size={14} />
-                                    Limpar
-                                </button>
-                            </>
-                        )}
-                    </div>
-                </div>
-
-                {/* Info: Auto-save */}
-                <div className="mt-4 pt-4 border-t border-white/20 flex items-center gap-2 text-indigo-100 text-xs">
-                    <Check size={12} />
-                    <span><strong>Salva automaticamente:</strong> Filtros são salvos instantaneamente e mantidos entre sessões.</span>
-                </div>
-            </div>
-
-            {/* Grid de Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* Card: Status */}
-                <div className="bg-white rounded-xl border border-slate-200 p-5">
-                    <div className="flex items-center gap-2 mb-4">
-                        <CheckCircle size={18} className="text-emerald-600" />
-                        <h4 className="font-bold text-slate-800">Status</h4>
-                        {filters.statuses.length > 0 && (
-                            <span className="ml-auto bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-0.5 rounded-full">
-                                {filters.statuses.length}
-                            </span>
-                        )}
-                    </div>
-                    <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
-                        {filterMetadata?.statuses?.map(status => {
-                            const isSelected = filters.statuses.includes(status.toLowerCase());
-                            return (
-                                <button
-                                    key={status}
-                                    onClick={() => toggleItem(filters.statuses, status, setStatusFilter)}
-                                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${isSelected
-                                        ? 'bg-emerald-500 border-emerald-500 text-white'
-                                        : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-300'
-                                        }`}
-                                >
-                                    {status}
-                                </button>
-                            );
-                        })}
-                        {(!filterMetadata?.statuses || filterMetadata.statuses.length === 0) && (
-                            <p className="text-slate-400 text-xs">Faça um sync primeiro</p>
-                        )}
-                    </div>
-                </div>
-
-                {/* Card: Equipe */}
-                <div className="bg-white rounded-xl border border-slate-200 p-5">
-                    <div className="flex items-center gap-2 mb-4">
-                        <Users size={18} className="text-purple-600" />
-                        <h4 className="font-bold text-slate-800">Equipe</h4>
-                        {filters.assignees.length > 0 && (
-                            <span className="ml-auto bg-purple-100 text-purple-700 text-xs font-bold px-2 py-0.5 rounded-full">
-                                {filters.assignees.length}
-                            </span>
-                        )}
-                    </div>
-                    <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
-                        {filterMetadata?.assignees?.map(assignee => {
-                            const isSelected = filters.assignees.includes(assignee.toLowerCase());
-                            return (
-                                <button
-                                    key={assignee}
-                                    onClick={() => toggleItem(filters.assignees, assignee, setAssigneeFilter)}
-                                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${isSelected
-                                        ? 'bg-purple-500 border-purple-500 text-white'
-                                        : 'bg-white border-slate-200 text-slate-600 hover:border-purple-300'
-                                        }`}
-                                >
-                                    {assignee}
-                                </button>
-                            );
-                        })}
-                        {(!filterMetadata?.assignees || filterMetadata.assignees.length === 0) && (
-                            <p className="text-slate-400 text-xs">Faça um sync primeiro</p>
-                        )}
-                    </div>
-                </div>
-
-                {/* Card: Projetos */}
-                <div className="bg-white rounded-xl border border-slate-200 p-5">
-                    <div className="flex items-center gap-2 mb-4">
-                        <FolderOpen size={18} className="text-amber-600" />
-                        <h4 className="font-bold text-slate-800">Projetos</h4>
-                        {filters.projects.length > 0 && (
-                            <span className="ml-auto bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">
-                                {filters.projects.length}
-                            </span>
-                        )}
-                    </div>
-                    <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
-                        {filterMetadata?.projects?.map(project => {
-                            const isSelected = filters.projects.includes(project.toLowerCase());
-                            return (
-                                <button
-                                    key={project}
-                                    onClick={() => toggleItem(filters.projects, project, setProjectFilter)}
-                                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${isSelected
-                                        ? 'bg-amber-500 border-amber-500 text-white'
-                                        : 'bg-white border-slate-200 text-slate-600 hover:border-amber-300'
-                                        }`}
-                                >
-                                    {project}
-                                </button>
-                            );
-                        })}
-                        {(!filterMetadata?.projects || filterMetadata.projects.length === 0) && (
-                            <p className="text-slate-400 text-xs">Faça um sync primeiro</p>
-                        )}
-                    </div>
-                </div>
-
-                {/* Card: Tags (Full Width) */}
-                <div className="bg-white rounded-xl border border-slate-200 p-5 md:col-span-2 lg:col-span-3">
-                    <div className="flex items-center gap-2 mb-4">
-                        <Tag size={18} className="text-indigo-600" />
-                        <h4 className="font-bold text-slate-800">Tags</h4>
-                        {filters.tags.length > 0 && (
-                            <span className="ml-auto bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-0.5 rounded-full">
-                                {filters.tags.length}
-                            </span>
-                        )}
-                        <span className="text-slate-400 text-xs ml-2">
-                            {filterMetadata?.tags?.length || 0} disponíveis
-                        </span>
-                    </div>
-                    <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto">
-                        {filterMetadata?.tags?.map(tag => {
-                            const isSelected = filters.tags.includes(tag.toLowerCase());
-                            return (
-                                <button
-                                    key={tag}
-                                    onClick={() => toggleItem(filters.tags, tag, setTagFilter)}
-                                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${isSelected
-                                        ? 'bg-indigo-500 border-indigo-500 text-white'
-                                        : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300'
-                                        }`}
-                                >
-                                    #{tag}
-                                </button>
-                            );
-                        })}
-                        {(!filterMetadata?.tags || filterMetadata.tags.length === 0) && (
-                            <p className="text-slate-400 text-xs">Faça um sync primeiro</p>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            {/* Preview dos filtros ativos */}
-            {hasActiveFilters && (
-                <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
-                    <p className="text-xs font-bold text-slate-500 uppercase mb-3">📋 Filtros Ativos</p>
-                    <GlobalFilterBar />
-                </div>
-            )}
-        </div>
-    );
-};
+// GlobalFiltersSection completely removed - using SyncFiltersModal instead
 
 export const AdminDashboard: React.FC = () => {
-    const { config, setConfig, clearCache } = useData();
+    const { config, setConfig, clearCache, syncFilters, setSyncFilters, metadata } = useData();
     const [activeTab, setActiveTab] = useState<AdminTab>('api');
     const [isReadOnly, setIsReadOnly] = useState(false);
 
@@ -496,14 +265,28 @@ export const AdminDashboard: React.FC = () => {
                     <div className="max-w-7xl mx-auto space-y-6 animate-fadeIn p-4 md:p-8">
                         {/* Header */}
                         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white">
-                            <div className="flex items-center gap-3 mb-2">
-                                <Settings size={28} />
-                                <div>
-                                    <h3 className="text-2xl font-bold">Filtros de Sincronização</h3>
-                                    <p className="text-indigo-100 text-sm mt-1">
-                                        Configure TODOS os filtros para importar apenas os dados necessários da API do ClickUp
-                                    </p>
+                            <div className="flex items-center justify-between gap-3 mb-2">
+                                <div className="flex items-center gap-3">
+                                    <Settings size={28} />
+                                    <div>
+                                        <h3 className="text-2xl font-bold">Filtros de Sincronização</h3>
+                                        <p className="text-indigo-100 text-sm mt-1">
+                                            Configure TODOS os filtros para importar apenas os dados necessários da API do ClickUp
+                                        </p>
+                                    </div>
                                 </div>
+                                <button
+                                    onClick={() => setShowFiltersModal(true)}
+                                    className="px-5 py-2.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white font-bold rounded-xl transition-all flex items-center gap-2 border border-white/30"
+                                >
+                                    <Filter size={18} />
+                                    Abrir Configurador Completo
+                                    {(syncFilters.tags.length + syncFilters.assignees.length + syncFilters.statuses.length + syncFilters.priorities.length) > 0 && (
+                                        <span className="bg-white text-indigo-600 px-2 py-0.5 rounded-full text-xs font-bold">
+                                            {syncFilters.tags.length + syncFilters.assignees.length + syncFilters.statuses.length + syncFilters.priorities.length}
+                                        </span>
+                                    )}
+                                </button>
                             </div>
                         </div>
 
@@ -1054,6 +837,17 @@ export const AdminDashboard: React.FC = () => {
                     )
                 }
             </main >
+            {/* SyncFiltersModal */}
+            <SyncFiltersModal
+                isOpen={showFiltersModal}
+                onClose={() => setShowFiltersModal(false)}
+                filterMetadata={filterMetadata || metadata}
+                currentFilters={syncFilters}
+                onSave={(newFilters) => {
+                    setSyncFilters(newFilters);
+                    saveSyncFilters(newFilters);
+                }}
+            />
         </div >
     );
 };

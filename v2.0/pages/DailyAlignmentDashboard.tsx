@@ -53,8 +53,10 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { getCachedTags, getCachedStatuses } from '../services/filterService';
 import { Tag } from 'lucide-react';
-import { useGlobalFilters } from '../contexts/GlobalFilterContext';
+
 import { SyncControlsBar } from '../components/SyncControlsBar';
+import { LocalFilters, createDefaultLocalFilters, applyLocalFilters } from '../components/filters/LocalFilterBar';
+import { DailySettingsPanel, DailySettings, createDefaultDailySettings } from '../components/DailySettingsPanel';
 
 // --- CONFIGURAÇÕES DE QUALIDADE ---
 const PENALTY_WEIGHTS = {
@@ -536,6 +538,10 @@ export const DailyAlignmentDashboard: React.FC = () => {
   const [viewScale, setViewScale] = useState(1);
   const [isPresentationMode, setIsPresentationMode] = useState(false);
 
+  // NEW: Daily settings panel state
+  const [showSettingsPanel, setShowSettingsPanel] = useState(false);
+  const [dailySettings, setDailySettings] = useState<DailySettings>(createDefaultDailySettings());
+
   // NEW: State for advanced features
   const [boxOrder, setBoxOrder] = useState<Record<string, string[]>>({});
   const [projectNames, setProjectNames] = useState<Record<string, string>>({});
@@ -919,62 +925,46 @@ export const DailyAlignmentDashboard: React.FC = () => {
         readOnly={isReadOnly}
       />
 
-      {/* Unified Sync Controls - Sync, Clear Cache, Filters */}
-      <SyncControlsBar className="mx-4 mt-4" />
-
-      {/* HEADER DE NAVEGAÇÃO ENTRE MEMBROS */}
-      <div className="bg-white px-6 py-4 border-b border-slate-100 flex flex-col gap-4 shrink-0 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-black text-slate-800 tracking-tight">Alinhamento Diário</h1>
-            <button onClick={() => syncIncremental()} className={`p-2 rounded-full text-slate-400 hover:bg-slate-50 transition-all ${isSyncing ? 'animate-spin text-indigo-600' : ''}`}><RotateCw size={18} /></button>
-          </div>
-
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full pb-1">
-            {dashboardData.map(group => (
-              <button
-                key={group.assignee}
-                onClick={() => setActiveMemberId(group.assignee)}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap border ${activeMemberId === group.assignee ? 'bg-slate-800 border-slate-800 text-white shadow-lg scale-105' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}
-              >
-                {group.assignee}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Toggles Simples */}
-        <div className="flex items-center gap-6">
+      {/* HEADER LIMPO - Título + Sync + Membros + Engrenagem */}
+      <div className="bg-white px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 shadow-sm">
+        {/* Esquerda: Título + Sync */}
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-black text-slate-800 tracking-tight">Alinhamento Diário</h1>
           <button
-            onClick={() => setShowTasks(!showTasks)}
-            className="flex items-center gap-2 cursor-pointer group"
+            onClick={() => syncIncremental()}
+            className={`p-2 rounded-full text-slate-400 hover:bg-slate-50 transition-all ${isSyncing ? 'animate-spin text-indigo-600' : ''}`}
           >
-            <div className={`w-9 h-5 rounded-full transition-colors ${showTasks ? 'bg-indigo-500' : 'bg-slate-200'}`}>
-              <div className={`w-4 h-4 mt-0.5 rounded-full bg-white shadow-md transform transition-transform ${showTasks ? 'translate-x-4 ml-0.5' : 'translate-x-0.5'}`} />
-            </div>
-            <span className="text-sm font-semibold text-slate-700">Tarefas</span>
-          </button>
-
-          <button
-            onClick={() => setShowSubtasks(!showSubtasks)}
-            className="flex items-center gap-2 cursor-pointer group"
-          >
-            <div className={`w-9 h-5 rounded-full transition-colors ${showSubtasks ? 'bg-indigo-500' : 'bg-slate-200'}`}>
-              <div className={`w-4 h-4 mt-0.5 rounded-full bg-white shadow-md transform transition-transform ${showSubtasks ? 'translate-x-4 ml-0.5' : 'translate-x-0.5'}`} />
-            </div>
-            <span className="text-sm font-semibold text-slate-700">Subtarefas</span>
-          </button>
-
-          <button
-            onClick={() => setShowCompleted(!showCompleted)}
-            className="flex items-center gap-2 cursor-pointer group"
-          >
-            <div className={`w-9 h-5 rounded-full transition-colors ${showCompleted ? 'bg-emerald-500' : 'bg-slate-200'}`}>
-              <div className={`w-4 h-4 mt-0.5 rounded-full bg-white shadow-md transform transition-transform ${showCompleted ? 'translate-x-4 ml-0.5' : 'translate-x-0.5'}`} />
-            </div>
-            <span className="text-sm font-semibold text-slate-700">Concluídas</span>
+            <RotateCw size={18} />
           </button>
         </div>
+
+        {/* Centro: Tabs de Membros */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-[60%] pb-1">
+          {dashboardData.map(group => (
+            <button
+              key={group.assignee}
+              onClick={() => setActiveMemberId(group.assignee)}
+              className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap border ${activeMemberId === group.assignee ? 'bg-slate-800 border-slate-800 text-white shadow-lg scale-105' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}
+            >
+              {group.assignee}
+            </button>
+          ))}
+        </div>
+
+        {/* Direita: Engrenagem de Configurações */}
+        <button
+          onClick={() => setShowSettingsPanel(true)}
+          className="p-2.5 bg-slate-100 hover:bg-indigo-100 text-slate-600 hover:text-indigo-600 rounded-xl transition-all relative group"
+          title="Configurações"
+        >
+          <Settings size={20} />
+          {/* Indicador de filtros/boxes ativos */}
+          {(dailySettings.localFilters.tags.length > 0 ||
+            dailySettings.localFilters.statuses.length > 0 ||
+            dailySettings.customBoxes.length > 0) && (
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-indigo-500 rounded-full animate-pulse" />
+            )}
+        </button>
       </div>
 
       {/* ÁREA DE CONTEÚDO */}
@@ -1104,6 +1094,24 @@ export const DailyAlignmentDashboard: React.FC = () => {
           animation: fadeIn 0.3s ease-out;
         }
       `}</style>
+
+      {/* Daily Settings Panel */}
+      <DailySettingsPanel
+        isOpen={showSettingsPanel}
+        onClose={() => setShowSettingsPanel(false)}
+        settings={dailySettings}
+        onSettingsChange={(newSettings) => {
+          setDailySettings(newSettings);
+          // Sincronizar com estados locais se necessário
+          setShowTasks(newSettings.showTasks);
+          setShowSubtasks(newSettings.showSubtasks);
+          setShowCompleted(newSettings.showCompleted);
+          setViewScale(newSettings.viewScale);
+        }}
+        availableTags={getCachedTags()}
+        availableStatuses={getCachedStatuses()}
+        memberName={activeGroup?.assignee || ''}
+      />
     </div>
   );
 };

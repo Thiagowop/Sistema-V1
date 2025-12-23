@@ -1,2 +1,0 @@
-// Placeholder para adicionar conteúdo do filters tab
-// INSERIR APÓS A LINHA ~428 (final do data tab, antes do diario tab)

@@ -19,123 +19,140 @@ import { loadMetadata as loadCacheMetadata, MetadataCache } from './advancedCach
  * Pode ser usado em qualquer componente para acessar dados sem sync
  */
 export const getCachedMetadata = (): FilterMetadata | null => {
-  const cached = loadCacheMetadata();
-  if (!cached) return null;
+    const cached = loadCacheMetadata();
+    if (!cached) return null;
 
-  return {
-    tags: cached.tags || [],
-    statuses: cached.statuses || [],
-    projects: cached.projects || [],
-    assignees: cached.assignees || [],
-    priorities: cached.priorities || []
-  };
+    return {
+        tags: cached.tags || [],
+        statuses: cached.statuses || [],
+        projects: cached.projects || [],
+        assignees: cached.assignees || [],
+        priorities: cached.priorities || []
+    };
 };
 
 /**
  * Carrega apenas as tags do cache
  */
 export const getCachedTags = (): string[] => {
-  const cached = loadCacheMetadata();
-  return cached?.tags || [];
+    const cached = loadCacheMetadata();
+    return cached?.tags || [];
 };
 
 /**
  * Carrega apenas os statuses do cache
  */
 export const getCachedStatuses = (): string[] => {
-  const cached = loadCacheMetadata();
-  return cached?.statuses || [];
+    const cached = loadCacheMetadata();
+    return cached?.statuses || [];
 };
 
 /**
  * Carrega apenas os projetos do cache
  */
 export const getCachedProjects = (): string[] => {
-  const cached = loadCacheMetadata();
-  return cached?.projects || [];
+    const cached = loadCacheMetadata();
+    return cached?.projects || [];
 };
 
 /**
  * Carrega apenas os assignees do cache
  */
 export const getCachedAssignees = (): string[] => {
-  const cached = loadCacheMetadata();
-  return cached?.assignees || [];
+    const cached = loadCacheMetadata();
+    return cached?.assignees || [];
 };
 
 /**
  * Verifica se há metadata em cache
  */
 export const hasCachedMetadata = (): boolean => {
-  const cached = loadCacheMetadata();
-  return !!cached && (cached.tags?.length > 0 || cached.statuses?.length > 0);
+    const cached = loadCacheMetadata();
+    return !!cached && (cached.tags?.length > 0 || cached.statuses?.length > 0);
 };
 
 // ============================================
 // SYNC FILTERS (para configurar ANTES do sync)
 // ============================================
 export interface SyncFilters {
-  tags: string[];           // Tags para filtrar na API (server-side)
-  assignees: string[];      // Membros para filtrar (client-side)
-  includeArchived: boolean; // Incluir tarefas arquivadas
+    // Filtros de seleção (nada = importa tudo, algo = importa só isso)
+    tags: string[];           // Tags para filtrar na API (server-side)
+    assignees: string[];      // Membros para filtrar (client-side)
+    statuses: string[];       // Status para filtrar
+    priorities: string[];     // Prioridades para filtrar
+
+    // Opções booleanas (padrão = true = importa tudo)
+    includeSubtasks: boolean;     // Incluir subtarefas
+    includeArchived: boolean;     // Incluir tarefas arquivadas
+    includeUnassigned: boolean;   // Incluir tarefas sem responsável
+    includeCompleted: boolean;    // Incluir tarefas concluídas
 }
 
 const SYNC_FILTERS_KEY = 'dailyFlow_syncFilters_v2';
 
 export const loadSyncFilters = (): SyncFilters => {
-  try {
-    const saved = localStorage.getItem(SYNC_FILTERS_KEY);
-    if (saved) {
-      return JSON.parse(saved);
+    try {
+        const saved = localStorage.getItem(SYNC_FILTERS_KEY);
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            // Merge with defaults for backwards compatibility
+            return { ...createDefaultSyncFilters(), ...parsed };
+        }
+    } catch (e) {
+        console.warn('[SERV-FILT-001] Erro ao carregar filtros de sync:', e);
     }
-  } catch (e) {
-    console.warn('[SERV-FILT-001] Erro ao carregar filtros de sync:', e);
-  }
-  return createDefaultSyncFilters();
+    return createDefaultSyncFilters();
 };
 
 export const saveSyncFilters = (filters: SyncFilters): void => {
-  try {
-    localStorage.setItem(SYNC_FILTERS_KEY, JSON.stringify(filters));
-    console.log('[SERV-FILT-001] Filtros de sync salvos:', filters);
-  } catch (e) {
-    console.error('[SERV-FILT-001] Erro ao salvar filtros de sync:', e);
-  }
+    try {
+        localStorage.setItem(SYNC_FILTERS_KEY, JSON.stringify(filters));
+        console.log('[SERV-FILT-001] Filtros de sync salvos:', filters);
+    } catch (e) {
+        console.error('[SERV-FILT-001] Erro ao salvar filtros de sync:', e);
+    }
 };
 
 export const createDefaultSyncFilters = (): SyncFilters => ({
-  tags: [],
-  assignees: [],
-  includeArchived: false
+    // Filtros vazios = importa tudo
+    tags: [],
+    assignees: [],
+    statuses: [],
+    priorities: [],
+    // Opções padrão = importa tudo
+    includeSubtasks: true,
+    includeArchived: false,  // Arquivadas default OFF para não poluir
+    includeUnassigned: true,
+    includeCompleted: true
 });
 
 // Presets de filtros comuns
 export const SYNC_FILTER_PRESETS: { name: string; description: string; filters: SyncFilters }[] = [
-  {
-    name: 'Projetos',
-    description: 'Apenas tarefas com tag "projeto"',
-    filters: { tags: ['projeto'], assignees: [], includeArchived: false }
-  },
-  {
-    name: 'Rotinas',
-    description: 'Apenas tarefas com tag "rotina"',
-    filters: { tags: ['rotina'], assignees: [], includeArchived: false }
-  },
-  {
-    name: 'Projetos + Rotinas',
-    description: 'Tarefas com tags "projeto" ou "rotina"',
-    filters: { tags: ['projeto', 'rotina'], assignees: [], includeArchived: false }
-  },
-  {
-    name: 'Tarefas',
-    description: 'Apenas tarefas com tag "tarefa"',
-    filters: { tags: ['tarefa'], assignees: [], includeArchived: false }
-  },
-  {
-    name: 'Completo',
-    description: 'Todas as tarefas (sem filtro)',
-    filters: { tags: [], assignees: [], includeArchived: false }
-  }
+    {
+        name: 'Projetos',
+        description: 'Apenas tarefas com tag "projeto"',
+        filters: { ...createDefaultSyncFilters(), tags: ['projeto'] }
+    },
+    {
+        name: 'Rotinas',
+        description: 'Apenas tarefas com tag "rotina"',
+        filters: { ...createDefaultSyncFilters(), tags: ['rotina'] }
+    },
+    {
+        name: 'Projetos + Rotinas',
+        description: 'Tarefas com tags "projeto" ou "rotina"',
+        filters: { ...createDefaultSyncFilters(), tags: ['projeto', 'rotina'] }
+    },
+    {
+        name: 'Tarefas',
+        description: 'Apenas tarefas com tag "tarefa"',
+        filters: { ...createDefaultSyncFilters(), tags: ['tarefa'] }
+    },
+    {
+        name: 'Completo',
+        description: 'Todas as tarefas (sem filtro)',
+        filters: createDefaultSyncFilters()
+    }
 ];
 
 // ============================================

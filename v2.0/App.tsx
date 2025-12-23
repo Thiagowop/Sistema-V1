@@ -10,7 +10,7 @@
 import React, { useState } from 'react';
 import { DataProvider } from './contexts/DataContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { GlobalFilterProvider } from './contexts/GlobalFilterContext';
+// GlobalFilterContext removed - using isolated filters per view
 import { LoginScreen } from './components/LoginScreen';
 import { SyncDashboard } from './pages/SyncDashboard';
 import { DailyAlignmentDashboard } from './pages/DailyAlignmentDashboard';
@@ -291,9 +291,7 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
     return (
         <AuthProvider>
-            <GlobalFilterProvider>
-                <AppContent />
-            </GlobalFilterProvider>
+            <AppContent />
         </AuthProvider>
     );
 };

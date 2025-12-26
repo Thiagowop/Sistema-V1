@@ -98,8 +98,10 @@ export const SyncDashboard: React.FC = () => {
     const [autoSync, setAutoSync] = useState<boolean>(loadAutoSyncSetting);
     const [logs, setLogs] = useState<string[]>([]);
     const [hasAttemptedAutoSync, setHasAttemptedAutoSync] = useState(getSessionAutoSyncFlag);
-    const [showFilters, setShowFilters] = useState(false);
-    const [tagInput, setTagInput] = useState('');
+
+    // Modais para seleção de filtros (cards clicáveis)
+    const [showTagsModal, setShowTagsModal] = useState(false);
+    const [showTeamModal, setShowTeamModal] = useState(false);
     const logsEndRef = useRef<HTMLDivElement>(null);
 
     // Salvar autoSync quando muda
@@ -223,8 +225,24 @@ export const SyncDashboard: React.FC = () => {
 
     // --- SUB-COMPONENTS ---
 
-    const MetricItem = ({ icon: Icon, label, value, color }: { icon: any, label: string, value: string | number, color: string }) => (
-        <div className="flex flex-col items-center p-4 bg-slate-800/50 rounded-xl border border-slate-700/50 backdrop-blur-sm flex-1 transition-all hover:bg-slate-800/80 group">
+    const MetricItem = ({ icon: Icon, label, value, color, onClick, badge }: {
+        icon: any,
+        label: string,
+        value: string | number,
+        color: string,
+        onClick?: () => void,
+        badge?: number
+    }) => (
+        <div
+            onClick={onClick}
+            className={`flex flex-col items-center p-4 bg-slate-800/50 rounded-xl border border-slate-700/50 backdrop-blur-sm flex-1 transition-all group relative
+                ${onClick ? 'cursor-pointer hover:bg-slate-700/70 hover:border-slate-600 hover:scale-[1.02]' : 'hover:bg-slate-800/80'}`}
+        >
+            {badge !== undefined && badge > 0 && (
+                <div className="absolute -top-2 -right-2 bg-indigo-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    {badge}
+                </div>
+            )}
             <div className={`p-2 rounded-lg bg-opacity-20 mb-2 transition-transform group-hover:scale-110 duration-300 ${color.replace('text-', 'bg-')}`}>
                 <Icon size={18} className={color} />
             </div>
@@ -232,6 +250,7 @@ export const SyncDashboard: React.FC = () => {
                 <span className="text-xl font-bold text-white">{value}</span>
             </div>
             <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mt-1 opacity-70">{label}</span>
+            {onClick && <span className="text-[8px] text-indigo-400 mt-1">clique para filtrar</span>}
         </div>
     );
 
@@ -239,6 +258,9 @@ export const SyncDashboard: React.FC = () => {
     const taskCount = syncState.taskCount || 0;
     const projectCount = metadata?.projects?.length || 0;
     const teamCount = metadata?.assignees?.length || 0;
+    const tagCount = metadata?.tags?.length || 0;
+    const activeTagsCount = syncFilters.tags.length;
+    const activeAssigneesCount = syncFilters.assignees.length;
 
     return (
         <div className="flex-1 h-full overflow-hidden bg-slate-50 flex items-center justify-center p-6 animate-fadeIn">
@@ -334,272 +356,274 @@ export const SyncDashboard: React.FC = () => {
                                 </div>
                             </div>
                         ) : (
-                            /* Metrics Grid (Idle State) */
-                            <div className="grid grid-cols-3 gap-4 mb-8 relative z-10 mt-auto h-[200px] items-center">
+                            /* Metrics Grid - Cards Clicáveis */
+                            <div className="grid grid-cols-4 gap-3 mb-8 relative z-10 mt-auto h-[200px] items-center">
                                 <MetricItem icon={FileCheck} label="Tarefas" value={taskCount || '--'} color="text-blue-400" />
                                 <MetricItem icon={Layers} label="Projetos" value={projectCount || '--'} color="text-violet-400" />
-                                <MetricItem icon={Users} label="Equipe" value={teamCount || '--'} color="text-emerald-400" />
+                                <MetricItem
+                                    icon={Tag}
+                                    label="Tags"
+                                    value={tagCount || '--'}
+                                    color="text-amber-400"
+                                    onClick={() => setShowTagsModal(true)}
+                                    badge={activeTagsCount}
+                                />
+                                <MetricItem
+                                    icon={Users}
+                                    label="Equipe"
+                                    value={teamCount || '--'}
+                                    color="text-emerald-400"
+                                    onClick={() => setShowTeamModal(true)}
+                                    badge={activeAssigneesCount}
+                                />
                             </div>
                         )}
 
-                        {/* Filter Panel */}
-                        <div className="relative z-10 mb-4">
-                            {/* Filter Toggle Button */}
-                            <button
-                                onClick={() => setShowFilters(!showFilters)}
-                                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${hasActiveFilters
-                                    ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300'
-                                    : 'bg-slate-800/50 border-slate-700/50 text-slate-400 hover:text-white'
-                                    }`}
-                            >
-                                <div className="flex items-center gap-2">
-                                    <Filter size={16} />
-                                    <span className="text-sm font-medium">
-                                        Filtros de Sync
-                                        {hasActiveFilters && (
-                                            <span className="ml-2 text-xs bg-indigo-500/30 px-2 py-0.5 rounded">
-                                                {syncFilters.tags.length} tag(s)
-                                            </span>
-                                        )}
+                        {/* Tags Modal - Aparece quando clica no card TAGS */}
+                        {showTagsModal && (
+                            <div className="relative z-10 mb-4 animate-fadeIn">
+                                <div className="p-4 bg-slate-800/80 rounded-xl border border-amber-500/30 space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <Tag size={16} className="text-amber-400" />
+                                            <span className="text-sm font-bold text-white">Selecionar Tags</span>
+                                            {syncFilters.tags.length > 0 && (
+                                                <span className="text-xs bg-amber-500/30 text-amber-300 px-2 py-0.5 rounded">
+                                                    {syncFilters.tags.length} selecionada(s)
+                                                </span>
+                                            )}
+                                        </div>
+                                        <button onClick={() => setShowTagsModal(false)} className="text-slate-400 hover:text-white">
+                                            <X size={18} />
+                                        </button>
+                                    </div>
+
+                                    {/* Tags disponíveis */}
+                                    {metadata?.tags && metadata.tags.length > 0 ? (
+                                        <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto custom-scrollbar">
+                                            {metadata.tags.map(tag => {
+                                                const isSelected = syncFilters.tags.includes(tag.toLowerCase());
+                                                return (
+                                                    <button
+                                                        key={tag}
+                                                        onClick={() => {
+                                                            if (isSelected) {
+                                                                handleRemoveTag(tag.toLowerCase());
+                                                            } else {
+                                                                handleAddTag(tag);
+                                                            }
+                                                        }}
+                                                        className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${isSelected
+                                                            ? 'bg-amber-500/30 border-amber-500/50 text-amber-200'
+                                                            : 'bg-slate-700/30 border-slate-600/30 text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
+                                                            }`}
+                                                    >
+                                                        <span className="flex items-center gap-1.5">
+                                                            {isSelected && <CheckCircle2 size={12} />}
+                                                            #{tag}
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-slate-500">Faça um sync primeiro para carregar as tags do ClickUp</p>
+                                    )}
+
+                                    {/* Ações */}
+                                    <div className="flex items-center justify-between pt-2 border-t border-slate-700/50">
+                                        <button
+                                            onClick={handleClearFilters}
+                                            className="text-xs text-rose-400 hover:text-rose-300 font-medium flex items-center gap-1"
+                                        >
+                                            <Trash2 size={12} /> Limpar tags
+                                        </button>
+                                        <button
+                                            onClick={() => setShowTagsModal(false)}
+                                            className="text-xs bg-amber-500/20 text-amber-300 px-3 py-1.5 rounded-lg font-medium hover:bg-amber-500/30"
+                                        >
+                                            Aplicar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Team Modal - Aparece quando clica no card EQUIPE */}
+                        {showTeamModal && (
+                            <div className="relative z-10 mb-4 animate-fadeIn">
+                                <div className="p-4 bg-slate-800/80 rounded-xl border border-emerald-500/30 space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <Users size={16} className="text-emerald-400" />
+                                            <span className="text-sm font-bold text-white">Selecionar Membros</span>
+                                            {syncFilters.assignees.length > 0 && (
+                                                <span className="text-xs bg-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded">
+                                                    {syncFilters.assignees.length} selecionado(s)
+                                                </span>
+                                            )}
+                                        </div>
+                                        <button onClick={() => setShowTeamModal(false)} className="text-slate-400 hover:text-white">
+                                            <X size={18} />
+                                        </button>
+                                    </div>
+
+                                    {/* Membros disponíveis */}
+                                    {metadata?.assignees && metadata.assignees.length > 0 ? (
+                                        <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto custom-scrollbar">
+                                            {metadata.assignees.map(member => {
+                                                const isSelected = syncFilters.assignees.includes(member);
+                                                return (
+                                                    <button
+                                                        key={member}
+                                                        onClick={() => {
+                                                            if (isSelected) {
+                                                                setSyncFilters({
+                                                                    ...syncFilters,
+                                                                    assignees: syncFilters.assignees.filter(a => a !== member)
+                                                                });
+                                                            } else {
+                                                                setSyncFilters({
+                                                                    ...syncFilters,
+                                                                    assignees: [...syncFilters.assignees, member]
+                                                                });
+                                                            }
+                                                        }}
+                                                        className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${isSelected
+                                                            ? 'bg-emerald-500/30 border-emerald-500/50 text-emerald-200'
+                                                            : 'bg-slate-700/30 border-slate-600/30 text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
+                                                            }`}
+                                                    >
+                                                        <span className="flex items-center gap-1.5">
+                                                            {isSelected && <CheckCircle2 size={12} />}
+                                                            {member}
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-slate-500">Faça um sync primeiro para carregar os membros do ClickUp</p>
+                                    )}
+
+                                    {/* Ações */}
+                                    <div className="flex items-center justify-between pt-2 border-t border-slate-700/50">
+                                        <button
+                                            onClick={() => setSyncFilters({ ...syncFilters, assignees: [] })}
+                                            className="text-xs text-rose-400 hover:text-rose-300 font-medium flex items-center gap-1"
+                                        >
+                                            <Trash2 size={12} /> Limpar membros
+                                        </button>
+                                        <button
+                                            onClick={() => setShowTeamModal(false)}
+                                            className="text-xs bg-emerald-500/20 text-emerald-300 px-3 py-1.5 rounded-lg font-medium hover:bg-emerald-500/30"
+                                        >
+                                            Aplicar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Active Filters Summary - Mostra quando há filtros ativos */}
+                        {hasActiveFilters && !showTagsModal && !showTeamModal && (
+                            <div className="relative z-10 mb-4 flex items-center justify-between px-4 py-2 bg-indigo-500/10 rounded-lg border border-indigo-500/30">
+                                <div className="flex items-center gap-2 text-xs text-indigo-300">
+                                    <Filter size={14} />
+                                    <span>
+                                        {syncFilters.tags.length > 0 && `${syncFilters.tags.length} tag(s)`}
+                                        {syncFilters.tags.length > 0 && syncFilters.assignees.length > 0 && ' • '}
+                                        {syncFilters.assignees.length > 0 && `${syncFilters.assignees.length} membro(s)`}
                                     </span>
                                 </div>
-                                {showFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                            </button>
+                                <button onClick={handleClearFilters} className="text-xs text-rose-400 hover:text-rose-300">
+                                    <X size={14} />
+                                </button>
+                            </div>
+                        )}
 
-                            {/* Filter Content */}
-                            {showFilters && (
-                                <div className="mt-3 p-4 bg-slate-800/50 rounded-xl border border-slate-700/50 space-y-4 animate-fadeIn">
-                                    {/* Presets */}
-                                    <div>
-                                        <label className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2 block">
-                                            Presets Rápidos
-                                        </label>
-                                        <div className="flex flex-wrap gap-2">
-                                            {SYNC_FILTER_PRESETS.map(preset => (
-                                                <button
-                                                    key={preset.name}
-                                                    onClick={() => handleApplyPreset(preset)}
-                                                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${JSON.stringify(syncFilters.tags) === JSON.stringify(preset.filters.tags)
-                                                        ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300'
-                                                        : 'bg-slate-700/50 border-slate-600/50 text-slate-300 hover:bg-slate-700'
-                                                        }`}
-                                                    title={preset.description}
-                                                >
-                                                    {preset.name}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    {/* Tags Reais do ClickUp */}
-                                    {metadata?.tags && metadata.tags.length > 0 && (
-                                        <div>
-                                            <label className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2 block">
-                                                Tags do ClickUp ({metadata.tags.length})
-                                            </label>
-                                            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scrollbar">
-                                                {metadata.tags.map(tag => {
-                                                    const isSelected = syncFilters.tags.includes(tag.toLowerCase());
-                                                    return (
-                                                        <button
-                                                            key={tag}
-                                                            onClick={() => {
-                                                                if (isSelected) {
-                                                                    handleRemoveTag(tag.toLowerCase());
-                                                                } else {
-                                                                    handleAddTag(tag);
-                                                                }
-                                                            }}
-                                                            className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all ${isSelected
-                                                                    ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-200'
-                                                                    : 'bg-slate-700/30 border-slate-600/30 text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
-                                                                }`}
-                                                        >
-                                                            <span className="flex items-center gap-1.5">
-                                                                <Tag size={10} />
-                                                                {tag}
-                                                            </span>
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Tag Personalizada (caso não exista no metadata) */}
-                                    <div>
-                                        <label className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2 block">
-                                            Tag Personalizada
-                                        </label>
-                                        <div className="flex gap-2">
-                                            <input
-                                                type="text"
-                                                value={tagInput}
-                                                onChange={(e) => setTagInput(e.target.value)}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        handleAddTag(tagInput);
-                                                    }
-                                                }}
-                                                placeholder="Digite uma tag e pressione Enter"
-                                                className="flex-1 bg-slate-900/50 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-                                            />
-                                            <button
-                                                onClick={() => handleAddTag(tagInput)}
-                                                disabled={!tagInput.trim()}
-                                                className="px-4 py-2 bg-indigo-500/20 text-indigo-300 rounded-lg text-sm font-medium hover:bg-indigo-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
-                                            >
-                                                <Tag size={16} />
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* Tags Selecionadas */}
-                                    {syncFilters.tags.length > 0 && (
-                                        <div className="pt-2 border-t border-slate-700/50">
-                                            <label className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider mb-2 block">
-                                                Tags Ativas ({syncFilters.tags.length})
-                                            </label>
-                                            <div className="flex flex-wrap gap-2">
-                                                {syncFilters.tags.map(tag => (
-                                                    <span
-                                                        key={tag}
-                                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/20 text-emerald-300 text-xs font-medium rounded-lg border border-emerald-500/30"
-                                                    >
-                                                        <Tag size={12} />
-                                                        {tag}
-                                                        <button
-                                                            onClick={() => handleRemoveTag(tag)}
-                                                            className="hover:text-white transition-colors ml-1"
-                                                        >
-                                                            <X size={12} />
-                                                        </button>
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Info & Clear */}
-                                    <div className="flex items-center justify-between pt-2 border-t border-slate-700/50">
-                                        <p className="text-[10px] text-slate-500">
-                                            {metadata?.tags?.length
-                                                ? `${metadata.tags.length} tags disponíveis do ClickUp`
-                                                : hasActiveFilters
-                                                    ? 'Filtros serão aplicados no próximo sync'
-                                                    : 'Faça um sync para carregar as tags reais'}
-                                        </p>
-                                        {hasActiveFilters && (
-                                            <button
-                                                onClick={handleClearFilters}
-                                                className="text-xs text-rose-400 hover:text-rose-300 font-medium flex items-center gap-1"
-                                            >
-                                                <X size={12} /> Limpar filtros
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Action Button Area */}
+                        {/* Action Button Area - Sempre Visível */}
                         <div className="relative z-10 space-y-3">
-                            {syncState.status === 'success' && !isLoading ? (
-                                <div className="space-y-3 animate-fadeIn">
-                                    <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <CheckCircle2 className="text-emerald-400" size={24} />
-                                            <div>
-                                                <p className="text-sm font-bold text-white">Dados Atualizados!</p>
-                                                <p className="text-xs text-emerald-400/80 mt-0.5">{taskCount} tarefas sincronizadas</p>
-                                            </div>
-                                        </div>
+                            {/* Status Message (Success/Error) */}
+                            {syncState.status === 'success' && !isLoading && (
+                                <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 flex items-center gap-3 animate-fadeIn">
+                                    <CheckCircle2 className="text-emerald-400" size={20} />
+                                    <div className="flex-1">
+                                        <p className="text-sm font-bold text-white">Dados Atualizados!</p>
+                                        <p className="text-xs text-emerald-400/80">{taskCount} tarefas sincronizadas</p>
                                     </div>
-                                    <button
-                                        onClick={handleReset}
-                                        className="w-full py-3 text-slate-400 hover:text-white text-sm font-bold transition-colors flex items-center justify-center gap-2"
-                                    >
-                                        <ArrowRight size={14} /> Voltar ao Painel
-                                    </button>
-                                </div>
-                            ) : syncState.status === 'error' ? (
-                                <div className="space-y-3 animate-fadeIn">
-                                    <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-4 flex items-center gap-3">
-                                        <AlertTriangle className="text-rose-400" size={24} />
-                                        <div>
-                                            <p className="text-sm font-bold text-white">Erro na Sincronização</p>
-                                            <p className="text-xs text-rose-400/80 mt-0.5">{syncState.error}</p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={() => handleSync(false)}
-                                        className="w-full py-3 text-slate-400 hover:text-white text-sm font-bold transition-colors flex items-center justify-center gap-2"
-                                    >
-                                        Tentar Novamente
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="flex gap-3">
-                                    {/* Sync Completo */}
-                                    <button
-                                        onClick={() => handleSync(false)}
-                                        disabled={isLoading}
-                                        className={`
-                        flex-1 group/btn relative flex items-center justify-center gap-3 font-bold py-4 px-6 rounded-xl transition-all transform
-                        ${isLoading
-                                                ? 'bg-slate-800 text-slate-500 cursor-wait border border-slate-700'
-                                                : 'bg-white hover:bg-indigo-50 text-slate-900 shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:-translate-y-1 active:scale-[0.98]'
-                                            }
-                      `}
-                                    >
-                                        {isLoading ? (
-                                            <>
-                                                <Loader2 className="animate-spin text-indigo-500" /> Sincronizando...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <DownloadCloud size={20} className="text-indigo-600" />
-                                                {hasActiveFilters ? 'Sync Filtrado' : 'Sync Completo'}
-                                            </>
-                                        )}
-                                    </button>
-
-                                    {/* Sync Incremental */}
-                                    {syncState.lastSync && (
-                                        <button
-                                            onClick={() => handleSync(true)}
-                                            disabled={isLoading}
-                                            className={`
-                          group/btn relative flex items-center justify-center gap-2 font-bold py-4 px-4 rounded-xl transition-all transform
-                          ${isLoading
-                                                    ? 'bg-slate-800 text-slate-500 cursor-wait border border-slate-700'
-                                                    : 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 hover:-translate-y-1 active:scale-[0.98]'
-                                                }
-                        `}
-                                            title="Buscar apenas tarefas modificadas"
-                                        >
-                                            <Zap size={18} className="text-amber-400" />
-                                        </button>
-                                    )}
-
-                                    {/* Limpar Cache */}
-                                    <button
-                                        onClick={handleClearCache}
-                                        disabled={isLoading}
-                                        className={`
-                        group/btn relative flex items-center justify-center gap-2 font-bold py-4 px-4 rounded-xl transition-all transform
-                        ${isLoading
-                                                ? 'bg-slate-800 text-slate-500 cursor-wait border border-slate-700'
-                                                : 'bg-slate-800 hover:bg-rose-900/50 text-white border border-slate-600 hover:-translate-y-1 active:scale-[0.98]'
-                                            }
-                      `}
-                                        title="Limpar cache local"
-                                    >
-                                        <Trash2 size={18} className="text-rose-400" />
-                                    </button>
                                 </div>
                             )}
+                            {syncState.status === 'error' && (
+                                <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-3 flex items-center gap-3 animate-fadeIn">
+                                    <AlertTriangle className="text-rose-400" size={20} />
+                                    <div className="flex-1">
+                                        <p className="text-sm font-bold text-white">Erro na Sincronização</p>
+                                        <p className="text-xs text-rose-400/80">{syncState.error}</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Buttons - Sempre visíveis */}
+                            <div className="flex gap-3">
+                                {/* Sync Completo */}
+                                <button
+                                    onClick={() => handleSync(false)}
+                                    disabled={isLoading}
+                                    className={`
+                                        flex-1 group/btn relative flex items-center justify-center gap-3 font-bold py-4 px-6 rounded-xl transition-all transform
+                                        ${isLoading
+                                            ? 'bg-slate-800 text-slate-500 cursor-wait border border-slate-700'
+                                            : 'bg-white hover:bg-indigo-50 text-slate-900 shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:-translate-y-1 active:scale-[0.98]'
+                                        }
+                                    `}
+                                >
+                                    {isLoading ? (
+                                        <>
+                                            <Loader2 className="animate-spin text-indigo-500" /> Sincronizando...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <DownloadCloud size={20} className="text-indigo-600" />
+                                            {hasActiveFilters ? 'Sync Filtrado' : 'Sync Completo'}
+                                        </>
+                                    )}
+                                </button>
+
+                                {/* Sync Incremental */}
+                                {syncState.lastSync && (
+                                    <button
+                                        onClick={() => handleSync(true)}
+                                        disabled={isLoading}
+                                        className={`
+                                            group/btn relative flex items-center justify-center gap-2 font-bold py-4 px-4 rounded-xl transition-all transform
+                                            ${isLoading
+                                                ? 'bg-slate-800 text-slate-500 cursor-wait border border-slate-700'
+                                                : 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 hover:-translate-y-1 active:scale-[0.98]'
+                                            }
+                                        `}
+                                        title="Buscar apenas tarefas modificadas"
+                                    >
+                                        <Zap size={18} className="text-amber-400" />
+                                    </button>
+                                )}
+
+                                {/* Limpar Cache */}
+                                <button
+                                    onClick={handleClearCache}
+                                    disabled={isLoading}
+                                    className={`
+                                        group/btn relative flex items-center justify-center gap-2 font-bold py-4 px-4 rounded-xl transition-all transform
+                                        ${isLoading
+                                            ? 'bg-slate-800 text-slate-500 cursor-wait border border-slate-700'
+                                            : 'bg-slate-800 hover:bg-rose-900/50 text-white border border-slate-600 hover:-translate-y-1 active:scale-[0.98]'
+                                        }
+                                    `}
+                                    title="Limpar cache local"
+                                >
+                                    <Trash2 size={18} className="text-rose-400" />
+                                </button>
+                            </div>
                         </div>
                     </div>
 

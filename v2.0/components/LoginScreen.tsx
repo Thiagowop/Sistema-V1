@@ -27,9 +27,6 @@ const BrandLogo = () => (
         MCSA
       </h1>
 
-      {/* Linha Decorativa (Strikethrough) - Centralizada */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[115%] h-[6px] bg-slate-800 rounded-sm z-20 mix-blend-multiply opacity-95" />
-
       {/* Efeito sutil de brilho atrás */}
       <div className="absolute inset-0 bg-indigo-500/10 blur-2xl rounded-full" />
     </div>
@@ -187,11 +184,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
               {/* Lembrar-me e recuperar senha */}
               <div className="flex items-center justify-between pt-2">
                 <label className="flex items-center gap-2 cursor-pointer group select-none">
-                  <div className={`relative w-4 h-4 rounded-[4px] border transition-all duration-200 flex items-center justify-center ${
-                    rememberMe
-                      ? 'bg-indigo-600 border-indigo-600 shadow-sm'
-                      : 'border-slate-300 group-hover:border-indigo-400 bg-white'
-                  }`}>
+                  <div className={`relative w-4 h-4 rounded-[4px] border transition-all duration-200 flex items-center justify-center ${rememberMe
+                    ? 'bg-indigo-600 border-indigo-600 shadow-sm'
+                    : 'border-slate-300 group-hover:border-indigo-400 bg-white'
+                    }`}>
                     <svg className={`w-3 h-3 text-white transition-transform duration-200 ${rememberMe ? 'scale-100' : 'scale-0'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>

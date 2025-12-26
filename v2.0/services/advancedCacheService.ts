@@ -291,15 +291,15 @@ class AdvancedCacheService {
   }
 
   /**
-   * Merge incremental - Atualiza apenas tarefas modificadas
-   * Compara por ID e date_updated
+   * Merge incremental - Atualiza tarefas retornadas pela API
+   * IMPORTANTE: Se a API retornou com date_updated_gt, a tarefa JÁ foi modificada - sempre atualizar
    */
   async mergeIncrementalUpdate(newTasks: ClickUpApiTask[]): Promise<ClickUpApiTask[]> {
     try {
       const cached = await this.loadRawData();
 
       if (!cached || cached.length === 0) {
-        console.log('📥 [SERV-CACHE-001] No cache found, using full sync');
+        console.log('📥 [SERV-CACHE-001] No cache found, using new tasks directly');
         return newTasks;
       }
 
@@ -314,26 +314,21 @@ class AdvancedCacheService {
       // Estatísticas
       let added = 0;
       let updated = 0;
-      let unchanged = 0;
 
-      // Atualizar ou adicionar novas tarefas
+      // IMPORTANTE: Toda tarefa retornada pela API incremental foi modificada
+      // O filtro date_updated_gt do ClickUp já garantiu isso - NÃO precisamos verificar de novo
       newTasks.forEach(newTask => {
-        const cachedTask = cachedMap.get(newTask.id);
+        const wasInCache = cachedMap.has(newTask.id);
 
-        if (!cachedTask) {
-          // Tarefa nova
-          cachedMap.set(newTask.id, newTask);
-          added++;
+        // SEMPRE substituir - a API já filtrou tarefas modificadas
+        cachedMap.set(newTask.id, newTask);
+
+        if (wasInCache) {
+          updated++;
+          console.log(`🔄 [SERV-CACHE-001] Updated task: "${newTask.name}" (ID: ${newTask.id})`);
         } else {
-          // Verificar se foi modificada
-          const isModified = this.hasTaskChanged(cachedTask, newTask);
-
-          if (isModified) {
-            cachedMap.set(newTask.id, newTask);
-            updated++;
-          } else {
-            unchanged++;
-          }
+          added++;
+          console.log(`➕ [SERV-CACHE-001] Added new task: "${newTask.name}" (ID: ${newTask.id})`);
         }
       });
 
@@ -341,17 +336,16 @@ class AdvancedCacheService {
       const endTime = performance.now();
 
       console.log('🔄 [SERV-CACHE-001] Incremental merge completed:', {
-        total: mergedTasks.length,
+        fromAPI: newTasks.length,
         added,
         updated,
-        unchanged,
-        time: `${(endTime - startTime).toFixed(0)}ms`,
-        cacheHitRatio: `${((unchanged / mergedTasks.length) * 100).toFixed(1)}%`
+        totalInCache: mergedTasks.length,
+        time: `${(endTime - startTime).toFixed(0)}ms`
       });
 
       return mergedTasks;
     } catch (error) {
-      console.error('❌ [SERV-CACHE-001] Merge failed, using full sync:', error);
+      console.error('❌ [SERV-CACHE-001] Merge failed, using new tasks:', error);
       return newTasks;
     }
   }
@@ -366,7 +360,8 @@ class AdvancedCacheService {
       'time_estimate',
       'time_spent',
       'due_date',
-      'date_closed'
+      'date_closed',
+      'date_updated'  // Important for detecting any change
     ];
 
     for (const field of compareFields) {
@@ -387,6 +382,14 @@ class AdvancedCacheService {
     const oldAssignees = (oldTask.assignees || []).map(a => a.email).sort().join(',');
     const newAssignees = (newTask.assignees || []).map(a => a.email).sort().join(',');
     if (oldAssignees !== newAssignees) return true;
+
+    // CRITICAL: Comparar subtasks (missing in original implementation!)
+    const oldSubtasks = JSON.stringify(oldTask.subtasks || []);
+    const newSubtasks = JSON.stringify(newTask.subtasks || []);
+    if (oldSubtasks !== newSubtasks) {
+      console.log(`🔄 [SERV-CACHE-001] Task "${oldTask.name}" has subtask changes`);
+      return true;
+    }
 
     return false;
   }

@@ -321,6 +321,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
     const filters = customFilters || syncFilters;
 
     console.log(`[CTX-DATA-001] Starting INCREMENTAL sync since ${syncState.lastSync}...`);
+    console.log(`[CTX-DATA-001] Current rawTasks in state: ${rawTasks.length}`);
     setSyncState(prev => ({ ...prev, status: 'syncing', error: null, progress: 0 }));
 
     try {
@@ -334,10 +335,19 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
         incrementalSince: syncState.lastSync
       };
 
+      console.log(`[CTX-DATA-001] Calling API with options:`, syncOptions);
       const updatedTasks = await fetchRawClickUpData(config, syncOptions);
 
+      console.log(`[CTX-DATA-001] API returned ${updatedTasks.length} updated tasks:`);
+      updatedTasks.slice(0, 10).forEach(t => {
+        console.log(`  - "${t.name}" (ID: ${t.id}, parent: ${t.parent || 'root'})`);
+      });
+      if (updatedTasks.length > 10) {
+        console.log(`  ... and ${updatedTasks.length - 10} more`);
+      }
+
       if (updatedTasks.length === 0) {
-        console.log('[CTX-DATA-001] No updates found');
+        console.log('[CTX-DATA-001] No updates found from API');
         setSyncState(prev => ({
           ...prev,
           status: 'success',
@@ -348,6 +358,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
 
       // Merge with existing data
       setSyncState(prev => ({ ...prev, progress: 50 }));
+      console.log(`[CTX-DATA-001] Merging ${updatedTasks.length} new tasks with ${rawTasks.length} cached tasks...`);
       const merged = await mergeIncrementalData(rawTasks, updatedTasks);
       setRawTasks(merged);
 

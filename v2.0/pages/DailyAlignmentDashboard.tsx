@@ -29,7 +29,8 @@ import {
   ArrowDown,
   Save,
   CheckSquare,
-  ListTree
+  ListTree,
+  Box
 } from 'lucide-react';
 import { GroupedData, Task, Project } from '../types';
 import { useData } from '../contexts/DataContext';
@@ -56,7 +57,7 @@ import { Tag } from 'lucide-react';
 
 import { SyncControlsBar } from '../components/SyncControlsBar';
 import { LocalFilters, createDefaultLocalFilters, applyLocalFilters } from '../components/filters/LocalFilterBar';
-import { DailySettingsPanel, DailySettings, createDefaultDailySettings } from '../components/DailySettingsPanel';
+import { DailySettingsPanel, DailySettings, createDefaultDailySettings, loadDailySettings, saveDailySettings } from '../components/DailySettingsPanel';
 
 // --- CONFIGURAÇÕES DE QUALIDADE ---
 const PENALTY_WEIGHTS = {
@@ -538,9 +539,11 @@ export const DailyAlignmentDashboard: React.FC = () => {
   const [viewScale, setViewScale] = useState(1);
   const [isPresentationMode, setIsPresentationMode] = useState(false);
 
-  // NEW: Daily settings panel state
+  // NEW: Daily settings panel state with persistence
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
-  const [dailySettings, setDailySettings] = useState<DailySettings>(createDefaultDailySettings());
+  const [dailySettings, setDailySettings] = useState<DailySettings>(() => loadDailySettings());
+  const [savedSettings, setSavedSettings] = useState<DailySettings>(() => loadDailySettings());
+  const hasUnsavedChanges = JSON.stringify(dailySettings) !== JSON.stringify(savedSettings);
 
   // NEW: State for advanced features
   const [boxOrder, setBoxOrder] = useState<Record<string, string[]>>({});
@@ -557,15 +560,47 @@ export const DailyAlignmentDashboard: React.FC = () => {
   );
 
   // Inicialização - usar dados reais do DataContext
+  // IMPORTANTE: Sempre atualizar dashboardData quando groupedData mudar (não só no primeiro load)
   useEffect(() => {
     if (groupedData && groupedData.length > 0) {
       const data = JSON.parse(JSON.stringify(groupedData)) as ExtendedGroupedData[];
+
+      // SEMPRE atualizar os dados quando groupedData mudar (inclui sync incremental)
       setDashboardData(data);
-      if (!activeMemberId && data.length > 0) {
-        setActiveMemberId(data[0].assignee);
+      console.log(`[DailyAlignmentDashboard] Updated dashboardData: ${data.length} groups from sync`);
+
+      // Set initial activeMemberId respecting filters AND memberOrder (só se ainda não tiver)
+      if (!activeMemberId) {
+        // Filter members according to settings
+        let filteredMembers = data.filter(group => {
+          // Filter out "Não atribuído" if showUnassigned is false
+          if (group.assignee === 'Não atribuído' && !dailySettings.showUnassigned) return false;
+          // Filter by visibleMembers if defined
+          if (dailySettings.visibleMembers.length > 0 && !dailySettings.visibleMembers.includes(group.assignee)) return false;
+          return true;
+        });
+
+        // Apply memberOrder sorting if defined
+        if (dailySettings.memberOrder.length > 0) {
+          filteredMembers = [...filteredMembers].sort((a, b) => {
+            const indexA = dailySettings.memberOrder.indexOf(a.assignee);
+            const indexB = dailySettings.memberOrder.indexOf(b.assignee);
+            if (indexA === -1 && indexB === -1) return 0;
+            if (indexA === -1) return 1;
+            if (indexB === -1) return -1;
+            return indexA - indexB;
+          });
+        }
+
+        // Set to first filtered/sorted member, or first member if no filters match
+        if (filteredMembers.length > 0) {
+          setActiveMemberId(filteredMembers[0].assignee);
+        } else if (data.length > 0) {
+          setActiveMemberId(data[0].assignee);
+        }
       }
     }
-  }, [groupedData]);
+  }, [groupedData, dailySettings.showUnassigned, dailySettings.visibleMembers, dailySettings.memberOrder]);
 
   // Atualizar estado de sync
   useEffect(() => {
@@ -630,6 +665,64 @@ export const DailyAlignmentDashboard: React.FC = () => {
       })
     );
   };
+
+  // NEW: Compute custom boxes with filtered tasks (per-member)
+  const currentMemberBoxes = useMemo(() => {
+    if (!activeMemberId) return [];
+    return dailySettings.customBoxesByMember?.[activeMemberId] || [];
+  }, [dailySettings.customBoxesByMember, activeMemberId]);
+
+  const computedCustomBoxes = useMemo(() => {
+    if (!activeGroupData || currentMemberBoxes.length === 0) return [];
+
+    // Collect all tasks from all projects in the active group
+    const allTasks: Task[] = [];
+    activeGroupData.projects.forEach(project => {
+      project.tasks.forEach(task => allTasks.push(task));
+    });
+
+    // For each custom box, filter tasks matching its criteria
+    return currentMemberBoxes.map(box => {
+      let filteredTasks = [...allTasks];
+
+      // Filter by tags if specified
+      if (box.filterTags && box.filterTags.length > 0) {
+        filteredTasks = filteredTasks.filter(task => {
+          const taskTags = (task.tags || []).map((t: any) =>
+            (typeof t === 'string' ? t : t?.name || '').toLowerCase()
+          );
+          return box.filterTags.some(selectedTag =>
+            taskTags.includes(selectedTag.toLowerCase())
+          );
+        });
+      }
+
+      // Filter by status if specified
+      if (box.filterStatuses && box.filterStatuses.length > 0) {
+        filteredTasks = filteredTasks.filter(task => {
+          const taskStatus = (task.status || '').toLowerCase();
+          return box.filterStatuses.some(selectedStatus =>
+            taskStatus.includes(selectedStatus.toLowerCase())
+          );
+        });
+      }
+
+      return {
+        ...box,
+        tasks: filteredTasks
+      };
+    });
+  }, [activeGroupData, currentMemberBoxes]);
+
+  // NEW: Set of task IDs in custom boxes (for exclusivity)
+  const taskIdsInCustomBoxes = useMemo(() => {
+    if (!dailySettings.exclusiveBoxes) return new Set<string>();
+    const ids = new Set<string>();
+    computedCustomBoxes.forEach(box => {
+      box.tasks.forEach((task: Task) => ids.add(task.id));
+    });
+    return ids;
+  }, [computedCustomBoxes, dailySettings.exclusiveBoxes]);
 
   // Handlers de Estado
   const handleAddProject = useCallback((name: string, color: string, tags?: string[]) => {
@@ -932,39 +1025,80 @@ export const DailyAlignmentDashboard: React.FC = () => {
           <h1 className="text-xl font-black text-slate-800 tracking-tight">Alinhamento Diário</h1>
           <button
             onClick={() => syncIncremental()}
+            title="Atualizar dados"
             className={`p-2 rounded-full text-slate-400 hover:bg-slate-50 transition-all ${isSyncing ? 'animate-spin text-indigo-600' : ''}`}
           >
             <RotateCw size={18} />
           </button>
         </div>
 
-        {/* Centro: Tabs de Membros */}
+        {/* Centro: Tabs de Membros com filtro showUnassigned/visibleMembers */}
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-[60%] pb-1">
-          {dashboardData.map(group => (
-            <button
-              key={group.assignee}
-              onClick={() => setActiveMemberId(group.assignee)}
-              className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap border ${activeMemberId === group.assignee ? 'bg-slate-800 border-slate-800 text-white shadow-lg scale-105' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}
-            >
-              {group.assignee}
-            </button>
-          ))}
+          {dashboardData
+            .filter(group => {
+              // Filtrar "Não atribuído" se showUnassigned estiver desligado
+              if (group.assignee === 'Não atribuído' && !dailySettings.showUnassigned) return false;
+              // Filtrar por visibleMembers se definido
+              if (dailySettings.visibleMembers.length > 0 && !dailySettings.visibleMembers.includes(group.assignee)) return false;
+              return true;
+            })
+            .sort((a, b) => {
+              // Ordenar por memberOrder se definido
+              if (dailySettings.memberOrder.length === 0) return 0;
+              const indexA = dailySettings.memberOrder.indexOf(a.assignee);
+              const indexB = dailySettings.memberOrder.indexOf(b.assignee);
+              if (indexA === -1 && indexB === -1) return 0;
+              if (indexA === -1) return 1;
+              if (indexB === -1) return -1;
+              return indexA - indexB;
+            })
+            .map(group => (
+              <button
+                key={group.assignee}
+                onClick={() => setActiveMemberId(group.assignee)}
+                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap border ${activeMemberId === group.assignee ? 'bg-slate-800 border-slate-800 text-white shadow-lg scale-105' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}
+              >
+                {group.assignee}
+              </button>
+            ))}
         </div>
 
-        {/* Direita: Engrenagem de Configurações */}
-        <button
-          onClick={() => setShowSettingsPanel(true)}
-          className="p-2.5 bg-slate-100 hover:bg-indigo-100 text-slate-600 hover:text-indigo-600 rounded-xl transition-all relative group"
-          title="Configurações"
-        >
-          <Settings size={20} />
-          {/* Indicador de filtros/boxes ativos */}
-          {(dailySettings.localFilters.tags.length > 0 ||
-            dailySettings.localFilters.statuses.length > 0 ||
-            dailySettings.customBoxes.length > 0) && (
-              <span className="absolute -top-1 -right-1 w-3 h-3 bg-indigo-500 rounded-full animate-pulse" />
-            )}
-        </button>
+        {/* Direita: Toggles Globais + Engrenagem */}
+        <div className="flex items-center gap-2">
+          {/* Toggle: Concluídas */}
+          <button
+            onClick={() => setShowCompleted(!showCompleted)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${showCompleted ? 'bg-emerald-100 border-emerald-300 text-emerald-700' : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'}`}
+            title="Mostrar Concluídas"
+          >
+            ✓ Concluídas
+          </button>
+
+          {/* Toggle: Subtarefas */}
+          <button
+            onClick={() => setShowSubtasks(!showSubtasks)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${showSubtasks ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'}`}
+            title="Mostrar Subtarefas"
+          >
+            <ListTree size={14} className="inline mr-1" />
+            Sub
+          </button>
+
+          {/* Engrenagem */}
+          <button
+            onClick={() => setShowSettingsPanel(true)}
+            className="p-2.5 bg-slate-100 hover:bg-indigo-100 text-slate-600 hover:text-indigo-600 rounded-xl transition-all relative group"
+            title="Configurações"
+          >
+            <Settings size={20} />
+            {/* Indicador de filtros/boxes ativos */}
+            {(dailySettings.localFilters.tags.length > 0 ||
+              dailySettings.localFilters.statuses.length > 0 ||
+              currentMemberBoxes.length > 0) && (
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-indigo-500 rounded-full animate-pulse" />
+              )}
+          </button>
+        </div>
       </div>
 
       {/* ÁREA DE CONTEÚDO */}
@@ -974,92 +1108,201 @@ export const DailyAlignmentDashboard: React.FC = () => {
           <div className="flex items-center justify-between px-2">
             <div className="flex items-center gap-4">
               <h2 className="text-3xl font-black text-slate-800 tracking-tighter">{activeGroup.assignee}</h2>
-              <button onClick={() => setShowManageModal(true)} className="p-2 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-indigo-600 hover:border-indigo-200 shadow-sm transition-all"><Settings size={20} /></button>
             </div>
 
             {/* Card Circular de Qualidade */}
             <CircularQualityBadge score={qualityStats.score} />
           </div>
 
+          {/* ============================================ */}
+          {/* CUSTOM BOXES - Boxes customizados criados pelo usuário */}
+          {/* ============================================ */}
+          {computedCustomBoxes.length > 0 && (
+            <div className="grid gap-6">
+              {computedCustomBoxes.map((box) => {
+                const boxId = `custom-${box.id}`;
+                const isExpanded = expandedProjects.has(boxId);
+                const filteredTasks = box.tasks.filter((t: Task) => showCompleted || !t.status?.toLowerCase().includes('conclu'));
 
+                // Hide empty custom boxes after filtering
+                if (filteredTasks.length === 0) return null;
+
+                return (
+                  <div key={boxId} className="bg-white rounded-3xl border-2 border-dashed border-purple-200 shadow-sm overflow-hidden transition-all hover:shadow-md hover:border-purple-300">
+                    <div
+                      className="px-6 py-4 flex items-center justify-between cursor-pointer"
+                      style={{ backgroundColor: box.color || '#7c3aed' }}
+                      onClick={() => toggleProject(boxId)}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="p-2 bg-white/20 rounded-xl text-white">
+                          <Box size={20} />
+                        </div>
+                        <div>
+                          <h3 className="text-white font-black text-lg tracking-tight uppercase">{box.name}</h3>
+                          <div className="flex gap-2 mt-0.5">
+                            {box.filterTags.length > 0 && (
+                              <span className="text-white/70 text-xs">{box.filterTags.length} tags</span>
+                            )}
+                            {box.filterStatuses?.length > 0 && (
+                              <span className="text-white/70 text-xs">{box.filterStatuses.length} status</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="bg-white/20 text-white px-3 py-1 rounded-full text-sm font-bold">
+                          {filteredTasks.length} tarefas
+                        </span>
+                        {isExpanded ? (
+                          <ChevronDown size={24} className="text-white/80" />
+                        ) : (
+                          <ChevronRight size={24} className="text-white/80" />
+                        )}
+                      </div>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="p-4">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="text-slate-400 text-xs font-black uppercase tracking-wider border-b border-slate-100">
+                              <th className="text-left py-3 px-3 w-1/2">Tarefa</th>
+                              <th className="text-left py-3 px-3">Status</th>
+                              <th className="text-left py-3 px-3">Prioridade</th>
+                              <th className="text-right py-3 px-3">Horas</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-50">
+                            {filteredTasks.length === 0 ? (
+                              <tr><td colSpan={4} className="p-12 text-center text-slate-400 text-sm font-medium italic">Nenhuma tarefa encontrada com esses filtros.</td></tr>
+                            ) : (
+                              filteredTasks.map((task: Task) => (
+                                <TaskRow key={task.id} task={task} depth={0} />
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Projects Grid */}
           <div className="grid gap-6">
-            {activeGroup.projects.map((project, pIdx) => {
-              const uniqueId = `${activeGroup.assignee}-${project.name}`;
-              const isExpanded = expandedProjects.has(uniqueId);
-              const filteredTasks = project.tasks.filter(t => showCompleted || !t.status?.toLowerCase().includes('conclu'));
-              const bgHeader = project.color || 'bg-slate-800';
-              const isEditing = editingProjectId === uniqueId;
-              const displayName = projectNames[project.name] || project.name;
+            {[...activeGroup.projects]
+              .sort((a, b) => dailySettings.sortProjectsAlphabetically
+                ? a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })
+                : 0
+              )
+              .map((project, pIdx) => {
+                const uniqueId = `${activeGroup.assignee}-${project.name}`;
+                const isExpanded = expandedProjects.has(uniqueId);
+                // Apply exclusivity: filter out tasks in custom boxes
+                // Apply view filters: tags, statuses, completed, exclusive
+                const filteredTasks = project.tasks.filter(t => {
+                  if (dailySettings.exclusiveBoxes && taskIdsInCustomBoxes.has(t.id)) return false;
+                  if (!showCompleted && t.status?.toLowerCase().includes('conclu')) return false;
 
-              return (
-                <div key={uniqueId} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all hover:shadow-md">
-                  <div className={`${bgHeader} px-6 py-4 flex items-center justify-between group`}>
-                    <div onClick={() => toggleProject(uniqueId)} className="flex-1 flex items-center gap-4 cursor-pointer">
-                      <div className="p-2 bg-white/20 rounded-xl text-white"><Layers size={20} /></div>
+                  // Apply localFilters.tags - if any tags selected, task must have at least one
+                  if (dailySettings.localFilters.tags.length > 0) {
+                    const taskTags = (t.tags || []).map((tag: any) =>
+                      (typeof tag === 'string' ? tag : tag?.name || '').toLowerCase()
+                    );
+                    const hasMatchingTag = dailySettings.localFilters.tags.some(selectedTag =>
+                      taskTags.includes(selectedTag.toLowerCase())
+                    );
+                    if (!hasMatchingTag) return false;
+                  }
 
-                      {/* NEW: Rename inline */}
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={tempProjectName}
-                          onChange={(e) => setTempProjectName(e.target.value)}
-                          onBlur={saveRename}
-                          onKeyDown={(e) => e.key === 'Enter' ? saveRename() : e.key === 'Escape' && cancelRename()}
-                          className="bg-white/20 text-white font-black text-lg tracking-tight uppercase px-2 py-1 rounded border-2 border-white/40 outline-none"
-                          autoFocus
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      ) : (
-                        <h3 className="text-white font-black text-lg tracking-tight uppercase">{displayName}</h3>
+                  // Apply localFilters.statuses - if any statuses selected, task must match one
+                  if (dailySettings.localFilters.statuses.length > 0) {
+                    const taskStatus = (t.status || '').toLowerCase();
+                    const hasMatchingStatus = dailySettings.localFilters.statuses.some(selectedStatus =>
+                      taskStatus.includes(selectedStatus.toLowerCase())
+                    );
+                    if (!hasMatchingStatus) return false;
+                  }
+
+                  return true;
+                });
+                const bgHeader = project.color || 'bg-slate-800';
+                const isEditing = editingProjectId === uniqueId;
+                const displayName = projectNames[project.name] || project.name;
+
+                // Hide empty projects after filtering
+                if (filteredTasks.length === 0) return null;
+
+                return (
+                  <div key={uniqueId} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all hover:shadow-md">
+                    <div className={`${bgHeader} px-6 py-4 flex items-center justify-between group`}>
+                      <div onClick={() => toggleProject(uniqueId)} className="flex-1 flex items-center gap-4 cursor-pointer">
+                        <div className="p-2 bg-white/20 rounded-xl text-white"><Layers size={20} /></div>
+
+                        {/* NEW: Rename inline */}
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={tempProjectName}
+                            onChange={(e) => setTempProjectName(e.target.value)}
+                            onBlur={saveRename}
+                            onKeyDown={(e) => e.key === 'Enter' ? saveRename() : e.key === 'Escape' && cancelRename()}
+                            className="bg-white/20 text-white font-black text-lg tracking-tight uppercase px-2 py-1 rounded border-2 border-white/40 outline-none"
+                            autoFocus
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        ) : (
+                          <h3 className="text-white font-black text-lg tracking-tight uppercase">{displayName}</h3>
+                        )}
+
+
+                      </div>
+
+                      {/* NEW: Rename icon */}
+                      {!isEditing && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); startRename(uniqueId, project.name); }}
+                          className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                        >
+                          <Pencil size={16} />
+                        </button>
                       )}
 
-
-                    </div>
-
-                    {/* NEW: Rename icon */}
-                    {!isEditing && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); startRename(uniqueId, project.name); }}
-                        className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-all"
-                      >
-                        <Pencil size={16} />
+                      <button onClick={() => toggleProject(uniqueId)} className="p-2">
+                        <ChevronDown className={`text-white transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
                       </button>
-                    )}
-
-                    <button onClick={() => toggleProject(uniqueId)} className="p-2">
-                      <ChevronDown className={`text-white transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
-                    </button>
-                  </div>
-
-                  {isExpanded && (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left">
-                        <thead>
-                          <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                            <th className="px-8 py-4">Nome da Tarefa</th>
-                            <th className="px-4 py-4">Datas</th>
-                            <th className="px-4 py-4">Estimado / Real</th>
-                            <th className="px-4 py-4 text-center">Status</th>
-                            <th className="px-8 py-4 text-center">PRIORIDADE</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50">
-                          {filteredTasks.length === 0 ? (
-                            <tr><td colSpan={5} className="p-12 text-center text-slate-400 text-sm font-medium italic">Nenhuma tarefa ativa neste box.</td></tr>
-                          ) : (
-                            filteredTasks.map(task => (
-                              <TaskRow key={task.id} task={task} depth={0} />
-                            ))
-                          )}
-                        </tbody>
-                      </table>
                     </div>
-                  )}
-                </div>
-              );
-            })}
+
+                    {isExpanded && (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                              <th className="px-8 py-4">Nome da Tarefa</th>
+                              <th className="px-4 py-4">Datas</th>
+                              <th className="px-4 py-4">Estimado / Real</th>
+                              <th className="px-4 py-4 text-center">Status</th>
+                              <th className="px-8 py-4 text-center">PRIORIDADE</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-50">
+                            {filteredTasks.length === 0 ? (
+                              <tr><td colSpan={5} className="p-12 text-center text-slate-400 text-sm font-medium italic">Nenhuma tarefa ativa neste box.</td></tr>
+                            ) : (
+                              filteredTasks.map(task => (
+                                <TaskRow key={task.id} task={task} depth={0} />
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
           </div>
         </div>
 
@@ -1102,15 +1345,32 @@ export const DailyAlignmentDashboard: React.FC = () => {
         settings={dailySettings}
         onSettingsChange={(newSettings) => {
           setDailySettings(newSettings);
-          // Sincronizar com estados locais se necessário
+          // Sincronizar com estados locais de visualização
           setShowTasks(newSettings.showTasks);
           setShowSubtasks(newSettings.showSubtasks);
           setShowCompleted(newSettings.showCompleted);
           setViewScale(newSettings.viewScale);
         }}
+        onSave={() => {
+          saveDailySettings(dailySettings);
+          setSavedSettings(dailySettings);
+        }}
+        onReset={() => {
+          const defaults = createDefaultDailySettings();
+          setDailySettings(defaults);
+          saveDailySettings(defaults);
+          setSavedSettings(defaults);
+          setShowTasks(defaults.showTasks);
+          setShowSubtasks(defaults.showSubtasks);
+          setShowCompleted(defaults.showCompleted);
+          setViewScale(defaults.viewScale);
+        }}
         availableTags={getCachedTags()}
         availableStatuses={getCachedStatuses()}
+        availableMembers={dashboardData.map(g => ({ id: g.assignee, name: g.assignee }))}
+        activeMemberId={activeMemberId || ''}
         memberName={activeGroup?.assignee || ''}
+        hasUnsavedChanges={hasUnsavedChanges}
       />
     </div>
   );

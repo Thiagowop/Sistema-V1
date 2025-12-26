@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import {
   Users,
@@ -8,10 +7,8 @@ import {
   Clock,
   FileText,
   X,
-  Flame,
   Zap,
   FilterX,
-  ChevronRight,
   Target,
   CheckCircle2,
   Settings,
@@ -188,7 +185,7 @@ export const QualityDashboard: React.FC<QualityDashboardProps> = ({ data }) => {
   ];
 
   return (
-    <div className="flex flex-col lg:flex-row gap-8 animate-fadeIn font-sans pb-12 relative bg-white min-h-full p-6">
+    <div className="flex flex-col gap-6 animate-fadeIn font-sans pb-12 relative bg-white min-h-full p-6">
 
       {/* MODAL DE CONFIGURAÇÃO DE PESOS */}
       {isConfigOpen && (
@@ -250,79 +247,90 @@ export const QualityDashboard: React.FC<QualityDashboardProps> = ({ data }) => {
         </div>
       )}
 
-      {/* COLUNA ESQUERDA: RANKING */}
-      <div className="lg:w-72 flex-shrink-0 order-2 lg:order-1">
-        <div className="sticky top-6 flex flex-col gap-4">
-          <div className="flex items-center justify-between px-2 mb-2">
-            <h3 className="text-lg font-black text-slate-800 flex items-center gap-2 uppercase tracking-tight">
-              <Zap size={20} className="text-amber-500" /> Ranking
-            </h3>
-            <button
-              onClick={() => setIsConfigOpen(true)}
-              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-              title="Configurar Pesos"
-            >
-              <Settings size={20} />
-            </button>
-          </div>
+      {/* CONTEÚDO PRINCIPAL - REFINALIZADO */}
+      <div className="space-y-6">
+        <div className={`bg-white rounded-3xl p-6 border shadow-sm relative overflow-hidden transition-all duration-500 ${selectedMemberId ? 'border-indigo-200 ring-4 ring-indigo-50' : 'border-slate-200'}`}>
+          <div className="flex flex-col md:flex-row md:items-start justify-between gap-8">
 
-          <div className="space-y-3">
-            {rankings.map((member, index) => {
-              const isSelected = selectedMemberId === member.name;
-              return (
-                <button
-                  key={member.name}
-                  onClick={() => setSelectedMemberId(isSelected ? null : member.name)}
-                  className={`w-full flex items-center gap-4 p-3 rounded-2xl border text-left transition-all duration-200 group relative ${isSelected ? 'bg-indigo-50 border-indigo-500 shadow-md ring-1 ring-indigo-500' : 'bg-white border-slate-200 hover:border-indigo-300'}`}
+            {/* Esquerda: Toolbar e Título */}
+            <div className="flex flex-col gap-6 w-full md:w-auto flex-1">
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedMemberId || 'global'}
+                  onChange={(e) => setSelectedMemberId(e.target.value === 'global' ? null : e.target.value)}
+                  className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all cursor-pointer hover:bg-white hover:border-indigo-300 min-w-[220px]"
                 >
-                  <div className={`absolute top-2 left-2 w-5 h-5 flex items-center justify-center rounded text-[10px] font-black opacity-30 ${index === 0 ? 'text-amber-600' : 'text-slate-400'}`}>#{index + 1}</div>
-                  <div className="ml-4"><CircularScore score={member.score} size={48} strokeWidth={4} /></div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-bold truncate ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`}>{member.name}</p>
-                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-wider">{member.totalTasks} tarefas</p>
-                  </div>
-                  {isSelected && <ChevronRight size={16} className="text-indigo-500" />}
+                  <option value="global">👥 Visão Global da Equipe</option>
+                  {rankings.map((member) => (
+                    <option key={member.name} value={member.name}>
+                      {member.name}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  onClick={() => setIsConfigOpen(true)}
+                  className="p-2 text-slate-400 bg-white border border-slate-200 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 rounded-xl transition-all shadow-sm"
+                  title="Configurar Pesos"
+                >
+                  <Settings size={18} />
                 </button>
-              )
-            })}
-          </div>
-        </div>
-      </div>
 
-      {/* COLUNA DIREITA: MÉTRICAS E ERROS */}
-      <div className="flex-1 order-1 lg:order-2 space-y-6">
-        <div className={`bg-white rounded-3xl p-8 border shadow-sm relative overflow-hidden transition-all duration-500 flex flex-col md:flex-row items-center gap-10 ${selectedMemberId ? 'border-indigo-200 ring-4 ring-indigo-50' : 'border-slate-200'}`}>
-          <div className="flex-1 min-w-0 text-center md:text-left">
-            <h2 className="text-3xl font-black text-slate-800 tracking-tighter mb-4">{selectedMemberId || 'Visão Global da Equipe'}</h2>
-            <div className="flex flex-wrap justify-center md:justify-start gap-8">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-slate-100 rounded-xl text-slate-400"><Target size={20} /></div>
-                <div><p className="text-[10px] uppercase font-black text-slate-400 tracking-widest leading-none mb-1">Tarefas Ativas</p><p className="text-xl font-black text-slate-700 leading-none">{displayStats.totalTasks}</p></div>
+                {selectedMemberId && (
+                  <button
+                    onClick={() => setSelectedMemberId(null)}
+                    className="p-2 text-slate-400 bg-white border border-slate-200 hover:text-rose-500 hover:border-rose-200 hover:bg-rose-50 rounded-xl transition-all shadow-sm animate-fadeIn"
+                    title="Limpar filtro"
+                  >
+                    <FilterX size={18} />
+                  </button>
+                )}
               </div>
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-rose-50 rounded-xl text-rose-600"><CheckCircle2 size={20} /></div>
-                <div><p className="text-[10px] uppercase font-black text-rose-400 tracking-widest Bird leading-none mb-1">Total Erros</p><p className="text-xl font-black text-rose-600 leading-none">{displayStats.totalIssues}</p></div>
+
+              <div>
+                <h2 className="text-2xl font-black text-slate-800 tracking-tight mb-1">
+                  {selectedMemberId || 'Visão Global'}
+                </h2>
+                <p className="text-sm font-medium text-slate-400">
+                  {selectedMemberId ? 'Performance individual detalhada' : 'Resumo de performance da equipe'}
+                </p>
               </div>
             </div>
-          </div>
 
-          <div className="relative w-36 h-36 flex-shrink-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={65} startAngle={90} endAngle={-270} dataKey="value" stroke="none">
-                  {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} cornerRadius={index === 0 ? 10 : 0} />)}
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-3xl font-black tracking-tighter" style={{ color: scoreColor(displayStats.score) }}>{displayStats.score}%</span>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Score</span>
+            {/* Direita: Métricas e Gráfico */}
+            <div className="flex flex-col sm:flex-row items-center gap-6 self-stretch md:self-center bg-slate-50/50 p-6 rounded-2xl border border-slate-100 w-full md:w-auto mt-4 md:mt-0">
+              <div className="flex items-center justify-center gap-8 w-full sm:w-auto sm:pr-8 sm:border-r border-slate-200 border-b sm:border-b-0 pb-6 sm:pb-0">
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Tarefas</span>
+                  <div className="flex items-center gap-3">
+                    <Target size={24} className="text-slate-400" />
+                    <span className="text-3xl font-black text-slate-700">{displayStats.totalTasks}</span>
+                  </div>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-rose-400">Erros</span>
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 size={24} className="text-rose-500" />
+                    <span className="text-3xl font-black text-rose-600">{displayStats.totalIssues}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="relative w-24 h-24 flex-shrink-0" style={{ minWidth: '96px', minHeight: '96px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={35} outerRadius={45} startAngle={90} endAngle={-270} dataKey="value" stroke="none">
+                      {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} cornerRadius={index === 0 ? 10 : 0} />)}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-xl font-black" style={{ color: scoreColor(displayStats.score) }}>{displayStats.score}%</span>
+                </div>
+              </div>
             </div>
-          </div>
 
-          {selectedMemberId && (
-            <button onClick={() => setSelectedMemberId(null)} className="absolute top-4 right-4 text-slate-400 hover:text-rose-500 p-2"><FilterX size={20} /></button>
-          )}
+          </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -350,8 +358,8 @@ export const QualityDashboard: React.FC<QualityDashboardProps> = ({ data }) => {
               <button onClick={() => setSelectedCategory(null)} className="p-1 hover:bg-slate-200 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
             </div>
             <div className="divide-y divide-slate-100 max-h-[400px] overflow-y-auto custom-scrollbar">
-              {(displayStats.issues as any)[selectedCategory].map((task: Task) => (
-                <div key={task.id} className="p-5 hover:bg-slate-50 flex items-center justify-between group">
+              {(displayStats.issues as any)[selectedCategory].map((task: Task, index: number) => (
+                <div key={`${task.id}-${index}`} className="p-5 hover:bg-slate-50 flex items-center justify-between group">
                   <div className="min-w-0 pr-4">
                     <p className="font-bold text-slate-800 text-sm mb-1 group-hover:text-indigo-700 transition-colors">{task.name}</p>
                     <div className="flex items-center gap-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">

@@ -288,8 +288,7 @@ export const SyncDashboard: React.FC = () => {
                                 </div>
                                 <div>
                                     <div className="flex items-center gap-2 mb-1">
-                                        <h3 className="text-2xl font-bold text-white tracking-tight">Sincronização v2.0</h3>
-                                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">DataContext</span>
+                                        <h3 className="text-2xl font-bold text-white tracking-tight">Sincronização</h3>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <div className={`w-2 h-2 rounded-full ${isLoading ? 'bg-amber-400 animate-pulse' : syncState.status === 'error' ? 'bg-rose-500' : syncState.status === 'success' ? 'bg-emerald-500' : 'bg-slate-500'}`}></div>

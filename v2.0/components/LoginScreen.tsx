@@ -238,12 +238,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             </form>
           </div>
 
-          {/* Footer do Card */}
-          <div className="bg-slate-50/50 p-4 border-t border-slate-100 text-center">
-            <p className="text-[10px] text-slate-400 font-medium">
-              Protegido por MCSA Security Layer • v2.0
-            </p>
-          </div>
+
         </div>
       </div>
 

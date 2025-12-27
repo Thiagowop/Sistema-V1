@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, Calendar, Eye, EyeOff, Moon, Sun, LayoutGrid, User, Check, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Calendar, Eye, EyeOff, Moon, Sun, LayoutGrid, User, Check, AlertCircle, ToggleLeft, ToggleRight } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { GroupedData, Task as RealTask } from '../types';
 
@@ -76,6 +76,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
   const [showWeekends, setShowWeekends] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<'timeline' | 'calendar'>('timeline');
   const [isDark, setIsDark] = useState<boolean>(false);
+  const [expandedMembers, setExpandedMembers] = useState<string[]>([]);
   const [tooltipData, setTooltipData] = useState<TooltipData | null>(null);
   const [internalShowCompleted, setInternalShowCompleted] = useState<boolean>(showCompleted);
 
@@ -464,6 +465,26 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
     });
   }, [teamMembers]);
 
+  // Auto-scroll to Today
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (scrollRef.current) {
+        const todayIndex = days.findIndex(d => d.isToday);
+        if (todayIndex !== -1) {
+          const colWidth = 112; // w-28 = 112px
+          const containerWidth = scrollRef.current.clientWidth;
+          const scrollPos = (todayIndex * colWidth) - (containerWidth / 2) + (colWidth / 2);
+          scrollRef.current.scrollTo({ left: scrollPos, behavior: 'smooth' });
+        }
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [selectedMonth, days, activeTab]);
+
+  const toggleMember = (memberId: string) => {
+    setExpandedMembers(prev => prev.includes(memberId) ? prev.filter(id => id !== memberId) : [...prev, memberId]);
+  };
+
   const filteredMembers = selectedMemberFilter === 'all' ? teamMembers : teamMembers.filter(m => m.id === selectedMemberFilter);
 
   const scroll = (direction: 'left' | 'right') => {
@@ -716,7 +737,6 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                             className={`w-full px-4 py-2 text-left text-sm flex items-center justify-between ${isDark ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700'}`}
                           >
                             <div className="flex items-center gap-2">
-                              <span className={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>{member.initials}</span>
                               <span>{member.name}</span>
                             </div>
                             {selectedMemberFilter === member.id && <Check className="w-3 h-3 text-indigo-500" />}
@@ -817,21 +837,14 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                       }}
                       className="flex items-center gap-2 cursor-pointer group"
                     >
-                      <div className={`w-9 h-5 rounded-full transition-colors ${internalShowCompleted ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-gray-700'}`}>
-                        <div className={`w-4 h-4 mt-0.5 rounded-full bg-white shadow-md transform transition-transform ${internalShowCompleted ? 'translate-x-4 ml-0.5' : 'translate-x-0.5'}`} />
+                      <div className={`transition-colors ${internalShowCompleted ? 'text-emerald-500' : 'text-slate-400 dark:text-gray-500'}`}>
+                        {internalShowCompleted ? <ToggleRight size={32} /> : <ToggleLeft size={32} />}
                       </div>
                       <span className="text-sm font-semibold text-slate-700 dark:text-gray-300">Concluídas</span>
                     </button>
                   </div>
 
-                  {/* Botão Hoje */}
-                  <button
-                    onClick={goToToday}
-                    className={`ml-2 px-2 py-1.5 text-xs font-medium rounded-lg border ${isDark ? 'text-indigo-300 hover:bg-indigo-600/20 border-indigo-600/50' : 'text-indigo-600 hover:bg-indigo-50 border-indigo-200'}`}
-                    title="Ir para mês atual"
-                  >
-                    Hoje
-                  </button>
+
                 </div>
               </div>
 
@@ -878,18 +891,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                 </button>
               </div>
 
-              {activeTab === 'timeline' && (
-                <>
-                  <div className={`h-6 w-px ${isDark ? 'bg-gray-600' : 'bg-gray-300'}`}></div>
 
-                  <button onClick={() => scroll('left')} className={`p-2 rounded-lg border ${isDark ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-300 hover:bg-gray-50'}`}>
-                    <ChevronLeft className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-600'}`} />
-                  </button>
-                  <button onClick={() => scroll('right')} className={`p-2 rounded-lg border ${isDark ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-300 hover:bg-gray-50'}`}>
-                    <ChevronRight className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-600'}`} />
-                  </button>
-                </>
-              )}
             </div>
           </div>
 
@@ -934,43 +936,49 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                 </div>
 
                 <div className="pb-20">
-                  {filteredMembers.map((member, memberIdx) => (
-                    <div key={member.id} className={memberIdx > 0 ? 'mt-8' : ''}>
-                      {selectedMemberFilter === 'all' && (
-                        <div className={`h-10 px-4 flex items-center gap-2 border-y ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-100 border-slate-200'}`}>
-                          <div className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${isDark ? 'bg-slate-700 text-slate-200' : 'bg-white text-slate-700 ring-1 ring-slate-200'}`}>
-                            {member.initials}
-                          </div>
-                          <span className={`text-sm font-semibold ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>{member.name}</span>
-                        </div>
-                      )}
-                      {member.projects.map((project, projIdx) => {
-                        const isExpanded = expandedProjects.includes(project.id);
-                        return (
-                          <div key={project.id} className={`${selectedMemberFilter !== 'all' && projIdx > 0 ? `border-t-2 ${isDark ? 'border-gray-700' : 'border-gray-200'}` : (projIdx > 0 || selectedMemberFilter === 'all' ? `border-t-2 ${isDark ? 'border-gray-700' : 'border-gray-200'}` : '')}`}>
-                            <div onClick={() => toggleProject(project.id)}
-                              className={`h-20 px-4 cursor-pointer ${isDark ? 'hover:bg-gray-700 bg-gray-800' : 'hover:bg-gray-50 bg-white'} transition-colors border-l-4 ${isDark ? 'border-gray-500' : 'border-gray-400'} flex items-center`}>
-                              <div className="flex items-center gap-3">
-                                {isExpanded ? <ChevronDown className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} /> : <ChevronRight className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />}
-                                <span className={`text-sm font-semibold ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>{project.name}</span>
-                              </div>
-                            </div>
+                  {filteredMembers.map((member, memberIdx) => {
+                    const isMemberExpanded = expandedMembers.includes(member.id);
+                    const shouldShowProjects = selectedMemberFilter !== 'all' || isMemberExpanded;
 
-                            {isExpanded && (
-                              <>
-                                {project.tasks.map((task, taskIdx) => (
-                                  <div key={task.id} className={`h-16 px-6 ${isDark ? 'bg-gray-850 hover:bg-gray-800' : 'bg-gray-50 hover:bg-gray-100'} transition-colors flex items-center ${taskIdx > 0 ? `border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}` : 'border-t border-gray-200 dark:border-gray-700'
-                                    }`}>
-                                    <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{task.name}</span>
-                                  </div>
-                                ))}
-                              </>
-                            )}
+                    return (
+                      <div key={member.id} className={memberIdx > 0 ? 'mt-8' : ''}>
+                        {selectedMemberFilter === 'all' && (
+                          <div
+                            onClick={() => toggleMember(member.id)}
+                            className={`h-10 px-4 flex items-center justify-between gap-2 border-y cursor-pointer transition-colors ${isDark ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : 'bg-slate-100 border-slate-200 hover:bg-slate-200'}`}
+                          >
+                            <span className={`text-sm font-semibold ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>{member.name}</span>
+                            {isMemberExpanded ? <ChevronDown className="w-4 h-4 opacity-50" /> : <ChevronRight className="w-4 h-4 opacity-50" />}
                           </div>
-                        );
-                      })}
-                    </div>
-                  ))}
+                        )}
+                        {shouldShowProjects && member.projects.map((project, projIdx) => {
+                          const isExpanded = expandedProjects.includes(project.id);
+                          return (
+                            <div key={project.id} className={`${selectedMemberFilter !== 'all' && projIdx > 0 ? `border-t-2 ${isDark ? 'border-gray-700' : 'border-gray-200'}` : (projIdx > 0 || selectedMemberFilter === 'all' ? `border-t-2 ${isDark ? 'border-gray-700' : 'border-gray-200'}` : '')}`}>
+                              <div onClick={() => toggleProject(project.id)}
+                                className={`h-20 px-4 cursor-pointer ${isDark ? 'hover:bg-gray-700 bg-gray-800' : 'hover:bg-gray-50 bg-white'} transition-colors border-l-4 ${isDark ? 'border-gray-500' : 'border-gray-400'} flex items-center`}>
+                                <div className="flex items-center gap-3">
+                                  {isExpanded ? <ChevronDown className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} /> : <ChevronRight className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />}
+                                  <span className={`text-sm font-semibold ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>{project.name}</span>
+                                </div>
+                              </div>
+
+                              {isExpanded && (
+                                <>
+                                  {project.tasks.map((task, taskIdx) => (
+                                    <div key={task.id} className={`h-16 px-6 ${isDark ? 'bg-gray-850 hover:bg-gray-800' : 'bg-gray-50 hover:bg-gray-100'} transition-colors flex items-center ${taskIdx > 0 ? `border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}` : 'border-t border-gray-200 dark:border-gray-700'
+                                      }`}>
+                                      <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{task.name}</span>
+                                    </div>
+                                  ))}
+                                </>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1001,72 +1009,77 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                   </div>
 
                   <div>
-                    {filteredMembers.map((member, memberIdx) => (
-                      <div key={member.id} className={memberIdx > 0 ? 'mt-8' : ''}>
-                        {selectedMemberFilter === 'all' && (
-                          <div className={`h-10 flex border-y ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-100 border-slate-200'}`}>
-                            {days.map((day, idx) => (
-                              <div key={idx} className={`w-28 min-w-28 flex-shrink-0 border-r ${isDark ? 'border-slate-700' : 'border-slate-200'}`}></div>
-                            ))}
-                          </div>
-                        )}
-                        {member.projects.map((project, projIdx) => {
-                          const isExpanded = expandedProjects.includes(project.id);
-                          return (
-                            <div key={project.id} className={`${selectedMemberFilter !== 'all' && projIdx > 0 ? `border-t-2 ${isDark ? 'border-gray-700' : 'border-gray-200'}` : (projIdx > 0 || selectedMemberFilter === 'all' ? `border-t-2 ${isDark ? 'border-gray-700' : 'border-gray-200'}` : '')}`}>
-                              <div className={`h-20 flex ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
-                                {days.map((day, dayIdx) => {
-                                  const dayIndexInAll = allDays.findIndex(d => d.day === day.day && d.month === day.month);
-                                  const hours = sumTaskHours(project.tasks, dayIndexInAll);
-                                  return (
-                                    <div
-                                      key={dayIdx}
-                                      className={`w-28 min-w-28 flex-shrink-0 border-r ${isDark ? 'border-gray-700' : 'border-gray-100'} p-2.5 flex items-center justify-center ${day.isToday ? (isDark ? 'bg-blue-500/10 border-l-2 border-r-2 border-blue-600' : 'bg-blue-50 border-l-2 border-r-2 border-blue-300') :
-                                        day.isWeekend ? (isDark ? 'bg-gray-850' : 'bg-gray-50') : ''
-                                        }`}
-                                      onMouseEnter={(e) => !isExpanded && !day.isWeekend && hours.actual > 0 && showTooltip(e, project.name, hours.planned, hours.actual)}
-                                      onMouseLeave={hideTooltip}
-                                    >
-                                      {!isExpanded && !day.isWeekend && hours.actual > 0 && (
-                                        <div className={`w-full h-full rounded border ${getStatusColor(hours.planned, hours.actual)} flex items-center justify-center cursor-default`}>
-                                          <span className="text-sm font-semibold whitespace-nowrap">{formatHours(hours.actual)}</span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              </div>
+                    {filteredMembers.map((member, memberIdx) => {
+                      const isMemberExpanded = expandedMembers.includes(member.id);
+                      const shouldShowProjects = selectedMemberFilter !== 'all' || isMemberExpanded;
 
-                              {isExpanded && project.tasks.map((task, taskIdx) => (
-                                <div key={task.id} className={`h-16 flex ${isDark ? 'bg-gray-850' : 'bg-gray-50'} ${taskIdx > 0 ? `border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}` : 'border-t border-gray-200 dark:border-gray-700'
-                                  }`}>
+                      return (
+                        <div key={member.id} className={memberIdx > 0 ? 'mt-8' : ''}>
+                          {selectedMemberFilter === 'all' && (
+                            <div className={`h-10 flex border-y ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-100 border-slate-200'}`}>
+                              {days.map((day, idx) => (
+                                <div key={idx} className={`w-28 min-w-28 flex-shrink-0 border-r ${isDark ? 'border-slate-700' : 'border-slate-200'}`}></div>
+                              ))}
+                            </div>
+                          )}
+                          {shouldShowProjects && member.projects.map((project, projIdx) => {
+                            const isExpanded = expandedProjects.includes(project.id);
+                            return (
+                              <div key={project.id} className={`${selectedMemberFilter !== 'all' && projIdx > 0 ? `border-t-2 ${isDark ? 'border-gray-700' : 'border-gray-200'}` : (projIdx > 0 || selectedMemberFilter === 'all' ? `border-t-2 ${isDark ? 'border-gray-700' : 'border-gray-200'}` : '')}`}>
+                                <div className={`h-20 flex ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
                                   {days.map((day, dayIdx) => {
                                     const dayIndexInAll = allDays.findIndex(d => d.day === day.day && d.month === day.month);
-                                    const hours = task.hours[dayIndexInAll];
+                                    const hours = sumTaskHours(project.tasks, dayIndexInAll);
                                     return (
                                       <div
                                         key={dayIdx}
-                                        className={`w-28 min-w-28 flex-shrink-0 border-r ${isDark ? 'border-gray-700' : 'border-gray-100'} p-2 flex items-center justify-center ${day.isToday ? (isDark ? 'bg-blue-500/10 border-l-2 border-r-2 border-blue-600' : 'bg-blue-50 border-l-2 border-r-2 border-blue-300') :
-                                          day.isWeekend ? (isDark ? 'bg-gray-800' : 'bg-white') : ''
+                                        className={`w-28 min-w-28 flex-shrink-0 border-r ${isDark ? 'border-gray-700' : 'border-gray-100'} p-2.5 flex items-center justify-center ${day.isToday ? (isDark ? 'bg-blue-500/10 border-l-2 border-r-2 border-blue-600' : 'bg-blue-50 border-l-2 border-r-2 border-blue-300') :
+                                          day.isWeekend ? (isDark ? 'bg-gray-850' : 'bg-gray-50') : ''
                                           }`}
-                                        onMouseEnter={(e) => !day.isWeekend && hours?.actual > 0 && showTooltip(e, task.name, hours.planned, hours.actual)}
+                                        onMouseEnter={(e) => !isExpanded && !day.isWeekend && hours.actual > 0 && showTooltip(e, project.name, hours.planned, hours.actual)}
                                         onMouseLeave={hideTooltip}
                                       >
-                                        {!day.isWeekend && hours?.actual > 0 && (
+                                        {!isExpanded && !day.isWeekend && hours.actual > 0 && (
                                           <div className={`w-full h-full rounded border ${getStatusColor(hours.planned, hours.actual)} flex items-center justify-center cursor-default`}>
-                                            <span className="text-xs font-semibold whitespace-nowrap">{formatHours(hours.actual)}</span>
+                                            <span className="text-sm font-semibold whitespace-nowrap">{formatHours(hours.actual)}</span>
                                           </div>
                                         )}
                                       </div>
                                     );
                                   })}
                                 </div>
-                              ))}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ))}
+
+                                {isExpanded && project.tasks.map((task, taskIdx) => (
+                                  <div key={task.id} className={`h-16 flex ${isDark ? 'bg-gray-850' : 'bg-gray-50'} ${taskIdx > 0 ? `border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}` : 'border-t border-gray-200 dark:border-gray-700'
+                                    }`}>
+                                    {days.map((day, dayIdx) => {
+                                      const dayIndexInAll = allDays.findIndex(d => d.day === day.day && d.month === day.month);
+                                      const hours = task.hours[dayIndexInAll];
+                                      return (
+                                        <div
+                                          key={dayIdx}
+                                          className={`w-28 min-w-28 flex-shrink-0 border-r ${isDark ? 'border-gray-700' : 'border-gray-100'} p-2 flex items-center justify-center ${day.isToday ? (isDark ? 'bg-blue-500/10 border-l-2 border-r-2 border-blue-600' : 'bg-blue-50 border-l-2 border-r-2 border-blue-300') :
+                                            day.isWeekend ? (isDark ? 'bg-gray-800' : 'bg-white') : ''
+                                            }`}
+                                          onMouseEnter={(e) => !day.isWeekend && hours?.actual > 0 && showTooltip(e, task.name, hours.planned, hours.actual)}
+                                          onMouseLeave={hideTooltip}
+                                        >
+                                          {!day.isWeekend && hours?.actual > 0 && (
+                                            <div className={`w-full h-full rounded border ${getStatusColor(hours.planned, hours.actual)} flex items-center justify-center cursor-default`}>
+                                              <span className="text-xs font-semibold whitespace-nowrap">{formatHours(hours.actual)}</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>

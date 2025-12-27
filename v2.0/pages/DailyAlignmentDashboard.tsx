@@ -84,14 +84,15 @@ interface ExtendedGroupedData {
   weekDates: string[];
 }
 
+
 const AVAILABLE_COLORS = [
-  { name: 'Slate', bg: 'bg-[#1e293b]', dot: '#1e293b' },
-  { name: 'Indigo', bg: 'bg-indigo-600', dot: '#4f46e5' },
-  { name: 'Emerald', bg: 'bg-emerald-600', dot: '#059669' },
-  { name: 'Rose', bg: 'bg-rose-600', dot: '#e11d48' },
-  { name: 'Amber', bg: 'bg-amber-600', dot: '#d97706' },
-  { name: 'Violet', bg: 'bg-violet-600', dot: '#7c3aed' },
-  { name: 'Cyan', bg: 'bg-cyan-600', dot: '#0891b2' },
+  { name: 'Slate', bg: 'bg-slate-600', dot: '#475569' },         // Padrão atual - cinza neutro
+  { name: 'Indigo', bg: 'bg-indigo-600', dot: '#4f46e5' },       // Azul padrão (já em uso)
+  { name: 'Blue', bg: 'bg-blue-500', dot: '#3b82f6' },           // Azul suave
+  { name: 'Sky', bg: 'bg-sky-500', dot: '#0ea5e9' },             // Azul claro
+  { name: 'Teal', bg: 'bg-teal-500', dot: '#14b8a6' },           // Verde-azulado suave
+  { name: 'Gray', bg: 'bg-gray-500', dot: '#6b7280' },           // Cinza médio
+  { name: 'Purple', bg: 'bg-purple-500', dot: '#a855f7' },       // Roxo suave
 ];
 
 // --- COMPONENTES VISUAIS MELHORADOS ---

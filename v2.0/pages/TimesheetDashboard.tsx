@@ -79,6 +79,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
   const [expandedMembers, setExpandedMembers] = useState<string[]>([]);
   const [tooltipData, setTooltipData] = useState<TooltipData | null>(null);
   const [internalShowCompleted, setInternalShowCompleted] = useState<boolean>(showCompleted);
+  const scrollSyncRef = useRef<boolean>(false);
 
   // Dropdown states
   const [isTeamDropdownOpen, setIsTeamDropdownOpen] = useState(false);
@@ -688,17 +689,33 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
       <div className="max-w-full mx-auto">
         <div className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border rounded-lg p-5 mb-4`}>
           <div className="flex justify-between items-center">
-            <div>
-              <h1 className={`text-2xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Timesheet</h1>
-              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'} mt-1`}>
-                Gestão de horas da equipe
-                {hasData && !hasMembersInPeriod && (
-                  <span className="ml-2 text-amber-500">• Nenhum projeto com atividade em {monthNames[selectedMonthNum - 1]}/{selectedYear}</span>
-                )}
-                {!hasData && (
-                  <span className="ml-2 text-amber-500">• Faça um sync para carregar dados</span>
-                )}
-              </p>
+            <div className="flex items-center gap-3">
+              <div>
+                <h1 className={`text-2xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Timesheet</h1>
+                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'} mt-1`}>
+                  Gestão de horas da equipe
+                  {hasData && !hasMembersInPeriod && (
+                    <span className="ml-2 text-amber-500">• Nenhum projeto com atividade em {monthNames[selectedMonthNum - 1]}/{selectedYear}</span>
+                  )}
+                  {!hasData && (
+                    <span className="ml-2 text-amber-500">• Faça um sync para carregar dados</span>
+                  )}
+                </p>
+              </div>
+
+              {/* Settings Icons - Moved from control bar */}
+              <div className="flex items-center gap-2">
+                <button ref={themeButtonRef} onClick={toggleTheme} className={`p-2 rounded-lg ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} transition-colors`}>
+                  {isDark ? <Sun className="w-4 h-4 text-yellow-400" /> : <Moon className="w-4 h-4 text-gray-600" />}
+                </button>
+                <button onClick={() => setShowWeekends(!showWeekends)}
+                  className={`p-2 rounded-lg ${showWeekends ? (isDark ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-700') : (isDark ? 'bg-blue-900 text-blue-200' : 'bg-blue-50 text-blue-700')
+                    }`}
+                  title={showWeekends ? 'Ocultar Finais de Semana' : 'Mostrar Finais de Semana'}
+                >
+                  {showWeekends ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center gap-3">
@@ -874,23 +891,6 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                 </button>
               </div>
 
-              <div className={`h-6 w-px ${isDark ? 'bg-gray-600' : 'bg-gray-300'}`}></div>
-
-              {/* Settings Group */}
-              <div className="flex items-center gap-2">
-                <button ref={themeButtonRef} onClick={toggleTheme} className={`p-2 rounded-lg ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} transition-colors`}>
-                  {isDark ? <Sun className="w-4 h-4 text-yellow-400" /> : <Moon className="w-4 h-4 text-gray-600" />}
-                </button>
-
-                <button onClick={() => setShowWeekends(!showWeekends)}
-                  className={`p-2 rounded-lg ${showWeekends ? (isDark ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-700') : (isDark ? 'bg-blue-900 text-blue-200' : 'bg-blue-50 text-blue-700')
-                    }`}
-                  title={showWeekends ? 'Ocultar Finais de Semana' : 'Mostrar Finais de Semana'}
-                >
-                  {showWeekends ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-
 
             </div>
           </div>
@@ -923,10 +923,15 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                 className={`w-80 flex-shrink-0 border-r ${isDark ? 'border-gray-700' : 'border-gray-200'} overflow-y-auto sidebar-scroll-container`}
                 style={{ maxHeight: '700px' }}
                 onScroll={(e) => {
+                  if (scrollSyncRef.current) {
+                    scrollSyncRef.current = false;
+                    return;
+                  }
                   setTooltipData(null);
                   const scrollTop = e.currentTarget.scrollTop;
                   const rightPanel = document.querySelector('.timeline-scroll-container');
                   if (rightPanel && rightPanel.scrollTop !== scrollTop) {
+                    scrollSyncRef.current = true;
                     rightPanel.scrollTop = scrollTop;
                   }
                 }}
@@ -941,11 +946,11 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                     const shouldShowProjects = selectedMemberFilter !== 'all' || isMemberExpanded;
 
                     return (
-                      <div key={member.id} className={memberIdx > 0 ? 'mt-8' : ''}>
+                      <div key={member.id}>
                         {selectedMemberFilter === 'all' && (
                           <div
                             onClick={() => toggleMember(member.id)}
-                            className={`h-10 px-4 flex items-center justify-between gap-2 border-y cursor-pointer transition-colors ${isDark ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : 'bg-slate-100 border-slate-200 hover:bg-slate-200'}`}
+                            className={`h-10 px-4 flex items-center justify-between gap-2 border-y cursor-pointer transition-colors ${memberIdx > 0 ? 'mt-8' : ''} ${isDark ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : 'bg-slate-100 border-slate-200 hover:bg-slate-200'}`}
                           >
                             <span className={`text-sm font-semibold ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>{member.name}</span>
                             {isMemberExpanded ? <ChevronDown className="w-4 h-4 opacity-50" /> : <ChevronRight className="w-4 h-4 opacity-50" />}
@@ -988,10 +993,15 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                 ref={scrollRef}
                 style={{ maxHeight: '700px' }}
                 onScroll={(e) => {
+                  if (scrollSyncRef.current) {
+                    scrollSyncRef.current = false;
+                    return;
+                  }
                   setTooltipData(null);
                   const scrollTop = e.currentTarget.scrollTop;
                   const leftPanel = document.querySelector('.sidebar-scroll-container');
                   if (leftPanel && leftPanel.scrollTop !== scrollTop) {
+                    scrollSyncRef.current = true;
                     leftPanel.scrollTop = scrollTop;
                   }
                 }}
@@ -1014,9 +1024,9 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                       const shouldShowProjects = selectedMemberFilter !== 'all' || isMemberExpanded;
 
                       return (
-                        <div key={member.id} className={memberIdx > 0 ? 'mt-8' : ''}>
+                        <div key={member.id}>
                           {selectedMemberFilter === 'all' && (
-                            <div className={`h-10 flex border-y ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-100 border-slate-200'}`}>
+                            <div className={`h-10 flex border-y ${memberIdx > 0 ? 'mt-8' : ''} ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-100 border-slate-200'}`}>
                               {days.map((day, idx) => (
                                 <div key={idx} className={`w-28 min-w-28 flex-shrink-0 border-r ${isDark ? 'border-slate-700' : 'border-slate-200'}`}></div>
                               ))}

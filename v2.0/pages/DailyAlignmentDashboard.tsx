@@ -268,7 +268,8 @@ const SortableMemberTab: React.FC<SortableMemberTabProps> = ({ id, isActive, nam
   } = useSortable({ id });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    // Restrict to horizontal movement only (zero out Y transform)
+    transform: transform ? `translate3d(${transform.x}px, 0, 0)` : undefined,
     transition,
     opacity: isDragging ? 0.6 : 1,
     zIndex: isDragging ? 50 : 'auto',
@@ -278,11 +279,10 @@ const SortableMemberTab: React.FC<SortableMemberTabProps> = ({ id, isActive, nam
     <div ref={setNodeRef} style={style} {...attributes} className="relative group">
       <button
         onClick={onClick}
-        className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap border cursor-pointer ${
-          isActive
+        className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap border cursor-pointer ${isActive
             ? 'bg-slate-800 border-slate-800 text-white shadow-lg scale-105'
             : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
-        }`}
+          }`}
       >
         {/* Drag handle invisível integrado */}
         <span {...listeners} className="cursor-grab active:cursor-grabbing">
@@ -1418,111 +1418,111 @@ export const DailyAlignmentDashboard: React.FC = () => {
                   )
                   .map((project, pIdx) => {
                     const uniqueId = `${activeGroup.assignee}-${project.name}`;
-                const isExpanded = expandedProjects.has(uniqueId);
-                // Apply exclusivity: filter out tasks in custom boxes
-                // Apply view filters: tags, statuses, completed, exclusive
-                const filteredTasks = project.tasks.filter(t => {
-                  if (dailySettings.exclusiveBoxes && taskIdsInCustomBoxes.has(t.id)) return false;
-                  if (!showCompleted && t.status?.toLowerCase().includes('conclu')) return false;
+                    const isExpanded = expandedProjects.has(uniqueId);
+                    // Apply exclusivity: filter out tasks in custom boxes
+                    // Apply view filters: tags, statuses, completed, exclusive
+                    const filteredTasks = project.tasks.filter(t => {
+                      if (dailySettings.exclusiveBoxes && taskIdsInCustomBoxes.has(t.id)) return false;
+                      if (!showCompleted && t.status?.toLowerCase().includes('conclu')) return false;
 
-                  // Apply localFilters.tags - if any tags selected, task must have at least one
-                  if (dailySettings.localFilters.tags.length > 0) {
-                    const taskTags = (t.tags || []).map((tag: any) =>
-                      (typeof tag === 'string' ? tag : tag?.name || '').toLowerCase()
-                    );
-                    const hasMatchingTag = dailySettings.localFilters.tags.some(selectedTag =>
-                      taskTags.includes(selectedTag.toLowerCase())
-                    );
-                    if (!hasMatchingTag) return false;
-                  }
+                      // Apply localFilters.tags - if any tags selected, task must have at least one
+                      if (dailySettings.localFilters.tags.length > 0) {
+                        const taskTags = (t.tags || []).map((tag: any) =>
+                          (typeof tag === 'string' ? tag : tag?.name || '').toLowerCase()
+                        );
+                        const hasMatchingTag = dailySettings.localFilters.tags.some(selectedTag =>
+                          taskTags.includes(selectedTag.toLowerCase())
+                        );
+                        if (!hasMatchingTag) return false;
+                      }
 
-                  // Apply localFilters.statuses - if any statuses selected, task must match one
-                  if (dailySettings.localFilters.statuses.length > 0) {
-                    const taskStatus = (t.status || '').toLowerCase();
-                    const hasMatchingStatus = dailySettings.localFilters.statuses.some(selectedStatus =>
-                      taskStatus.includes(selectedStatus.toLowerCase())
-                    );
-                    if (!hasMatchingStatus) return false;
-                  }
+                      // Apply localFilters.statuses - if any statuses selected, task must match one
+                      if (dailySettings.localFilters.statuses.length > 0) {
+                        const taskStatus = (t.status || '').toLowerCase();
+                        const hasMatchingStatus = dailySettings.localFilters.statuses.some(selectedStatus =>
+                          taskStatus.includes(selectedStatus.toLowerCase())
+                        );
+                        if (!hasMatchingStatus) return false;
+                      }
 
-                  return true;
-                });
-                const bgHeader = project.color || 'bg-slate-800';
-                const isEditing = editingProjectId === uniqueId;
-                const displayName = projectNames[project.name] || project.name;
+                      return true;
+                    });
+                    const bgHeader = project.color || 'bg-slate-800';
+                    const isEditing = editingProjectId === uniqueId;
+                    const displayName = projectNames[project.name] || project.name;
 
-                // Hide empty projects after filtering
-                if (filteredTasks.length === 0) return null;
+                    // Hide empty projects after filtering
+                    if (filteredTasks.length === 0) return null;
 
-                return (
-                  <SortableProjectCard key={uniqueId} id={project.name}>
-                    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all hover:shadow-md ml-8">
-                      <div className={`${bgHeader} px-6 py-4 flex items-center justify-between group`}>
-                        <div onClick={() => toggleProject(uniqueId)} className="flex-1 flex items-center gap-4 cursor-pointer">
-                          <div className="p-2 bg-white/20 rounded-xl text-white"><Layers size={20} /></div>
+                    return (
+                      <SortableProjectCard key={uniqueId} id={project.name}>
+                        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all hover:shadow-md ml-8">
+                          <div className={`${bgHeader} px-6 py-4 flex items-center justify-between group`}>
+                            <div onClick={() => toggleProject(uniqueId)} className="flex-1 flex items-center gap-4 cursor-pointer">
+                              <div className="p-2 bg-white/20 rounded-xl text-white"><Layers size={20} /></div>
 
-                        {/* NEW: Rename inline */}
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={tempProjectName}
-                            onChange={(e) => setTempProjectName(e.target.value)}
-                            onBlur={saveRename}
-                            onKeyDown={(e) => e.key === 'Enter' ? saveRename() : e.key === 'Escape' && cancelRename()}
-                            className="bg-white/20 text-white font-black text-lg tracking-tight uppercase px-2 py-1 rounded border-2 border-white/40 outline-none"
-                            autoFocus
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        ) : (
-                          <h3 className="text-white font-black text-lg tracking-tight uppercase">{displayName}</h3>
-                        )}
+                              {/* NEW: Rename inline */}
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  value={tempProjectName}
+                                  onChange={(e) => setTempProjectName(e.target.value)}
+                                  onBlur={saveRename}
+                                  onKeyDown={(e) => e.key === 'Enter' ? saveRename() : e.key === 'Escape' && cancelRename()}
+                                  className="bg-white/20 text-white font-black text-lg tracking-tight uppercase px-2 py-1 rounded border-2 border-white/40 outline-none"
+                                  autoFocus
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              ) : (
+                                <h3 className="text-white font-black text-lg tracking-tight uppercase">{displayName}</h3>
+                              )}
 
 
-                      </div>
+                            </div>
 
-                      {/* NEW: Rename icon */}
-                      {!isEditing && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); startRename(uniqueId, project.name); }}
-                          className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-all"
-                        >
-                          <Pencil size={16} />
-                        </button>
-                      )}
-
-                      <button onClick={() => toggleProject(uniqueId)} className="p-2">
-                        <ChevronDown className={`text-white transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
-                      </button>
-                    </div>
-
-                    {isExpanded && showTasks && (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                          <thead>
-                            <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                              <th className="px-8 py-4">Nome da Tarefa</th>
-                              <th className="px-4 py-4">Datas</th>
-                              <th className="px-4 py-4">Estimado / Real</th>
-                              <th className="px-4 py-4 text-center">Status</th>
-                              <th className="px-8 py-4 text-center">PRIORIDADE</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-50">
-                            {filteredTasks.length === 0 ? (
-                              <tr><td colSpan={5} className="p-12 text-center text-slate-400 text-sm font-medium italic">Nenhuma tarefa ativa neste box.</td></tr>
-                            ) : (
-                              filteredTasks.map(task => (
-                                <TaskRow key={task.id} task={task} depth={0} />
-                              ))
+                            {/* NEW: Rename icon */}
+                            {!isEditing && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); startRename(uniqueId, project.name); }}
+                                className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                              >
+                                <Pencil size={16} />
+                              </button>
                             )}
-                          </tbody>
-                        </table>
+
+                            <button onClick={() => toggleProject(uniqueId)} className="p-2">
+                              <ChevronDown className={`text-white transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+                            </button>
+                          </div>
+
+                          {isExpanded && showTasks && (
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-left">
+                                <thead>
+                                  <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    <th className="px-8 py-4">Nome da Tarefa</th>
+                                    <th className="px-4 py-4">Datas</th>
+                                    <th className="px-4 py-4">Estimado / Real</th>
+                                    <th className="px-4 py-4 text-center">Status</th>
+                                    <th className="px-8 py-4 text-center">PRIORIDADE</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50">
+                                  {filteredTasks.length === 0 ? (
+                                    <tr><td colSpan={5} className="p-12 text-center text-slate-400 text-sm font-medium italic">Nenhuma tarefa ativa neste box.</td></tr>
+                                  ) : (
+                                    filteredTasks.map(task => (
+                                      <TaskRow key={task.id} task={task} depth={0} />
+                                    ))
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </SortableProjectCard>
-                );
-              })}
+                      </SortableProjectCard>
+                    );
+                  })}
               </div>
             </SortableContext>
           </DndContext>

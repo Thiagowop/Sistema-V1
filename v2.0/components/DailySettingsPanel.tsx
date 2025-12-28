@@ -97,6 +97,11 @@ export interface DailySettings {
         [memberId: string]: CustomBox[]
     };
 
+    // Ordem combinada de boxes e projetos por membro (IDs como 'custombox:id' ou 'project:name')
+    combinedOrderByMember: {
+        [memberId: string]: string[]
+    };
+
     // Filtros locais
     localFilters: LocalFilters;
 
@@ -116,6 +121,7 @@ export const createDefaultDailySettings = (): DailySettings => ({
     showUnassigned: true,
     memberOrder: [],  // Vazio = ordem original
     customBoxesByMember: {},
+    combinedOrderByMember: {},  // Ordem combinada boxes + projetos
     localFilters: createDefaultLocalFilters()
 });
 

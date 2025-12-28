@@ -923,6 +923,66 @@ export const DailyAlignmentDashboard: React.FC = () => {
     return ids;
   }, [computedCustomBoxes, dailySettings.exclusiveBoxes]);
 
+  // Combined sorted list of custom boxes and projects for unified rendering
+  type CombinedItem =
+    | { type: 'custombox'; id: string; data: typeof computedCustomBoxes[0] }
+    | { type: 'project'; id: string; data: ExtendedProject };
+
+  const combinedSortedItems = useMemo((): CombinedItem[] => {
+    if (!activeGroup) return [];
+
+    const customBoxes = computedCustomBoxes;
+    const projects = activeGroup.projects;
+
+    // Get saved order or use default (custom boxes first)
+    const savedOrder = dailySettings.combinedOrderByMember?.[activeMemberId] || [];
+
+    // Build items map
+    const itemsMap = new Map<string, CombinedItem>();
+
+    customBoxes.forEach(box => {
+      const id = `custombox:${box.id}`;
+      itemsMap.set(id, { type: 'custombox', id, data: box });
+    });
+
+    projects.forEach(project => {
+      const id = `project:${project.name}`;
+      itemsMap.set(id, { type: 'project', id, data: project });
+    });
+
+    // Sort by saved order, then append any new items
+    const result: CombinedItem[] = [];
+    const used = new Set<string>();
+
+    // First, add items in saved order
+    savedOrder.forEach(id => {
+      const item = itemsMap.get(id);
+      if (item) {
+        result.push(item);
+        used.add(id);
+      }
+    });
+
+    // Then add any new items not in saved order (custom boxes first, then projects)
+    customBoxes.forEach(box => {
+      const id = `custombox:${box.id}`;
+      if (!used.has(id)) {
+        const item = itemsMap.get(id);
+        if (item) result.push(item);
+      }
+    });
+
+    projects.forEach(project => {
+      const id = `project:${project.name}`;
+      if (!used.has(id)) {
+        const item = itemsMap.get(id);
+        if (item) result.push(item);
+      }
+    });
+
+    return result;
+  }, [activeGroup, computedCustomBoxes, activeMemberId, dailySettings.combinedOrderByMember]);
+
   // Handlers de Estado
   const handleAddProject = useCallback((name: string, color: string, tags?: string[]) => {
     if (isReadOnly || !activeMemberId) return;
@@ -1064,28 +1124,42 @@ export const DailyAlignmentDashboard: React.FC = () => {
     saveDailySettings(newSettings);
   };
 
-  // NEW: Drag-drop handler for custom boxes
-  const handleCustomBoxDragEnd = (event: DragEndEvent) => {
+  // NEW: Unified drag-drop handler for both custom boxes and projects
+  const handleCombinedDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const currentBoxes = dailySettings.customBoxesByMember?.[activeMemberId] || [];
-    const oldIndex = currentBoxes.findIndex(b => b.id === active.id);
-    const newIndex = currentBoxes.findIndex(b => b.id === over.id);
+    // Get current combined order or build default
+    const currentOrder = dailySettings.combinedOrderByMember?.[activeMemberId] || [];
+
+    // Build full list of IDs (custom boxes first, then projects)
+    const customBoxes = dailySettings.customBoxesByMember?.[activeMemberId] || [];
+    const projects = activeGroup?.projects || [];
+
+    // Create default order if empty
+    let orderList = currentOrder.length > 0 ? [...currentOrder] : [
+      ...customBoxes.map(b => `custombox:${b.id}`),
+      ...projects.map(p => `project:${p.name}`)
+    ];
+
+    // Find indices
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    const oldIndex = orderList.indexOf(activeId);
+    const newIndex = orderList.indexOf(overId);
 
     if (oldIndex === -1 || newIndex === -1) return;
 
-    const newBoxes = arrayMove(currentBoxes, oldIndex, newIndex);
+    // Reorder
+    const newOrder = arrayMove(orderList, oldIndex, newIndex);
 
-    // Update order property
-    const updatedBoxes = newBoxes.map((box, idx) => ({ ...box, order: idx }));
-
-    // Salvar nova ordem no dailySettings
+    // Save new order
     const newSettings = {
       ...dailySettings,
-      customBoxesByMember: {
-        ...dailySettings.customBoxesByMember,
-        [activeMemberId]: updatedBoxes
+      combinedOrderByMember: {
+        ...dailySettings.combinedOrderByMember,
+        [activeMemberId]: newOrder
       }
     };
     setDailySettings(newSettings);
@@ -1397,16 +1471,18 @@ export const DailyAlignmentDashboard: React.FC = () => {
           </div>
 
           {/* ============================================ */}
-          {/* CUSTOM BOXES - Boxes customizados criados pelo usuário */}
+          {/* UNIFIED BOXES + PROJECTS - Single drag-and-drop */}
           {/* ============================================ */}
-          {computedCustomBoxes.length > 0 && (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleCustomBoxDragEnd}>
-              <SortableContext
-                items={computedCustomBoxes.map(b => b.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                <div className="grid gap-6">
-                  {computedCustomBoxes.map((box) => {
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleCombinedDragEnd}>
+            <SortableContext
+              items={combinedSortedItems.map(item => item.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="grid gap-6">
+                {combinedSortedItems.map((item) => {
+                  if (item.type === 'custombox') {
+                    // Render custom box
+                    const box = item.data;
                     const boxId = `custom-${box.id}`;
                     const isExpanded = expandedProjects.has(boxId);
                     const filteredTasks = box.tasks.filter((t: Task) => showCompleted || !t.status?.toLowerCase().includes('conclu'));
@@ -1414,8 +1490,14 @@ export const DailyAlignmentDashboard: React.FC = () => {
                     // Hide empty custom boxes after filtering
                     if (filteredTasks.length === 0) return null;
 
+                    // Build filter label inline
+                    const filterParts: string[] = [];
+                    if (box.filterTags.length > 0) filterParts.push(`${box.filterTags.length} tags`);
+                    if (box.filterStatuses?.length > 0) filterParts.push(`${box.filterStatuses.length} status`);
+                    const filterLabel = filterParts.length > 0 ? ` (${filterParts.join(', ')})` : '';
+
                     return (
-                      <SortableCustomBox key={box.id} id={box.id}>
+                      <SortableCustomBox key={item.id} id={item.id}>
                         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all hover:shadow-md ml-8">
                           <div
                             className="px-6 py-4 flex items-center justify-between cursor-pointer"
@@ -1426,17 +1508,10 @@ export const DailyAlignmentDashboard: React.FC = () => {
                               <div className="p-2 bg-white/20 rounded-xl text-white">
                                 <Box size={20} />
                               </div>
-                              <div>
-                                <h3 className="text-white font-black text-lg tracking-tight uppercase">{box.name}</h3>
-                                <div className="flex gap-2 mt-0.5">
-                                  {box.filterTags.length > 0 && (
-                                    <span className="text-white/70 text-xs">{box.filterTags.length} tags</span>
-                                  )}
-                                  {box.filterStatuses?.length > 0 && (
-                                    <span className="text-white/70 text-xs">{box.filterStatuses.length} status</span>
-                                  )}
-                                </div>
-                              </div>
+                              <h3 className="text-white font-black text-lg tracking-tight uppercase">
+                                {box.name}
+                                {filterLabel && <span className="text-white/60 font-normal text-sm ml-2">{filterLabel}</span>}
+                              </h3>
                             </div>
                             <div className="flex items-center gap-4">
                               <span className="bg-white/20 text-white px-3 py-1 rounded-full text-sm font-bold">
@@ -1451,19 +1526,20 @@ export const DailyAlignmentDashboard: React.FC = () => {
                           </div>
 
                           {isExpanded && showTasks && (
-                            <div className="p-4">
-                              <table className="w-full">
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-left">
                                 <thead>
-                                  <tr className="text-slate-400 text-xs font-black uppercase tracking-wider border-b border-slate-100">
-                                    <th className="text-left py-3 px-3 w-1/2">Tarefa</th>
-                                    <th className="text-left py-3 px-3">Status</th>
-                                    <th className="text-left py-3 px-3">Prioridade</th>
-                                    <th className="text-right py-3 px-3">Horas</th>
+                                  <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    <th className="px-8 py-4">Nome da Tarefa</th>
+                                    <th className="px-4 py-4">Datas</th>
+                                    <th className="px-4 py-4">Estimado / Real</th>
+                                    <th className="px-4 py-4 text-center">Status</th>
+                                    <th className="px-8 py-4 text-center">PRIORIDADE</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
                                   {filteredTasks.length === 0 ? (
-                                    <tr><td colSpan={4} className="p-12 text-center text-slate-400 text-sm font-medium italic">Nenhuma tarefa encontrada com esses filtros.</td></tr>
+                                    <tr><td colSpan={5} className="p-12 text-center text-slate-400 text-sm font-medium italic">Nenhuma tarefa encontrada com esses filtros.</td></tr>
                                   ) : (
                                     filteredTasks.map((task: Task) => (
                                       <TaskRow key={task.id} task={task} depth={0} />
@@ -1476,131 +1552,111 @@ export const DailyAlignmentDashboard: React.FC = () => {
                         </div>
                       </SortableCustomBox>
                     );
-                  })}
-                </div>
-              </SortableContext>
-            </DndContext>
-          )}
-
-          {/* Projects Grid with Drag-and-Drop */}
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext
-              items={activeGroup.projects.map(p => p.name)}
-              strategy={verticalListSortingStrategy}
-            >
-              <div className="grid gap-6">
-                {[...activeGroup.projects]
-                  .sort((a, b) => dailySettings.sortProjectsAlphabetically
-                    ? a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })
-                    : 0
-                  )
-                  .map((project, pIdx) => {
+                  } else {
+                    // Render project
+                    const project = item.data as ExtendedProject;
                     const uniqueId = `${activeGroup.assignee}-${project.name}`;
-                const isExpanded = expandedProjects.has(uniqueId);
-                // Apply exclusivity: filter out tasks in custom boxes
-                // Apply view filters: tags, statuses, completed, exclusive
-                const filteredTasks = project.tasks.filter(t => {
-                  if (dailySettings.exclusiveBoxes && taskIdsInCustomBoxes.has(t.id)) return false;
-                  if (!showCompleted && t.status?.toLowerCase().includes('conclu')) return false;
+                    const isExpanded = expandedProjects.has(uniqueId);
 
-                  // Apply localFilters.tags - if any tags selected, task must have at least one
-                  if (dailySettings.localFilters.tags.length > 0) {
-                    const taskTags = (t.tags || []).map((tag: any) =>
-                      (typeof tag === 'string' ? tag : tag?.name || '').toLowerCase()
-                    );
-                    const hasMatchingTag = dailySettings.localFilters.tags.some(selectedTag =>
-                      taskTags.includes(selectedTag.toLowerCase())
-                    );
-                    if (!hasMatchingTag) return false;
-                  }
+                    // Apply exclusivity and filters
+                    const filteredTasks = project.tasks.filter(t => {
+                      if (dailySettings.exclusiveBoxes && taskIdsInCustomBoxes.has(t.id)) return false;
+                      if (!showCompleted && t.status?.toLowerCase().includes('conclu')) return false;
 
-                  // Apply localFilters.statuses - if any statuses selected, task must match one
-                  if (dailySettings.localFilters.statuses.length > 0) {
-                    const taskStatus = (t.status || '').toLowerCase();
-                    const hasMatchingStatus = dailySettings.localFilters.statuses.some(selectedStatus =>
-                      taskStatus.includes(selectedStatus.toLowerCase())
-                    );
-                    if (!hasMatchingStatus) return false;
-                  }
+                      if (dailySettings.localFilters.tags.length > 0) {
+                        const taskTags = (t.tags || []).map((tag: any) =>
+                          (typeof tag === 'string' ? tag : tag?.name || '').toLowerCase()
+                        );
+                        const hasMatchingTag = dailySettings.localFilters.tags.some(selectedTag =>
+                          taskTags.includes(selectedTag.toLowerCase())
+                        );
+                        if (!hasMatchingTag) return false;
+                      }
 
-                  return true;
-                });
-                const bgHeader = project.color || 'bg-slate-800';
-                const isEditing = editingProjectId === uniqueId;
-                const displayName = projectNames[project.name] || project.name;
+                      if (dailySettings.localFilters.statuses.length > 0) {
+                        const taskStatus = (t.status || '').toLowerCase();
+                        const hasMatchingStatus = dailySettings.localFilters.statuses.some(selectedStatus =>
+                          taskStatus.includes(selectedStatus.toLowerCase())
+                        );
+                        if (!hasMatchingStatus) return false;
+                      }
 
-                // Hide empty projects after filtering
-                if (filteredTasks.length === 0) return null;
+                      return true;
+                    });
 
-                return (
-                  <SortableProjectCard key={uniqueId} id={project.name}>
-                    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all hover:shadow-md ml-8">
-                      <div className={`${bgHeader} px-6 py-4 flex items-center justify-between group`}>
-                        <div onClick={() => toggleProject(uniqueId)} className="flex-1 flex items-center gap-4 cursor-pointer">
-                          <div className="p-2 bg-white/20 rounded-xl text-white"><Layers size={20} /></div>
+                    const bgHeader = project.color || 'bg-slate-800';
+                    const isEditing = editingProjectId === uniqueId;
+                    const displayName = projectNames[project.name] || project.name;
 
-                        {/* NEW: Rename inline */}
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={tempProjectName}
-                            onChange={(e) => setTempProjectName(e.target.value)}
-                            onBlur={saveRename}
-                            onKeyDown={(e) => e.key === 'Enter' ? saveRename() : e.key === 'Escape' && cancelRename()}
-                            className="bg-white/20 text-white font-black text-lg tracking-tight uppercase px-2 py-1 rounded border-2 border-white/40 outline-none"
-                            autoFocus
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        ) : (
-                          <h3 className="text-white font-black text-lg tracking-tight uppercase">{displayName}</h3>
-                        )}
+                    // Hide empty projects after filtering
+                    if (filteredTasks.length === 0) return null;
 
+                    return (
+                      <SortableProjectCard key={item.id} id={item.id}>
+                        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all hover:shadow-md ml-8">
+                          <div className={`${bgHeader} px-6 py-4 flex items-center justify-between group`}>
+                            <div onClick={() => toggleProject(uniqueId)} className="flex-1 flex items-center gap-4 cursor-pointer">
+                              <div className="p-2 bg-white/20 rounded-xl text-white"><Layers size={20} /></div>
 
-                      </div>
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  value={tempProjectName}
+                                  onChange={(e) => setTempProjectName(e.target.value)}
+                                  onBlur={saveRename}
+                                  onKeyDown={(e) => e.key === 'Enter' ? saveRename() : e.key === 'Escape' && cancelRename()}
+                                  className="bg-white/20 text-white font-black text-lg tracking-tight uppercase px-2 py-1 rounded border-2 border-white/40 outline-none"
+                                  autoFocus
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              ) : (
+                                <h3 className="text-white font-black text-lg tracking-tight uppercase">{displayName}</h3>
+                              )}
+                            </div>
 
-                      {/* NEW: Rename icon */}
-                      {!isEditing && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); startRename(uniqueId, project.name); }}
-                          className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-all"
-                        >
-                          <Pencil size={16} />
-                        </button>
-                      )}
-
-                      <button onClick={() => toggleProject(uniqueId)} className="p-2">
-                        <ChevronDown className={`text-white transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
-                      </button>
-                    </div>
-
-                    {isExpanded && showTasks && (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                          <thead>
-                            <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                              <th className="px-8 py-4">Nome da Tarefa</th>
-                              <th className="px-4 py-4">Datas</th>
-                              <th className="px-4 py-4">Estimado / Real</th>
-                              <th className="px-4 py-4 text-center">Status</th>
-                              <th className="px-8 py-4 text-center">PRIORIDADE</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-50">
-                            {filteredTasks.length === 0 ? (
-                              <tr><td colSpan={5} className="p-12 text-center text-slate-400 text-sm font-medium italic">Nenhuma tarefa ativa neste box.</td></tr>
-                            ) : (
-                              filteredTasks.map(task => (
-                                <TaskRow key={task.id} task={task} depth={0} />
-                              ))
+                            {!isEditing && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); startRename(uniqueId, project.name); }}
+                                className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                              >
+                                <Pencil size={16} />
+                              </button>
                             )}
-                          </tbody>
-                        </table>
+
+                            <button onClick={() => toggleProject(uniqueId)} className="p-2">
+                              <ChevronDown className={`text-white transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+                            </button>
+                          </div>
+
+                          {isExpanded && showTasks && (
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-left">
+                                <thead>
+                                  <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    <th className="px-8 py-4">Nome da Tarefa</th>
+                                    <th className="px-4 py-4">Datas</th>
+                                    <th className="px-4 py-4">Estimado / Real</th>
+                                    <th className="px-4 py-4 text-center">Status</th>
+                                    <th className="px-8 py-4 text-center">PRIORIDADE</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50">
+                                  {filteredTasks.length === 0 ? (
+                                    <tr><td colSpan={5} className="p-12 text-center text-slate-400 text-sm font-medium italic">Nenhuma tarefa ativa neste box.</td></tr>
+                                  ) : (
+                                    filteredTasks.map(task => (
+                                      <TaskRow key={task.id} task={task} depth={0} />
+                                    ))
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </SortableProjectCard>
-                );
-              })}
+                      </SortableProjectCard>
+                    );
+                  }
+                })}
               </div>
             </SortableContext>
           </DndContext>

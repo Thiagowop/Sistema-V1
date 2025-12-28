@@ -60,7 +60,7 @@ import { Tag } from 'lucide-react';
 import { SyncControlsBar } from '../components/SyncControlsBar';
 import { LocalFilters, createDefaultLocalFilters, applyLocalFilters } from '../components/filters/LocalFilterBar';
 import { DailySettingsPanel, DailySettings, createDefaultDailySettings, loadDailySettings, saveDailySettings } from '../components/DailySettingsPanel';
-import { userPreferences, initializePreferences } from '../services/userPreferencesService';
+import { userPreferences, initializePreferences, syncPreferencesToCloud } from '../services/userPreferencesService';
 
 // --- CONFIGURAÇÕES DE QUALIDADE ---
 const PENALTY_WEIGHTS = {
@@ -1550,6 +1550,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
         activeMemberId={activeMemberId || ''}
         memberName={activeGroup?.assignee || ''}
         hasUnsavedChanges={hasUnsavedChanges}
+        onCloudSync={syncPreferencesToCloud}
       />
     </div>
   );

@@ -246,6 +246,46 @@ const ExceededHoursIcon = ({ timeLogged, timeEstimate }: { timeLogged?: number; 
   );
 };
 
+// --- COMPONENTE SORTABLE PARA DRAG-DROP ---
+interface SortableProjectCardProps {
+  id: string;
+  children: React.ReactNode;
+}
+
+const SortableProjectCard: React.FC<SortableProjectCardProps> = ({ id, children }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : 'auto',
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      <div className="relative group">
+        {/* Drag Handle */}
+        <div
+          {...listeners}
+          className="absolute left-2 top-1/2 -translate-y-1/2 p-2 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-white/80 rounded-lg shadow-sm"
+          title="Arrastar para reordenar"
+        >
+          <GripVertical size={16} className="text-slate-400" />
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+};
+
 // --- COMPONENTES AUXILIARES ---
 
 const formatDate = (dateString?: string | null | Date) => {
@@ -1326,15 +1366,20 @@ export const DailyAlignmentDashboard: React.FC = () => {
             </div>
           )}
 
-          {/* Projects Grid */}
-          <div className="grid gap-6">
-            {[...activeGroup.projects]
-              .sort((a, b) => dailySettings.sortProjectsAlphabetically
-                ? a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })
-                : 0
-              )
-              .map((project, pIdx) => {
-                const uniqueId = `${activeGroup.assignee}-${project.name}`;
+          {/* Projects Grid with Drag-and-Drop */}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext
+              items={activeGroup.projects.map(p => p.name)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="grid gap-6">
+                {[...activeGroup.projects]
+                  .sort((a, b) => dailySettings.sortProjectsAlphabetically
+                    ? a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })
+                    : 0
+                  )
+                  .map((project, pIdx) => {
+                    const uniqueId = `${activeGroup.assignee}-${project.name}`;
                 const isExpanded = expandedProjects.has(uniqueId);
                 // Apply exclusivity: filter out tasks in custom boxes
                 // Apply view filters: tags, statuses, completed, exclusive
@@ -1372,10 +1417,11 @@ export const DailyAlignmentDashboard: React.FC = () => {
                 if (filteredTasks.length === 0) return null;
 
                 return (
-                  <div key={uniqueId} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all hover:shadow-md">
-                    <div className={`${bgHeader} px-6 py-4 flex items-center justify-between group`}>
-                      <div onClick={() => toggleProject(uniqueId)} className="flex-1 flex items-center gap-4 cursor-pointer">
-                        <div className="p-2 bg-white/20 rounded-xl text-white"><Layers size={20} /></div>
+                  <SortableProjectCard key={uniqueId} id={project.name}>
+                    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all hover:shadow-md ml-8">
+                      <div className={`${bgHeader} px-6 py-4 flex items-center justify-between group`}>
+                        <div onClick={() => toggleProject(uniqueId)} className="flex-1 flex items-center gap-4 cursor-pointer">
+                          <div className="p-2 bg-white/20 rounded-xl text-white"><Layers size={20} /></div>
 
                         {/* NEW: Rename inline */}
                         {isEditing ? (
@@ -1433,12 +1479,15 @@ export const DailyAlignmentDashboard: React.FC = () => {
                             )}
                           </tbody>
                         </table>
-                      </div>
-                    )}
-                  </div>
+                        </div>
+                      )}
+                    </div>
+                  </SortableProjectCard>
                 );
               })}
-          </div>
+              </div>
+            </SortableContext>
+          </DndContext>
         </div>
 
         {

@@ -995,6 +995,41 @@ export const DailyAlignmentDashboard: React.FC = () => {
     return result;
   }, [activeGroup, computedCustomBoxes, activeMemberId, dailySettings.combinedOrderByMember]);
 
+  // Filter combined items to only include those with visible tasks (for SortableContext)
+  const visibleCombinedItems = useMemo(() => {
+    return combinedSortedItems.filter(item => {
+      if (item.type === 'custombox') {
+        const box = item.data;
+        const visibleTasks = box.tasks.filter((t: Task) => showCompleted || !isTaskCompleted(t.status));
+        return visibleTasks.length > 0;
+      } else {
+        const project = item.data as ExtendedProject;
+        const visibleTasks = project.tasks.filter(t => {
+          if (dailySettings.exclusiveBoxes && taskIdsInCustomBoxes.has(t.id)) return false;
+          if (!showCompleted && isTaskCompleted(t.status)) return false;
+          if (dailySettings.localFilters.tags.length > 0) {
+            const taskTags = (t.tags || []).map((tag: any) =>
+              (typeof tag === 'string' ? tag : tag?.name || '').toLowerCase()
+            );
+            const hasMatchingTag = dailySettings.localFilters.tags.some(selectedTag =>
+              taskTags.includes(selectedTag.toLowerCase())
+            );
+            if (!hasMatchingTag) return false;
+          }
+          if (dailySettings.localFilters.statuses.length > 0) {
+            const taskStatus = (t.status || '').toLowerCase();
+            const hasMatchingStatus = dailySettings.localFilters.statuses.some(selectedStatus =>
+              taskStatus.includes(selectedStatus.toLowerCase())
+            );
+            if (!hasMatchingStatus) return false;
+          }
+          return true;
+        });
+        return visibleTasks.length > 0;
+      }
+    });
+  }, [combinedSortedItems, showCompleted, dailySettings.exclusiveBoxes, dailySettings.localFilters, taskIdsInCustomBoxes]);
+
   // Handlers de Estado
   const handleAddProject = useCallback((name: string, color: string, tags?: string[]) => {
     if (isReadOnly || !activeMemberId) return;
@@ -1487,20 +1522,17 @@ export const DailyAlignmentDashboard: React.FC = () => {
           {/* ============================================ */}
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleCombinedDragEnd}>
             <SortableContext
-              items={combinedSortedItems.map(item => item.id)}
+              items={visibleCombinedItems.map(item => item.id)}
               strategy={verticalListSortingStrategy}
             >
               <div className="grid gap-6">
-                {combinedSortedItems.map((item) => {
+                {visibleCombinedItems.map((item) => {
                   if (item.type === 'custombox') {
                     // Render custom box
                     const box = item.data;
                     const boxId = `custom-${box.id}`;
                     const isExpanded = expandedProjects.has(boxId);
                     const filteredTasks = box.tasks.filter((t: Task) => showCompleted || !isTaskCompleted(t.status));
-
-                    // Hide empty custom boxes after filtering
-                    if (filteredTasks.length === 0) return null;
 
                     // Build filter label inline
                     const filterParts: string[] = [];
@@ -1599,9 +1631,6 @@ export const DailyAlignmentDashboard: React.FC = () => {
                     const bgHeader = project.color || 'bg-slate-800';
                     const isEditing = editingProjectId === uniqueId;
                     const displayName = projectNames[project.name] || project.name;
-
-                    // Hide empty projects after filtering
-                    if (filteredTasks.length === 0) return null;
 
                     return (
                       <SortableProjectCard key={item.id} id={item.id}>

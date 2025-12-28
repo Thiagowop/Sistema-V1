@@ -233,12 +233,12 @@ const SortableProjectCard: React.FC<SortableProjectCardProps> = ({ id, children 
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes}>
+    <div ref={setNodeRef} style={style} {...attributes} className="ml-8">
       <div className="relative group">
-        {/* Drag Handle */}
+        {/* Drag Handle - positioned at left edge of the box */}
         <div
           {...listeners}
-          className="absolute left-2 top-1/2 -translate-y-1/2 p-2 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-white/80 rounded-lg shadow-sm"
+          className="absolute -left-6 top-1/2 -translate-y-1/2 p-2 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-white/80 rounded-lg shadow-sm"
           title="Arrastar para reordenar"
         >
           <GripVertical size={16} className="text-slate-400" />
@@ -278,16 +278,14 @@ const SortableMemberTab: React.FC<SortableMemberTabProps> = ({ id, isActive, nam
   return (
     <div ref={setNodeRef} style={style} {...attributes} className="relative group">
       <button
+        {...listeners}
         onClick={onClick}
-        className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap border cursor-pointer ${isActive
-          ? 'bg-slate-800 border-slate-800 text-white shadow-lg scale-105'
-          : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
+        className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap border cursor-pointer active:cursor-grabbing ${isActive
+            ? 'bg-slate-800 border-slate-800 text-white shadow-lg scale-105'
+            : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
           }`}
       >
-        {/* Drag handle invisível integrado */}
-        <span {...listeners} className="cursor-grab active:cursor-grabbing">
-          {name}
-        </span>
+        {name}
       </button>
     </div>
   );
@@ -317,12 +315,12 @@ const SortableCustomBox: React.FC<SortableCustomBoxProps> = ({ id, children }) =
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes}>
+    <div ref={setNodeRef} style={style} {...attributes} className="ml-8">
       <div className="relative group">
-        {/* Drag Handle */}
+        {/* Drag Handle - positioned at left edge of the box */}
         <div
           {...listeners}
-          className="absolute left-2 top-1/2 -translate-y-1/2 p-2 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-white/80 rounded-lg shadow-sm"
+          className="absolute -left-6 top-1/2 -translate-y-1/2 p-2 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-white/80 rounded-lg shadow-sm"
           title="Arrastar para reordenar"
         >
           <GripVertical size={16} className="text-slate-400" />
@@ -1543,7 +1541,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
 
                     return (
                       <SortableCustomBox key={item.id} id={item.id}>
-                        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all hover:shadow-md ml-8">
+                        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all hover:shadow-md">
                           <div
                             className="px-6 py-4 flex items-center justify-between cursor-pointer"
                             style={{ backgroundColor: box.color || '#7c3aed' }}
@@ -1635,7 +1633,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
 
                     return (
                       <SortableProjectCard key={item.id} id={item.id}>
-                        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all hover:shadow-md ml-8">
+                        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all hover:shadow-md">
                           <div className={`${bgHeader} px-6 py-4 flex items-center justify-between group`}>
                             <div onClick={() => toggleProject(uniqueId)} className="flex-1 flex items-center gap-4 cursor-pointer">
                               <div className="p-2 bg-white/20 rounded-xl text-white"><Layers size={20} /></div>

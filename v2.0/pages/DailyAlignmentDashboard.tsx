@@ -58,6 +58,7 @@ import { Tag } from 'lucide-react';
 import { SyncControlsBar } from '../components/SyncControlsBar';
 import { LocalFilters, createDefaultLocalFilters, applyLocalFilters } from '../components/filters/LocalFilterBar';
 import { DailySettingsPanel, DailySettings, createDefaultDailySettings, loadDailySettings, saveDailySettings } from '../components/DailySettingsPanel';
+import { userPreferences, initializePreferences } from '../services/userPreferencesService';
 
 // --- CONFIGURAÇÕES DE QUALIDADE ---
 const PENALTY_WEIGHTS = {
@@ -529,16 +530,18 @@ export const DailyAlignmentDashboard: React.FC = () => {
   const { groupedData, syncState, syncIncremental } = useData();
   const isReadOnly = false;
   const [dashboardData, setDashboardData] = useState<ExtendedGroupedData[]>([]);
-  const [activeMemberId, setActiveMemberId] = useState<string | null>(null);
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
-  const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set());
   const [isSyncing, setIsSyncing] = useState(false);
   const [showManageModal, setShowManageModal] = useState(false);
   const [showTasks, setShowTasks] = useState(true);
   const [showCompleted, setShowCompleted] = useState(false);
   const [showSubtasks, setShowSubtasks] = useState(true);
   const [viewScale, setViewScale] = useState(1);
-  const [isPresentationMode, setIsPresentationMode] = useState(false);
+
+  // ESTADOS PERSISTENTES - Carregados do userPreferences
+  const [activeMemberId, setActiveMemberIdState] = useState<string | null>(null);
+  const [expandedProjects, setExpandedProjectsState] = useState<Set<string>>(new Set());
+  const [expandedTaskIds, setExpandedTaskIdsState] = useState<Set<string>>(new Set());
+  const [isPresentationMode, setIsPresentationModeState] = useState(false);
 
   // NEW: Daily settings panel state with persistence
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
@@ -546,11 +549,54 @@ export const DailyAlignmentDashboard: React.FC = () => {
   const [savedSettings, setSavedSettings] = useState<DailySettings>(() => loadDailySettings());
   const hasUnsavedChanges = JSON.stringify(dailySettings) !== JSON.stringify(savedSettings);
 
-  // NEW: State for advanced features
-  const [boxOrder, setBoxOrder] = useState<Record<string, string[]>>({});
-  const [projectNames, setProjectNames] = useState<Record<string, string>>({});
+  // NEW: State for advanced features (persistentes)
+  const [boxOrder, setBoxOrderState] = useState<Record<string, string[]>>({});
+  const [projectNames, setProjectNamesState] = useState<Record<string, string>>({});
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [tempProjectName, setTempProjectName] = useState('');
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+
+  // WRAPPERS para persistir automaticamente
+  const setActiveMemberId = useCallback((id: string | null) => {
+    setActiveMemberIdState(id);
+    userPreferences.setActiveMember(id);
+  }, []);
+
+  const setExpandedProjects = useCallback((setter: Set<string> | ((prev: Set<string>) => Set<string>)) => {
+    setExpandedProjectsState(prev => {
+      const next = typeof setter === 'function' ? setter(prev) : setter;
+      userPreferences.setExpandedProjects(Array.from(next));
+      return next;
+    });
+  }, []);
+
+  const setExpandedTaskIds = useCallback((setter: Set<string> | ((prev: Set<string>) => Set<string>)) => {
+    setExpandedTaskIdsState(prev => {
+      const next = typeof setter === 'function' ? setter(prev) : setter;
+      userPreferences.setExpandedTasks(Array.from(next));
+      return next;
+    });
+  }, []);
+
+  const setBoxOrder = useCallback((order: Record<string, string[]>) => {
+    setBoxOrderState(order);
+    // Salvar cada membro individualmente
+    Object.entries(order).forEach(([memberId, memberOrder]) => {
+      userPreferences.setBoxOrder(memberId, memberOrder);
+    });
+  }, []);
+
+  const setProjectNames = useCallback((names: Record<string, string>) => {
+    setProjectNamesState(names);
+    Object.entries(names).forEach(([original, custom]) => {
+      userPreferences.setProjectName(original, custom);
+    });
+  }, []);
+
+  const setIsPresentationMode = useCallback((mode: boolean) => {
+    setIsPresentationModeState(mode);
+    userPreferences.updateDaily({ isPresentationMode: mode });
+  }, []);
 
   // Drag-drop sensors
   const sensors = useSensors(
@@ -608,11 +654,58 @@ export const DailyAlignmentDashboard: React.FC = () => {
     setIsSyncing(syncState.status === 'syncing');
   }, [syncState.status]);
 
-  // NEW: Load from localStorage on mount
+  // CARREGAR PREFERÊNCIAS PERSISTENTES no mount
   useEffect(() => {
-    const storage = loadStorage();
-    setBoxOrder(storage.boxOrder || {});
-    setProjectNames(storage.projectNames || {});
+    const loadPreferences = async () => {
+      try {
+        // Inicializar o serviço de preferências
+        await initializePreferences();
+
+        // Carregar preferências do Daily
+        const dailyPrefs = userPreferences.getDaily();
+
+        // Restaurar estados salvos
+        if (dailyPrefs.activeMemberId) {
+          setActiveMemberIdState(dailyPrefs.activeMemberId);
+        }
+
+        if (dailyPrefs.expandedProjects && dailyPrefs.expandedProjects.length > 0) {
+          setExpandedProjectsState(new Set(dailyPrefs.expandedProjects));
+        }
+
+        if (dailyPrefs.expandedTaskIds && dailyPrefs.expandedTaskIds.length > 0) {
+          setExpandedTaskIdsState(new Set(dailyPrefs.expandedTaskIds));
+        }
+
+        if (dailyPrefs.boxOrder) {
+          setBoxOrderState(dailyPrefs.boxOrder);
+        }
+
+        if (dailyPrefs.projectNames) {
+          setProjectNamesState(dailyPrefs.projectNames);
+        }
+
+        if (dailyPrefs.isPresentationMode) {
+          setIsPresentationModeState(dailyPrefs.isPresentationMode);
+        }
+
+        if (dailyPrefs.presentationScale) {
+          setViewScale(dailyPrefs.presentationScale);
+        }
+
+        setPreferencesLoaded(true);
+        console.log('[DailyAlignmentDashboard] ✅ Preferências carregadas');
+      } catch (e) {
+        console.error('[DailyAlignmentDashboard] Erro ao carregar preferências:', e);
+        // Fallback: carregar do localStorage antigo
+        const storage = loadStorage();
+        setBoxOrderState(storage.boxOrder || {});
+        setProjectNamesState(storage.projectNames || {});
+        setPreferencesLoaded(true);
+      }
+    };
+
+    loadPreferences();
   }, []);
 
   // NEW: useMemo para ordenar projects sem causar re-renders

@@ -257,10 +257,15 @@ class AdvancedCacheService {
   }
 
   /**
-   * Limpar todos os caches
+   * Limpar todos os caches de TAREFAS
+   * IMPORTANTE: NÃO limpa dados de referência (referenceDataService)
+   * Dados de referência (equip tags, team members, projects) são persistentes
+   * e devem ser limpos manualmente via referenceDataService.clearAllData(true)
    */
   async clearAll(): Promise<void> {
-    console.log('🗑️  [SERV-CACHE-001] Clearing all caches...');
+    console.log('🗑️  [SERV-CACHE-001] Clearing all TASK caches...');
+    console.log('ℹ️  [SERV-CACHE-001] Reference data is preserved (equip tags, team members, etc)');
+
     this.clearMetadata();
     this.clearProcessedData();
     await this.clearRawData();
@@ -269,7 +274,7 @@ class AdvancedCacheService {
     localStorage.removeItem('dailyFlowCachedData');
     localStorage.removeItem('dailyFlowCacheMeta');
 
-    console.log('✅ [SERV-CACHE-001] All caches cleared');
+    console.log('✅ [SERV-CACHE-001] Task caches cleared (reference data preserved)');
   }
 
   /**

@@ -13,6 +13,7 @@ import { FilterMetadata } from '../types/FilterConfig';
 import { ClickUpApiTask, fetchRawClickUpData, processApiTasks, extractFilterMetadata, fetchStandupSummaries, SyncFilterOptions } from '../services/clickup';
 import { saveRawData, loadRawData, saveMetadata, loadMetadata, saveProcessedData, loadProcessedData, clearAllCache, mergeIncrementalData } from '../services/advancedCacheService';
 import { SyncFilters, loadSyncFilters, saveSyncFilters, createDefaultSyncFilters } from '../services/filterService';
+import { referenceData, getEquipTags, getTeamMembers, getProjects, EquipTag, TeamMember, ReferenceItem } from '../services/referenceDataService';
 
 // ============================================
 // TYPES
@@ -39,6 +40,7 @@ export interface DataContextValue {
   syncState: SyncState;
   isInitialized: boolean;  // True quando o cache foi carregado
   hasCacheData: boolean;   // True se tem dados no cache
+  isReferenceDataReady: boolean; // True quando dados de referência estão prontos
 
   // Config
   config: AppConfig | null;
@@ -55,6 +57,16 @@ export interface DataContextValue {
   loadFromCache: () => Promise<boolean>;
   clearCache: () => Promise<void>;
   fetchStandups: (options?: { limit?: number; forDate?: Date }) => Promise<void>;
+
+  // Reference Data (dados persistentes que não são limpos com o cache)
+  referenceData: {
+    equipTags: EquipTag[];
+    teamMembers: TeamMember[];
+    projects: ReferenceItem[];
+    isReady: boolean;
+  };
+  refreshReferenceData: () => Promise<void>;
+  syncReferenceToSupabase: () => Promise<boolean>;
 
   // Helpers
   getTaskById: (id: string) => Task | null;
@@ -97,6 +109,10 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
   const [hasCacheData, setHasCacheData] = useState(false);
   const [syncFilters, setSyncFiltersState] = useState<SyncFilters>(loadSyncFilters);
 
+  // Reference Data State (dados persistentes)
+  const [isReferenceDataReady, setIsReferenceDataReady] = useState(false);
+  const [refDataVersion, setRefDataVersion] = useState(0); // Para forçar re-render
+
   // Abort controller for cancellable sync
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -138,6 +154,40 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
   }, [initialConfig]);
 
   // ============================================
+  // REFERENCE DATA FUNCTIONS
+  // ============================================
+
+  const refreshReferenceData = useCallback(async () => {
+    console.log('[CTX-DATA-001] 🔄 Refreshing reference data...');
+    setRefDataVersion(v => v + 1); // Force re-render
+  }, []);
+
+  const syncReferenceToSupabase = useCallback(async (): Promise<boolean> => {
+    console.log('[CTX-DATA-001] ☁️ Syncing reference data to Supabase...');
+    return await referenceData.syncToSupabase();
+  }, []);
+
+  /**
+   * Extrai dados de referência de raw tasks após sync
+   */
+  const extractReferenceDataFromTasks = useCallback(async (tasks: ClickUpApiTask[]) => {
+    console.log('[CTX-DATA-001] 📊 Extracting reference data from tasks...');
+
+    try {
+      const equipAdded = await referenceData.extractEquipTagsFromTasks(tasks);
+      const membersAdded = await referenceData.extractTeamMembersFromTasks(tasks);
+      const projectsAdded = await referenceData.extractProjectsFromTasks(tasks);
+
+      console.log(`[CTX-DATA-001] ✅ Reference data extracted: +${equipAdded} tags, +${membersAdded} members, +${projectsAdded} projects`);
+
+      // Forçar re-render para componentes que usam referenceData
+      setRefDataVersion(v => v + 1);
+    } catch (error) {
+      console.error('[CTX-DATA-001] ❌ Error extracting reference data:', error);
+    }
+  }, []);
+
+  // ============================================
   // AUTO-LOAD CACHE ON MOUNT
   // ============================================
 
@@ -145,7 +195,15 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
     const initializeFromCache = async () => {
       if (isInitialized) return;
 
-      console.log('[CTX-DATA-001] 🚀 Initializing - loading cache automatically...');
+      console.log('[CTX-DATA-001] 🚀 Initializing...');
+
+      // 1. Inicializar Reference Data PRIMEIRO (dados persistentes)
+      console.log('[CTX-DATA-001] 📦 Loading reference data (persistent)...');
+      await referenceData.initialize();
+      setIsReferenceDataReady(true);
+
+      // 2. Carregar cache de tarefas
+      console.log('[CTX-DATA-001] 📦 Loading task cache...');
       const hasCache = await loadFromCache();
 
       if (hasCache) {
@@ -269,7 +327,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
       setGroupedData(processed);
       setSyncState(prev => ({ ...prev, progress: 80 }));
 
-      // Step 4: Save to cache (80-100%)
+      // Step 4: Save to cache (80-95%)
       const now = new Date().toISOString();
       await saveRawData(raw);
       saveMetadata({
@@ -279,6 +337,11 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
         version: '2.0.0'
       });
       saveProcessedData(processed);
+      setSyncState(prev => ({ ...prev, progress: 90 }));
+
+      // Step 5: Extract reference data (95-100%)
+      // Dados de referência são armazenados separadamente e NÃO são limpos com clearCache
+      await extractReferenceDataFromTasks(raw);
 
       setSyncState({
         status: 'success',
@@ -410,6 +473,10 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
         version: '2.0.0'
       });
       saveProcessedData(processed);
+      setSyncState(prev => ({ ...prev, progress: 95 }));
+
+      // Extract reference data from updated tasks (incremental)
+      await extractReferenceDataFromTasks(updatedTasks);
 
       setSyncState({
         status: 'success',
@@ -537,6 +604,14 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
   // CONTEXT VALUE
   // ============================================
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const referenceDataValue = React.useMemo(() => ({
+    equipTags: getEquipTags(),
+    teamMembers: getTeamMembers(),
+    projects: getProjects(),
+    isReady: isReferenceDataReady
+  }), [isReferenceDataReady, refDataVersion]);
+
   const value: DataContextValue = {
     // Data
     rawTasks,
@@ -548,6 +623,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
     syncState,
     isInitialized,
     hasCacheData,
+    isReferenceDataReady,
 
     // Config
     config,
@@ -564,6 +640,11 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
     loadFromCache,
     clearCache,
     fetchStandups,
+
+    // Reference Data
+    referenceData: referenceDataValue,
+    refreshReferenceData,
+    syncReferenceToSupabase,
 
     // Helpers
     getTaskById,

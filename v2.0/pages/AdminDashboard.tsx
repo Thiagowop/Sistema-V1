@@ -223,7 +223,7 @@ export const AdminDashboard: React.FC = () => {
                 // Sync to Supabase
                 await referenceData.syncToSupabase();
 
-                alert(`✅ Extração concluída!\n\n📌 ${tagsToSave.length} tags\n👥 ${membersToSave.length} membros\n📁 ${projectsToSave.length} projetos\n\nDados salvos no armazenamento persistente e sincronizados com Supabase.`);
+                alert(`✅ Dados salvos com sucesso!\n\n📌 ${tagsToSave.length} tags\n👥 ${membersToSave.length} membros\n📁 ${projectsToSave.length} projetos\n\nOs dados foram armazenados de forma persistente.`);
             } else {
                 alert('⚠️ Nenhum metadado disponível. Faça uma sincronização primeiro.');
             }
@@ -573,7 +573,7 @@ export const AdminDashboard: React.FC = () => {
                                     </div>
                                     <h4 className="text-lg font-bold text-slate-800 mb-2 group-hover:text-amber-700 transition-colors">Extrair Dados de Referência</h4>
                                     <p className="text-sm text-slate-500 mb-6 leading-relaxed">
-                                        Salva tags, equipe e projetos de forma persistente no IndexedDB + Supabase.
+                                        Salva tags, equipe e projetos de forma persistente no navegador.
                                     </p>
                                     <button
                                         onClick={handleEmergencyExtract}

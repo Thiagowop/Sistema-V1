@@ -478,13 +478,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
 
   // Converter dados para formato Excel View
   const excelViewData = useMemo(() => {
-    const selectedMember = selectedMemberFilter === 'all'
-      ? teamMembers[0]
-      : teamMembers.find(m => m.id === selectedMemberFilter);
-
-    if (!selectedMember) return { days: [], projects: [], memberName: '' };
-
-    // Converter dias para formato Excel
+    // Converter dias para formato Excel (comum a ambos os casos)
     const excelDays = allDays.map(day => ({
       date: day.date,
       day: day.day,
@@ -493,6 +487,79 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
       isWeekend: day.isWeekend,
       isToday: day.isToday
     }));
+
+    // Caso "Todos da Equipe": agregar projetos de todos os membros
+    if (selectedMemberFilter === 'all') {
+      // Mapa para agregar projetos por nome
+      const projectMap = new Map<string, {
+        id: string;
+        name: string;
+        hoursPerDay: { planned: number; actual: number; deviation: number; deviationPercent: number }[];
+        totalPlanned: number;
+        totalActual: number;
+      }>();
+
+      // Iterar por todos os membros e agregar projetos
+      teamMembers.forEach(member => {
+        member.projects.forEach(project => {
+          const existingProject = projectMap.get(project.name);
+
+          const hoursPerDay = allDays.map((_, dayIdx) => {
+            const hours = sumTaskHours(project.tasks, dayIdx);
+            return {
+              planned: hours.planned,
+              actual: hours.actual,
+              deviation: hours.actual - hours.planned,
+              deviationPercent: hours.planned > 0 ? ((hours.actual - hours.planned) / hours.planned) * 100 : 0
+            };
+          });
+
+          const totalPlanned = hoursPerDay.reduce((sum, h) => sum + h.planned, 0);
+          const totalActual = hoursPerDay.reduce((sum, h) => sum + h.actual, 0);
+
+          if (existingProject) {
+            // Agregar horas ao projeto existente
+            hoursPerDay.forEach((dayHours, idx) => {
+              existingProject.hoursPerDay[idx].planned += dayHours.planned;
+              existingProject.hoursPerDay[idx].actual += dayHours.actual;
+              existingProject.hoursPerDay[idx].deviation =
+                existingProject.hoursPerDay[idx].actual - existingProject.hoursPerDay[idx].planned;
+              existingProject.hoursPerDay[idx].deviationPercent =
+                existingProject.hoursPerDay[idx].planned > 0
+                  ? ((existingProject.hoursPerDay[idx].actual - existingProject.hoursPerDay[idx].planned) / existingProject.hoursPerDay[idx].planned) * 100
+                  : 0;
+            });
+            existingProject.totalPlanned += totalPlanned;
+            existingProject.totalActual += totalActual;
+          } else {
+            // Novo projeto no mapa
+            projectMap.set(project.name, {
+              id: project.id,
+              name: project.name,
+              hoursPerDay,
+              totalPlanned,
+              totalActual
+            });
+          }
+        });
+      });
+
+      // Converter mapa para array e calcular desvio total
+      const excelProjects = Array.from(projectMap.values()).map(p => ({
+        ...p,
+        totalDeviation: p.totalActual - p.totalPlanned
+      }));
+
+      return {
+        days: excelDays,
+        projects: excelProjects,
+        memberName: 'Todos da Equipe'
+      };
+    }
+
+    // Caso membro específico selecionado
+    const selectedMember = teamMembers.find(m => m.id === selectedMemberFilter);
+    if (!selectedMember) return { days: [], projects: [], memberName: '' };
 
     // Converter projetos para formato Excel
     const excelProjects = selectedMember.projects.map(project => {
@@ -568,8 +635,13 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
   };
 
   const getStatusColor = (planned: number, actual: number) => {
+    // Sem horas registradas → cinza neutro
     if (!actual) return isDark ? 'bg-gray-800 text-gray-500 border-gray-700' : 'bg-gray-50 text-gray-400 border-gray-200';
+    // Sem planejamento → amarelo (atenção: horas sem estimate)
+    if (!planned || planned === 0) return isDark ? 'bg-amber-900 text-amber-300 border-amber-700' : 'bg-amber-50 text-amber-700 border-amber-200';
+    // Calcular desvio percentual
     const percent = (Math.abs(actual - planned) / planned) * 100;
+    // Legenda: ±10% verde, ±20% amarelo, >20% vermelho
     if (percent <= 10) return isDark ? 'bg-emerald-900 text-emerald-300 border-emerald-700' : 'bg-emerald-50 text-emerald-700 border-emerald-200';
     if (percent <= 20) return isDark ? 'bg-amber-900 text-amber-300 border-amber-700' : 'bg-amber-50 text-amber-700 border-amber-200';
     return isDark ? 'bg-rose-900 text-rose-300 border-rose-700' : 'bg-rose-50 text-rose-700 border-rose-200';

@@ -546,21 +546,30 @@ export const DailyAlignmentDashboard: React.FC = () => {
   const [savedSettings, setSavedSettings] = useState<DailySettings>(() => loadDailySettings());
   const hasUnsavedChanges = JSON.stringify(dailySettings) !== JSON.stringify(savedSettings);
 
-  // Todos os toggles sincronizados com dailySettings (persistente)
+  // Todos os toggles sincronizados com dailySettings (persistente + auto-save)
   const showTasks = dailySettings.showTasks;
   const setShowTasks = useCallback((value: boolean) => {
-    setDailySettings(prev => ({ ...prev, showTasks: value }));
-  }, []);
+    const newSettings = { ...dailySettings, showTasks: value };
+    setDailySettings(newSettings);
+    setSavedSettings(newSettings); // Marcar como salvo
+    saveDailySettings(newSettings); // Auto-save ao mudar toggle
+  }, [dailySettings]);
 
   const showSubtasks = dailySettings.showSubtasks;
   const setShowSubtasks = useCallback((value: boolean) => {
-    setDailySettings(prev => ({ ...prev, showSubtasks: value }));
-  }, []);
+    const newSettings = { ...dailySettings, showSubtasks: value };
+    setDailySettings(newSettings);
+    setSavedSettings(newSettings); // Marcar como salvo
+    saveDailySettings(newSettings); // Auto-save ao mudar toggle
+  }, [dailySettings]);
 
   const showCompleted = dailySettings.showCompleted;
   const setShowCompleted = useCallback((value: boolean) => {
-    setDailySettings(prev => ({ ...prev, showCompleted: value }));
-  }, []);
+    const newSettings = { ...dailySettings, showCompleted: value };
+    setDailySettings(newSettings);
+    setSavedSettings(newSettings); // Marcar como salvo
+    saveDailySettings(newSettings); // Auto-save ao mudar toggle
+  }, [dailySettings]);
 
   // NEW: State for advanced features (persistentes)
   const [boxOrder, setBoxOrderState] = useState<Record<string, string[]>>({});

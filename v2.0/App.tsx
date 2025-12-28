@@ -14,12 +14,11 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoginScreen } from './components/LoginScreen';
 import { SyncDashboard } from './pages/SyncDashboard';
 import { DailyAlignmentDashboard } from './pages/DailyAlignmentDashboard';
-import { ProjectsDashboard } from './pages/ProjectsDashboard';
 import { TimesheetWrapper } from './pages/TimesheetWrapper';
 import { QualityWrapper } from './pages/QualityWrapper';
 import { AdminDashboard } from './pages/AdminDashboard';
 import {
-    RefreshCw, Users, FolderOpen, Clock, Shield, Settings,
+    RefreshCw, Users, Clock, Shield, Settings,
     LogOut, X, Menu
 } from 'lucide-react';
 import { AuthorizedUser } from './services/supabaseService';
@@ -45,7 +44,7 @@ const getInitialConfig = () => {
     };
 };
 
-type ActiveView = 'sync' | 'daily' | 'projects' | 'gestao' | 'quality' | 'admin';
+type ActiveView = 'sync' | 'daily' | 'gestao' | 'quality' | 'admin';
 
 // Componente para itens do sidebar
 const SidebarItem = ({
@@ -179,12 +178,6 @@ const AppContent: React.FC = () => {
                             onClick={() => handleNavClick('daily')}
                         />
                         <SidebarItem
-                            icon={FolderOpen}
-                            label="Projetos"
-                            isActive={activeView === 'projects'}
-                            onClick={() => handleNavClick('projects')}
-                        />
-                        <SidebarItem
                             icon={Clock}
                             label="Gestão"
                             isActive={activeView === 'gestao'}
@@ -256,7 +249,6 @@ const AppContent: React.FC = () => {
                     <div className="flex-1 overflow-hidden h-full">
                         {activeView === 'sync' && <SyncDashboard />}
                         {activeView === 'daily' && <DailyAlignmentDashboard />}
-                        {activeView === 'projects' && <ProjectsDashboard />}
                         {activeView === 'gestao' && <TimesheetWrapper />}
                         {activeView === 'quality' && <QualityWrapper />}
                         {activeView === 'admin' && <AdminDashboard />}

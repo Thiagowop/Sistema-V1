@@ -268,7 +268,8 @@ const SortableMemberTab: React.FC<SortableMemberTabProps> = ({ id, isActive, nam
   } = useSortable({ id });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    // Restrict to horizontal movement only (zero out Y transform)
+    transform: transform ? `translate3d(${transform.x}px, 0, 0)` : undefined,
     transition,
     opacity: isDragging ? 0.6 : 1,
     zIndex: isDragging ? 50 : 'auto',
@@ -278,11 +279,10 @@ const SortableMemberTab: React.FC<SortableMemberTabProps> = ({ id, isActive, nam
     <div ref={setNodeRef} style={style} {...attributes} className="relative group">
       <button
         onClick={onClick}
-        className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap border cursor-pointer ${
-          isActive
+        className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap border cursor-pointer ${isActive
             ? 'bg-slate-800 border-slate-800 text-white shadow-lg scale-105'
             : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
-        }`}
+          }`}
       >
         {/* Drag handle invisível integrado */}
         <span {...listeners} className="cursor-grab active:cursor-grabbing">

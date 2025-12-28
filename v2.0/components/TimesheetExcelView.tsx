@@ -161,8 +161,8 @@ export const TimesheetExcelView: React.FC<TimesheetExcelViewProps> = ({
         )}
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto">
+      {/* Table - with both horizontal and vertical scroll */}
+      <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-280px)]">
         <table className="w-full border-collapse min-w-max">
           {/* Header Row - Datas */}
           <thead>

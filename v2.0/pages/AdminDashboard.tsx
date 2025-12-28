@@ -54,11 +54,6 @@ export const AdminDashboard: React.FC = () => {
     const [filterMetadata, setFilterMetadata] = useState<FilterMetadata | null>(null);
     const [showFiltersModal, setShowFiltersModal] = useState(false);
 
-    // API Protection state
-    const [isApiUnlocked, setIsApiUnlocked] = useState(false);
-    const [apiPassword, setApiPassword] = useState('');
-    const [apiPasswordError, setApiPasswordError] = useState('');
-
     // Emergency extract state
     const [isExtracting, setIsExtracting] = useState(false);
     const [extractResult, setExtractResult] = useState<{ tags: number; members: number; projects: number } | null>(null);
@@ -177,31 +172,6 @@ export const AdminDashboard: React.FC = () => {
             keys.forEach(k => localStorage.removeItem(k));
             alert('Reset completo! A página será recarregada.');
             window.location.reload();
-        }
-    };
-
-    // API Protection handlers
-    const handleApiUnlock = () => {
-        // Get stored password or use default if first time
-        const storedPassword = localStorage.getItem('dailyFlow_adminPassword');
-        const correctPassword = storedPassword || 'admin123'; // Default password
-
-        if (apiPassword === correctPassword) {
-            setIsApiUnlocked(true);
-            setApiPasswordError('');
-            setApiPassword('');
-        } else {
-            setApiPasswordError('Senha incorreta. Tente novamente.');
-        }
-    };
-
-    const handleSetAdminPassword = () => {
-        const newPassword = prompt('Digite a nova senha de administrador:');
-        if (newPassword && newPassword.length >= 4) {
-            localStorage.setItem('dailyFlow_adminPassword', newPassword);
-            alert('✅ Senha de administrador alterada com sucesso!');
-        } else if (newPassword) {
-            alert('⚠️ A senha deve ter pelo menos 4 caracteres.');
         }
     };
 
@@ -727,24 +697,21 @@ export const AdminDashboard: React.FC = () => {
                             <p className="text-sm text-slate-500">Controle de acesso e restrições globais.</p>
                         </div>
 
-                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 font-bold text-slate-700 text-sm">
-                                Privilégios do Sistema
-                            </div>
-
-                            <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-slate-50 transition-colors gap-4">
-                                <div className="flex items-start gap-4">
-                                    <div className={`p-3 rounded-xl ${isReadOnly ? 'bg-amber-100 text-amber-600' : 'bg-indigo-50 text-indigo-600'}`}>
-                                        {isReadOnly ? <Lock size={24} /> : <Unlock size={24} />}
-                                    </div>
-                                    <div>
-                                        <p className="text-base font-bold text-slate-800">Modo Somente Leitura (Global)</p>
-                                        <p className="text-sm text-slate-500 max-w-md">Bloqueia edições para evitar alterações acidentais.</p>
-                                    </div>
+                        {/* Em Construção */}
+                        <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-6 text-white">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                                    <Construction size={32} className="text-white" />
                                 </div>
-                                <button onClick={() => setIsReadOnly(!isReadOnly)} className={isReadOnly ? 'text-amber-600' : 'text-slate-300'}>
-                                    {isReadOnly ? <ToggleRight size={48} /> : <ToggleLeft size={48} />}
-                                </button>
+                                <div>
+                                    <h3 className="text-2xl font-bold flex items-center gap-2">
+                                        Em Construção
+                                        <span className="text-xs bg-white/20 px-2 py-1 rounded-full">v2.1</span>
+                                    </h3>
+                                    <p className="text-amber-100 text-sm mt-1">
+                                        Sistema de permissões e roles será implementado em breve.
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -765,129 +732,65 @@ export const AdminDashboard: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Password Protection Screen */}
-                            {!isApiUnlocked ? (
-                                <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
-                                    <div className="text-center max-w-sm mx-auto">
-                                        <div className="p-4 bg-indigo-50 rounded-full w-fit mx-auto mb-4">
-                                            <Lock size={32} className="text-indigo-600" />
+                            <div className={`bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5 ${isReadOnly ? 'opacity-70 pointer-events-none' : ''}`}>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">API Token</label>
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <Key size={16} className="text-slate-400" />
                                         </div>
-                                        <h4 className="text-xl font-bold text-slate-800 mb-2">Área Protegida</h4>
-                                        <p className="text-sm text-slate-500 mb-6">
-                                            Digite sua senha de administrador para acessar as credenciais da API.
-                                        </p>
-                                        <div className="space-y-4">
-                                            <div className="relative">
-                                                <input
-                                                    type="password"
-                                                    value={apiPassword}
-                                                    onChange={(e) => { setApiPassword(e.target.value); setApiPasswordError(''); }}
-                                                    onKeyDown={(e) => e.key === 'Enter' && handleApiUnlock()}
-                                                    placeholder="Senha de administrador"
-                                                    className={`w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm text-center focus:ring-2 focus:ring-indigo-500 outline-none transition-all ${apiPasswordError ? 'border-rose-300 bg-rose-50' : 'border-slate-200'}`}
-                                                />
-                                            </div>
-                                            {apiPasswordError && (
-                                                <p className="text-xs text-rose-500 font-medium">{apiPasswordError}</p>
-                                            )}
-                                            <button
-                                                onClick={handleApiUnlock}
-                                                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
-                                            >
-                                                <Unlock size={16} />
-                                                Desbloquear
-                                            </button>
-                                            <p className="text-xs text-slate-400 mt-4">
-                                                Senha padrão: <code className="bg-slate-100 px-1.5 py-0.5 rounded">admin123</code>
-                                            </p>
-                                        </div>
+                                        <input
+                                            type={showApiKey ? "text" : "password"}
+                                            value={apiKey}
+                                            onChange={(e) => { setApiKey(e.target.value); markUnsaved(); }}
+                                            placeholder="pk_..."
+                                            className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                        />
+                                        <button
+                                            onClick={() => setShowApiKey(!showApiKey)}
+                                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                                        >
+                                            {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                                        </button>
                                     </div>
                                 </div>
-                            ) : (
-                                <>
-                                    <div className={`bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5 ${isReadOnly ? 'opacity-70 pointer-events-none' : ''}`}>
-                                        <div className="flex items-center justify-between mb-4">
-                                            <span className="text-xs font-bold text-emerald-600 flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-full">
-                                                <Unlock size={12} />
-                                                Desbloqueado
-                                            </span>
-                                            <div className="flex gap-2">
-                                                <button
-                                                    onClick={handleSetAdminPassword}
-                                                    className="text-xs text-slate-500 hover:text-indigo-600 font-medium flex items-center gap-1"
-                                                >
-                                                    <Key size={12} />
-                                                    Alterar Senha
-                                                </button>
-                                                <button
-                                                    onClick={() => setIsApiUnlocked(false)}
-                                                    className="text-xs text-slate-500 hover:text-rose-600 font-medium flex items-center gap-1"
-                                                >
-                                                    <Lock size={12} />
-                                                    Bloquear
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">API Token</label>
-                                            <div className="relative">
-                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                    <Key size={16} className="text-slate-400" />
-                                                </div>
-                                                <input
-                                                    type={showApiKey ? "text" : "password"}
-                                                    value={apiKey}
-                                                    onChange={(e) => { setApiKey(e.target.value); markUnsaved(); }}
-                                                    placeholder="pk_..."
-                                                    className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                                                />
-                                                <button
-                                                    onClick={() => setShowApiKey(!showApiKey)}
-                                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
-                                                >
-                                                    {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                                                </button>
-                                            </div>
-                                        </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                            <div>
-                                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Team ID</label>
-                                                <input
-                                                    type="text"
-                                                    value={teamId}
-                                                    onChange={(e) => { setTeamId(e.target.value); markUnsaved(); }}
-                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                                    placeholder="Ex: 9015..."
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">View ID</label>
-                                                <input
-                                                    type="text"
-                                                    value={viewId}
-                                                    onChange={(e) => { setViewId(e.target.value); markUnsaved(); }}
-                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                                    placeholder="Ex: 8c9k-..."
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-2">
-                                                CORS Proxy URL <Globe size={12} />
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={corsProxy}
-                                                onChange={(e) => { setCorsProxy(e.target.value); markUnsaved(); }}
-                                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                                placeholder="https://corsproxy.io/?"
-                                            />
-                                        </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Team ID</label>
+                                        <input
+                                            type="text"
+                                            value={teamId}
+                                            onChange={(e) => { setTeamId(e.target.value); markUnsaved(); }}
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            placeholder="Ex: 9015..."
+                                        />
                                     </div>
-                                </>
-                            )}
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">View ID</label>
+                                        <input
+                                            type="text"
+                                            value={viewId}
+                                            onChange={(e) => { setViewId(e.target.value); markUnsaved(); }}
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            placeholder="Ex: 8c9k-..."
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-2">
+                                        CORS Proxy URL <Globe size={12} />
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={corsProxy}
+                                        onChange={(e) => { setCorsProxy(e.target.value); markUnsaved(); }}
+                                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        placeholder="https://corsproxy.io/?"
+                                    />
+                                </div>
+                            </div>
                         </div>
                     )
                 }

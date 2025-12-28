@@ -221,31 +221,3 @@ export const useReferenceData = (): UseReferenceDataReturn => {
 };
 
 export default useReferenceData;
-
-// ============================================
-// CONVENIENCE EXPORTS
-// ============================================
-
-/**
- * Hook simplificado para apenas obter nomes de tags (para dropdowns)
- */
-export const useEquipTagNames = (): string[] => {
-  const { getEquipTagNames } = useReferenceData();
-  return getEquipTagNames();
-};
-
-/**
- * Hook simplificado para apenas obter nomes de membros (para dropdowns)
- */
-export const useMemberNames = (): string[] => {
-  const { getMemberNames } = useReferenceData();
-  return getMemberNames();
-};
-
-/**
- * Hook simplificado para apenas obter nomes de projetos (para dropdowns)
- */
-export const useProjectNames = (): string[] => {
-  const { getProjectNames } = useReferenceData();
-  return getProjectNames();
-};

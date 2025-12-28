@@ -20,12 +20,6 @@ export enum PriorityType {
   NONE = '4',
 }
 
-export enum MessageRole {
-  USER = 'user',
-  MODEL = 'model',
-  SYSTEM = 'system'
-}
-
 // ============================================
 // TAB TYPES
 // ============================================
@@ -46,25 +40,6 @@ export type TabKey =
   | 'allocation' 
   | 'priorities' 
   | 'team_health';
-
-// ============================================
-// CSV IMPORT (Legacy support)
-// ============================================
-
-export interface ClickUpRow {
-  'Task Name': string;
-  'Parent Name'?: string;
-  'Status': string;
-  'Assignee': string;
-  'Start Date'?: string;
-  'Due Date'?: string;
-  'Time Estimate'?: string;
-  'Time Logged'?: string;
-  'List'?: string;
-  'Date Closed'?: string;
-  'Closed Date'?: string;
-  [key: string]: any;
-}
 
 // ============================================
 // CORE TASK TYPES (Compatible with v1.0)
@@ -208,17 +183,6 @@ export interface KPIMetric {
   bgColor: string;
   borderColor: string;
   icon: React.ElementType;
-}
-
-// ============================================
-// CHAT TYPES
-// ============================================
-
-export interface ChatMessage {
-  id: string;
-  role: MessageRole;
-  text: string;
-  isError?: boolean;
 }
 
 // ============================================

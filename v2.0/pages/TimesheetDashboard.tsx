@@ -1,7 +1,14 @@
 import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, Calendar, Eye, EyeOff, Moon, Sun, LayoutGrid, User, Check, AlertCircle, ToggleLeft, ToggleRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Calendar, Eye, EyeOff, Moon, Sun, LayoutGrid, User, Check, AlertCircle, ToggleLeft, ToggleRight, FileSpreadsheet, BarChart3, Table2, Download } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { GroupedData, Task as RealTask } from '../types';
+import TimesheetExcelView from '../components/TimesheetExcelView';
+
+// ============================================
+// TIPOS
+// ============================================
+
+type ViewMode = 'timeline' | 'calendar' | 'excel';
 
 interface Hours {
   planned: number;
@@ -74,7 +81,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
   const [selectedMonth, setSelectedMonth] = useState<string>(initialMonth || '2025-12');
   const [selectedMemberFilter, setSelectedMemberFilter] = useState<string>('all');
   const [showWeekends, setShowWeekends] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<'timeline' | 'calendar'>('timeline');
+  const [activeTab, setActiveTab] = useState<ViewMode>('timeline');
   const [isDark, setIsDark] = useState<boolean>(false);
   const [expandedMembers, setExpandedMembers] = useState<string[]>([]);
   const [tooltipData, setTooltipData] = useState<TooltipData | null>(null);
@@ -454,17 +461,55 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
     }).filter(member => member.projects.length > 0); // Só membros com projetos ativos
   }, [externalTeamMembers, groupedData, selectedMonth, allDays, isTaskInPeriod, distributeTaskHours]);
 
-  // Log do resultado
-  useEffect(() => {
-    console.log('[TIMESHEET] Membros processados:', {
-      total: teamMembers.length,
-      membros: teamMembers.map(m => ({
-        nome: m.name,
-        projetos: m.projects.length,
-        tarefas: m.projects.reduce((sum, p) => sum + p.tasks.length, 0)
-      }))
+  // Converter dados para formato Excel View
+  const excelViewData = useMemo(() => {
+    const selectedMember = selectedMemberFilter === 'all'
+      ? teamMembers[0]
+      : teamMembers.find(m => m.id === selectedMemberFilter);
+
+    if (!selectedMember) return { days: [], projects: [], memberName: '' };
+
+    // Converter dias para formato Excel
+    const excelDays = allDays.map(day => ({
+      date: day.date,
+      day: day.day,
+      weekday: day.weekday,
+      monthName: day.date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
+      isWeekend: day.isWeekend,
+      isToday: day.isToday
+    }));
+
+    // Converter projetos para formato Excel
+    const excelProjects = selectedMember.projects.map(project => {
+      const hoursPerDay = allDays.map((_, dayIdx) => {
+        const hours = sumTaskHours(project.tasks, dayIdx);
+        return {
+          planned: hours.planned,
+          actual: hours.actual,
+          deviation: hours.actual - hours.planned,
+          deviationPercent: hours.planned > 0 ? ((hours.actual - hours.planned) / hours.planned) * 100 : 0
+        };
+      });
+
+      const totalPlanned = hoursPerDay.reduce((sum, h) => sum + h.planned, 0);
+      const totalActual = hoursPerDay.reduce((sum, h) => sum + h.actual, 0);
+
+      return {
+        id: project.id,
+        name: project.name,
+        hoursPerDay,
+        totalPlanned,
+        totalActual,
+        totalDeviation: totalActual - totalPlanned
+      };
     });
-  }, [teamMembers]);
+
+    return {
+      days: excelDays,
+      projects: excelProjects,
+      memberName: selectedMember.name
+    };
+  }, [teamMembers, selectedMemberFilter, allDays]);
 
   // Auto-scroll to Today
   useEffect(() => {
@@ -867,7 +912,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
 
               <div className={`h-6 w-px ${isDark ? 'bg-gray-600' : 'bg-gray-300'}`}></div>
 
-              {/* View Switcher Icons */}
+              {/* View Switcher Icons - 3 visualizações */}
               <div className={`flex p-1 rounded-lg border ${isDark ? 'border-gray-600 bg-gray-900' : 'border-gray-200 bg-gray-100'}`}>
                 <button
                   onClick={() => setActiveTab('timeline')}
@@ -878,6 +923,16 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                   title="Timeline"
                 >
                   <LayoutGrid className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setActiveTab('excel')}
+                  className={`p-1.5 rounded-md transition-all ml-1 ${activeTab === 'excel'
+                    ? (isDark ? 'bg-gray-700 text-white shadow-sm' : 'bg-white text-gray-900 shadow-sm')
+                    : (isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
+                    }`}
+                  title="Excel / Analítico"
+                >
+                  <Table2 className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setActiveTab('calendar')}
@@ -915,12 +970,24 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
           </div>
         </div>
 
-        {activeTab === 'calendar' ? <CalendarView /> : (
+        {/* Renderização condicional das visualizações */}
+        {activeTab === 'excel' ? (
+          <TimesheetExcelView
+            days={excelViewData.days}
+            projects={excelViewData.projects}
+            memberName={excelViewData.memberName}
+            isDark={isDark}
+            onExport={() => {
+              // TODO: Implementar exportação para Excel
+              alert('Exportação em desenvolvimento');
+            }}
+          />
+        ) : activeTab === 'calendar' ? <CalendarView /> : (
           <div className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border rounded-lg overflow-hidden`}>
             <div className="flex">
-              {/* Sidebar (Left) */}
+              {/* Sidebar (Left) - Largura aumentada para evitar texto cortado */}
               <div
-                className={`w-80 flex-shrink-0 border-r ${isDark ? 'border-gray-700' : 'border-gray-200'} overflow-y-auto sidebar-scroll-container`}
+                className={`w-72 min-w-[288px] flex-shrink-0 border-r ${isDark ? 'border-gray-700' : 'border-gray-200'} overflow-y-auto sidebar-scroll-container`}
                 style={{ maxHeight: '700px' }}
                 onScroll={(e) => {
                   if (scrollSyncRef.current) {
@@ -961,19 +1028,29 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                           return (
                             <div key={project.id} className={`${selectedMemberFilter !== 'all' && projIdx > 0 ? `border-t-2 ${isDark ? 'border-gray-700' : 'border-gray-200'}` : (projIdx > 0 || selectedMemberFilter === 'all' ? `border-t-2 ${isDark ? 'border-gray-700' : 'border-gray-200'}` : '')}`}>
                               <div onClick={() => toggleProject(project.id)}
-                                className={`h-20 px-4 cursor-pointer ${isDark ? 'hover:bg-gray-700 bg-gray-800' : 'hover:bg-gray-50 bg-white'} transition-colors border-l-4 ${isDark ? 'border-gray-500' : 'border-gray-400'} flex items-center`}>
-                                <div className="flex items-center gap-3">
-                                  {isExpanded ? <ChevronDown className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} /> : <ChevronRight className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />}
-                                  <span className={`text-sm font-semibold ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>{project.name}</span>
+                                className={`h-16 px-4 cursor-pointer ${isDark ? 'hover:bg-gray-700 bg-gray-800' : 'hover:bg-gray-50 bg-white'} transition-colors border-l-4 ${isDark ? 'border-gray-500' : 'border-gray-400'} flex items-center`}>
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                  {isExpanded ? <ChevronDown className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} /> : <ChevronRight className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />}
+                                  <span
+                                    className={`text-sm font-semibold truncate ${isDark ? 'text-gray-200' : 'text-gray-900'}`}
+                                    title={project.name}
+                                  >
+                                    {project.name}
+                                  </span>
                                 </div>
                               </div>
 
                               {isExpanded && (
                                 <>
                                   {project.tasks.map((task, taskIdx) => (
-                                    <div key={task.id} className={`h-16 px-6 ${isDark ? 'bg-gray-850 hover:bg-gray-800' : 'bg-gray-50 hover:bg-gray-100'} transition-colors flex items-center ${taskIdx > 0 ? `border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}` : 'border-t border-gray-200 dark:border-gray-700'
+                                    <div key={task.id} className={`h-12 px-6 ${isDark ? 'bg-gray-850 hover:bg-gray-800' : 'bg-gray-50 hover:bg-gray-100'} transition-colors flex items-center ${taskIdx > 0 ? `border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}` : 'border-t border-gray-200 dark:border-gray-700'
                                       }`}>
-                                      <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{task.name}</span>
+                                      <span
+                                        className={`text-xs truncate ${isDark ? 'text-gray-400' : 'text-gray-600'}`}
+                                        title={task.name}
+                                      >
+                                        {task.name}
+                                      </span>
                                     </div>
                                   ))}
                                 </>
@@ -1036,7 +1113,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                             const isExpanded = expandedProjects.includes(project.id);
                             return (
                               <div key={project.id} className={`${selectedMemberFilter !== 'all' && projIdx > 0 ? `border-t-2 ${isDark ? 'border-gray-700' : 'border-gray-200'}` : (projIdx > 0 || selectedMemberFilter === 'all' ? `border-t-2 ${isDark ? 'border-gray-700' : 'border-gray-200'}` : '')}`}>
-                                <div className={`h-20 flex ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+                                <div className={`h-16 flex ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
                                   {days.map((day, dayIdx) => {
                                     const dayIndexInAll = allDays.findIndex(d => d.day === day.day && d.month === day.month);
                                     const hours = sumTaskHours(project.tasks, dayIndexInAll);
@@ -1060,7 +1137,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                                 </div>
 
                                 {isExpanded && project.tasks.map((task, taskIdx) => (
-                                  <div key={task.id} className={`h-16 flex ${isDark ? 'bg-gray-850' : 'bg-gray-50'} ${taskIdx > 0 ? `border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}` : 'border-t border-gray-200 dark:border-gray-700'
+                                  <div key={task.id} className={`h-12 flex ${isDark ? 'bg-gray-850' : 'bg-gray-50'} ${taskIdx > 0 ? `border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}` : 'border-t border-gray-200 dark:border-gray-700'
                                     }`}>
                                     {days.map((day, dayIdx) => {
                                       const dayIndexInAll = allDays.findIndex(d => d.day === day.day && d.month === day.month);

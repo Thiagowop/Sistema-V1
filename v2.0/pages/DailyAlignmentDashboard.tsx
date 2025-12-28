@@ -280,8 +280,8 @@ const SortableMemberTab: React.FC<SortableMemberTabProps> = ({ id, isActive, nam
       <button
         onClick={onClick}
         className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap border cursor-pointer ${isActive
-            ? 'bg-slate-800 border-slate-800 text-white shadow-lg scale-105'
-            : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
+          ? 'bg-slate-800 border-slate-800 text-white shadow-lg scale-105'
+          : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
           }`}
       >
         {/* Drag handle invisível integrado */}
@@ -923,6 +923,9 @@ export const DailyAlignmentDashboard: React.FC = () => {
     return ids;
   }, [computedCustomBoxes, dailySettings.exclusiveBoxes]);
 
+  // activeGroup for combinedSortedItems (uses activeGroupData defined earlier)
+  const activeGroup = activeGroupData || dashboardData[0];
+
   // Combined sorted list of custom boxes and projects for unified rendering
   type CombinedItem =
     | { type: 'custombox'; id: string; data: typeof computedCustomBoxes[0] }
@@ -1316,8 +1319,6 @@ export const DailyAlignmentDashboard: React.FC = () => {
     );
   };
 
-
-  const activeGroup = activeGroupData || dashboardData[0];
 
   if (!activeGroup) return null;
 

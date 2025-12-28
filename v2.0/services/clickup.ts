@@ -10,6 +10,7 @@ export interface SyncFilterOptions {
   assignees?: string[];      // Filtrar client-side após busca
   includeArchived?: boolean;
   incrementalSince?: string; // ISO date para sync incremental
+  signal?: AbortSignal;      // Signal para cancelar sync
   onProgress?: (current: number, total: number, message: string) => void;
 }
 // MOCK_DATA removed - not used in v2.0
@@ -272,7 +273,8 @@ export const fetchRawClickUpData = async (
       uniqueTags,
       includeArchived,
       options.incrementalSince,
-      options.onProgress
+      options.onProgress,
+      options.signal
     );
 
     // Client-side assignee filter (API doesn't support assignee filter for team endpoint)
@@ -323,7 +325,8 @@ const fetchTasksFromTeam = async (
   tagFilters: string[] = [],
   includeArchived: boolean = false,
   dateUpdatedAfter?: string,
-  onProgress?: (current: number, total: number, message: string) => void
+  onProgress?: (current: number, total: number, message: string) => void,
+  signal?: AbortSignal
 ): Promise<ClickUpApiTask[]> => {
   const allTasks: ClickUpApiTask[] = [];
   const seenIds = new Set<string>(); // Track unique task IDs
@@ -333,6 +336,12 @@ const fetchTasksFromTeam = async (
   const useProxy = import.meta.env.DEV;
 
   while (hasMore && page < MAX_PAGES) {
+    // Check if cancelled before each page fetch
+    if (signal?.aborted) {
+      console.log('⏹️ Sync cancelled by user');
+      throw new DOMException('Sync cancelled', 'AbortError');
+    }
+
     const message = `Fetching Team ${teamId} - Page ${page}${dateUpdatedAfter ? ' (incremental)' : ''}...`;
     console.log(message);
     onProgress?.(page, MAX_PAGES, message);
@@ -377,6 +386,7 @@ const fetchTasksFromTeam = async (
             const response = await fetch(targetUrl, {
               method: 'GET',
               cache: 'no-store',
+              signal, // Pass abort signal to fetch
               headers: {
                 'Authorization': token,
                 'Content-Type': 'application/json'

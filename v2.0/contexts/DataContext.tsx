@@ -7,7 +7,7 @@
  * @version 2.0.0
  */
 
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode, useRef } from 'react';
 import { GroupedData, AppConfig, Task, StandupEntry, TeamMemberData } from '../types';
 import { FilterMetadata } from '../types/FilterConfig';
 import { ClickUpApiTask, fetchRawClickUpData, processApiTasks, extractFilterMetadata, fetchStandupSummaries, SyncFilterOptions } from '../services/clickup';
@@ -51,6 +51,7 @@ export interface DataContextValue {
   // Actions
   syncFull: (customFilters?: SyncFilters) => Promise<void>;
   syncIncremental: (customFilters?: SyncFilters) => Promise<void>;
+  cancelSync: () => void;
   loadFromCache: () => Promise<boolean>;
   clearCache: () => Promise<void>;
   fetchStandups: (options?: { limit?: number; forDate?: Date }) => Promise<void>;
@@ -95,6 +96,9 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
   const [isInitialized, setIsInitialized] = useState(false);
   const [hasCacheData, setHasCacheData] = useState(false);
   const [syncFilters, setSyncFiltersState] = useState<SyncFilters>(loadSyncFilters);
+
+  // Abort controller for cancellable sync
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // ============================================
   // SYNC FILTERS
@@ -229,6 +233,10 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
     console.log('[CTX-DATA-001] Starting FULL sync...', hasFilters ? `with filters: ${JSON.stringify(filters)}` : '(no filters)');
     setSyncState(prev => ({ ...prev, status: 'syncing', error: null, progress: 0 }));
 
+    // Create abort controller for this sync
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
     try {
       // Step 1: Fetch raw data with filters (0-50%)
       setSyncState(prev => ({ ...prev, progress: 10 }));
@@ -237,7 +245,10 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
         tags: filters.tags,
         assignees: filters.assignees,
         includeArchived: filters.includeArchived,
+        signal, // Pass abort signal
         onProgress: (current, total, message) => {
+          // Check if cancelled
+          if (signal.aborted) return;
           // Calculate progress: pages are 10-50% of total
           const pageProgress = Math.min(40, (current / Math.max(total, 1)) * 40);
           setSyncState(prev => ({ ...prev, progress: Math.round(10 + pageProgress) }));
@@ -280,6 +291,18 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
       console.log(`[CTX-DATA-001] FULL sync complete: ${raw.length} tasks`);
 
     } catch (error: any) {
+      // Check if it was a cancellation
+      if (error.name === 'AbortError' || signal.aborted) {
+        console.log('[CTX-DATA-001] ⏹️ Sync cancelled by user');
+        setSyncState(prev => ({
+          ...prev,
+          status: 'idle',
+          error: null,
+          progress: 0
+        }));
+        return;
+      }
+
       console.error('[CTX-DATA-001] ❌ Sync error:', error);
 
       // FALLBACK: Se tiver dados no cache, manter e mostrar aviso
@@ -324,6 +347,10 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
     console.log(`[CTX-DATA-001] Current rawTasks in state: ${rawTasks.length}`);
     setSyncState(prev => ({ ...prev, status: 'syncing', error: null, progress: 0 }));
 
+    // Create abort controller for this sync
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
     try {
       // Fetch only updated tasks with filters
       setSyncState(prev => ({ ...prev, progress: 20 }));
@@ -332,7 +359,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
         tags: filters.tags,
         assignees: filters.assignees,
         includeArchived: filters.includeArchived,
-        incrementalSince: syncState.lastSync
+        incrementalSince: syncState.lastSync,
+        signal // Pass abort signal
       };
 
       console.log(`[CTX-DATA-001] Calling API with options:`, syncOptions);
@@ -394,6 +422,18 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
       console.log(`[CTX-DATA-001] INCREMENTAL sync complete: ${updatedTasks.length} updated, ${merged.length} total`);
 
     } catch (error: any) {
+      // Check if it was a cancellation
+      if (error.name === 'AbortError') {
+        console.log('[CTX-DATA-001] ⏹️ Incremental sync cancelled by user');
+        setSyncState(prev => ({
+          ...prev,
+          status: 'idle',
+          error: null,
+          progress: 0
+        }));
+        return;
+      }
+
       console.error('[CTX-DATA-001] ❌ Incremental sync error:', error);
 
       // FALLBACK: Se tiver dados no cache, manter e mostrar aviso
@@ -415,6 +455,17 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
     }
   }, [config, syncFilters, syncState.lastSync, rawTasks, syncFull, hasCacheData, groupedData.length]);
 
+  // ============================================
+  // CANCEL SYNC
+  // ============================================
+
+  const cancelSync = useCallback(() => {
+    if (abortControllerRef.current) {
+      console.log('[CTX-DATA-001] ⏹️ Cancelling sync...');
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+  }, []);
 
   // ============================================
   // CLEAR CACHE
@@ -509,6 +560,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
     // Actions
     syncFull,
     syncIncremental,
+    cancelSync,
     loadFromCache,
     clearCache,
     fetchStandups,

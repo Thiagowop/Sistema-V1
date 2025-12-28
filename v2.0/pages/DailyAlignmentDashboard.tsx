@@ -127,7 +127,7 @@ const StatusBadge = ({ status }: { status: string }) => {
   if (s.includes('andamento') || s.includes('progress')) {
     styles = 'bg-[#FFC107] text-[#374151] border-[#e0a800]'; // Amarelo FORTE
   }
-  else if (s.includes('conclu') || s.includes('done')) {
+  else if (s.includes('conclu') || s.includes('done') || s.includes('complete') || s.includes('closed') || s.includes('finalizado') || s.includes('encerrado')) {
     styles = 'bg-[#22C55E] text-white border-[#16A34A]'; // Verde FORTE
   }
   else if (s.includes('iniciar') || s.includes('novo') || s.includes('fazer')) {
@@ -358,6 +358,18 @@ const getDaysRemaining = (dueDate?: Date | string | null): number | null => {
   due.setHours(0, 0, 0, 0);
   const diff = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   return diff;
+};
+
+// Helper: Check if task status indicates completion
+const isTaskCompleted = (status?: string | null): boolean => {
+  if (!status) return false;
+  const s = status.toLowerCase();
+  return s.includes('conclu') ||
+         s.includes('complete') ||
+         s.includes('done') ||
+         s.includes('closed') ||
+         s.includes('finalizado') ||
+         s.includes('encerrado');
 };
 
 // --- LOCAL STORAGE HELPERS ---
@@ -1217,13 +1229,13 @@ export const DailyAlignmentDashboard: React.FC = () => {
   const TaskRow = ({ task, depth = 0 }: { task: Task; depth?: number }) => {
     const hasSubtasks = task.subtasks && task.subtasks.length > 0;
     const isExpanded = expandedTaskIds.has(task.id);
-    const isDone = task.status?.toLowerCase().includes('conclu');
+    const isDone = isTaskCompleted(task.status);
     const effortPct = (task.timeEstimate && task.timeLogged) ? (task.timeLogged / task.timeEstimate) * 100 : 0;
     const isOverdue = !isDone && task.dueDate && new Date(task.dueDate) < new Date();
 
     // Filtrar subtarefas baseado em showCompleted
     const visibleSubtasks = hasSubtasks ? task.subtasks.filter(sub =>
-      showCompleted || !sub.status?.toLowerCase().includes('conclu')
+      showCompleted || !isTaskCompleted(sub.status)
     ) : [];
 
     return (
@@ -1485,7 +1497,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
                     const box = item.data;
                     const boxId = `custom-${box.id}`;
                     const isExpanded = expandedProjects.has(boxId);
-                    const filteredTasks = box.tasks.filter((t: Task) => showCompleted || !t.status?.toLowerCase().includes('conclu'));
+                    const filteredTasks = box.tasks.filter((t: Task) => showCompleted || !isTaskCompleted(t.status));
 
                     // Hide empty custom boxes after filtering
                     if (filteredTasks.length === 0) return null;
@@ -1561,7 +1573,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
                     // Apply exclusivity and filters
                     const filteredTasks = project.tasks.filter(t => {
                       if (dailySettings.exclusiveBoxes && taskIdsInCustomBoxes.has(t.id)) return false;
-                      if (!showCompleted && t.status?.toLowerCase().includes('conclu')) return false;
+                      if (!showCompleted && isTaskCompleted(t.status)) return false;
 
                       if (dailySettings.localFilters.tags.length > 0) {
                         const taskTags = (t.tags || []).map((tag: any) =>

@@ -351,12 +351,10 @@ const ManageBoxesModal = ({
     }
   };
 
-  // NEW: Move project up/down in list
+  // NEW: Move project up/down in list (disabled - no reorder handler)
   const moveBox = (index: number, direction: 'up' | 'down') => {
-    const newProjects = [...projects];
-    const targetIdx = direction === 'up' ? index - 1 : index + 1;
-    [newProjects[index], newProjects[targetIdx]] = [newProjects[targetIdx], newProjects[index]];
-    onReorder?.(newProjects);
+    // Reorder functionality removed - would need onReorder prop to be implemented
+    console.log('Move box', index, direction);
   };
 
   return (
@@ -740,8 +738,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
       group.projects.forEach(project => {
         project.tasks.forEach(task => {
           task.tags?.forEach(tag => {
-            const tagName = typeof tag === 'string' ? tag : tag.name;
-            if (tagName) tagSet.add(tagName);
+            if (tag) tagSet.add(tag);
           });
         });
       });
@@ -753,10 +750,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
   const filterTasksByTags = (tasks: Task[], tags?: string[]): Task[] => {
     if (!tags || tags.length === 0) return tasks;
     return tasks.filter(task =>
-      task.tags?.some(tag => {
-        const tagName = typeof tag === 'string' ? tag : tag.name;
-        return tags.includes(tagName);
-      })
+      task.tags?.some(tag => tags.includes(tag))
     );
   };
 

@@ -11,7 +11,7 @@ import {
     Save, Key, Plus, Trash2, Upload, HardDrive, Eye, EyeOff, Check,
     Shield, AlertTriangle, Users, Globe, Lock, Unlock, ToggleRight,
     ToggleLeft, Download, RotateCcw, Database, Settings, BookOpen, FolderOpen, Settings2, Calendar,
-    Construction, Zap, CloudUpload
+    Construction, Zap
 } from 'lucide-react';
 import { referenceData, getEquipTags, getTeamMembers, getProjects } from '../services/referenceDataService';
 import { DailySpace } from '../components/DailySpace';
@@ -1017,7 +1017,7 @@ export const AdminDashboard: React.FC = () => {
                                             </>
                                         ) : (
                                             <>
-                                                <CloudUpload size={16} />
+                                                <Upload size={16} />
                                                 Extrair & Salvar
                                             </>
                                         )}

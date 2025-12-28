@@ -86,6 +86,8 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
   const [expandedMembers, setExpandedMembers] = useState<string[]>([]);
   const [tooltipData, setTooltipData] = useState<TooltipData | null>(null);
   const [internalShowCompleted, setInternalShowCompleted] = useState<boolean>(showCompleted);
+  const [internalShowTasks, setInternalShowTasks] = useState<boolean>(true);
+  const [internalShowSubtasks, setInternalShowSubtasks] = useState<boolean>(true);
   const scrollSyncRef = useRef<boolean>(false);
 
   // Dropdown states
@@ -476,13 +478,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
 
   // Converter dados para formato Excel View
   const excelViewData = useMemo(() => {
-    const selectedMember = selectedMemberFilter === 'all'
-      ? teamMembers[0]
-      : teamMembers.find(m => m.id === selectedMemberFilter);
-
-    if (!selectedMember) return { days: [], projects: [], memberName: '' };
-
-    // Converter dias para formato Excel
+    // Converter dias para formato Excel (comum a ambos os casos)
     const excelDays = allDays.map(day => ({
       date: day.date,
       day: day.day,
@@ -491,6 +487,79 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
       isWeekend: day.isWeekend,
       isToday: day.isToday
     }));
+
+    // Caso "Todos da Equipe": agregar projetos de todos os membros
+    if (selectedMemberFilter === 'all') {
+      // Mapa para agregar projetos por nome
+      const projectMap = new Map<string, {
+        id: string;
+        name: string;
+        hoursPerDay: { planned: number; actual: number; deviation: number; deviationPercent: number }[];
+        totalPlanned: number;
+        totalActual: number;
+      }>();
+
+      // Iterar por todos os membros e agregar projetos
+      teamMembers.forEach(member => {
+        member.projects.forEach(project => {
+          const existingProject = projectMap.get(project.name);
+
+          const hoursPerDay = allDays.map((_, dayIdx) => {
+            const hours = sumTaskHours(project.tasks, dayIdx);
+            return {
+              planned: hours.planned,
+              actual: hours.actual,
+              deviation: hours.actual - hours.planned,
+              deviationPercent: hours.planned > 0 ? ((hours.actual - hours.planned) / hours.planned) * 100 : 0
+            };
+          });
+
+          const totalPlanned = hoursPerDay.reduce((sum, h) => sum + h.planned, 0);
+          const totalActual = hoursPerDay.reduce((sum, h) => sum + h.actual, 0);
+
+          if (existingProject) {
+            // Agregar horas ao projeto existente
+            hoursPerDay.forEach((dayHours, idx) => {
+              existingProject.hoursPerDay[idx].planned += dayHours.planned;
+              existingProject.hoursPerDay[idx].actual += dayHours.actual;
+              existingProject.hoursPerDay[idx].deviation =
+                existingProject.hoursPerDay[idx].actual - existingProject.hoursPerDay[idx].planned;
+              existingProject.hoursPerDay[idx].deviationPercent =
+                existingProject.hoursPerDay[idx].planned > 0
+                  ? ((existingProject.hoursPerDay[idx].actual - existingProject.hoursPerDay[idx].planned) / existingProject.hoursPerDay[idx].planned) * 100
+                  : 0;
+            });
+            existingProject.totalPlanned += totalPlanned;
+            existingProject.totalActual += totalActual;
+          } else {
+            // Novo projeto no mapa
+            projectMap.set(project.name, {
+              id: project.id,
+              name: project.name,
+              hoursPerDay,
+              totalPlanned,
+              totalActual
+            });
+          }
+        });
+      });
+
+      // Converter mapa para array e calcular desvio total
+      const excelProjects = Array.from(projectMap.values()).map(p => ({
+        ...p,
+        totalDeviation: p.totalActual - p.totalPlanned
+      }));
+
+      return {
+        days: excelDays,
+        projects: excelProjects,
+        memberName: 'Todos da Equipe'
+      };
+    }
+
+    // Caso membro específico selecionado
+    const selectedMember = teamMembers.find(m => m.id === selectedMemberFilter);
+    if (!selectedMember) return { days: [], projects: [], memberName: '' };
 
     // Converter projetos para formato Excel
     const excelProjects = selectedMember.projects.map(project => {
@@ -566,8 +635,13 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
   };
 
   const getStatusColor = (planned: number, actual: number) => {
+    // Sem horas registradas → cinza neutro
     if (!actual) return isDark ? 'bg-gray-800 text-gray-500 border-gray-700' : 'bg-gray-50 text-gray-400 border-gray-200';
+    // Sem planejamento → amarelo (atenção: horas sem estimate)
+    if (!planned || planned === 0) return isDark ? 'bg-amber-900 text-amber-300 border-amber-700' : 'bg-amber-50 text-amber-700 border-amber-200';
+    // Calcular desvio percentual
     const percent = (Math.abs(actual - planned) / planned) * 100;
+    // Legenda: ±10% verde, ±20% amarelo, >20% vermelho
     if (percent <= 10) return isDark ? 'bg-emerald-900 text-emerald-300 border-emerald-700' : 'bg-emerald-50 text-emerald-700 border-emerald-200';
     if (percent <= 20) return isDark ? 'bg-amber-900 text-amber-300 border-amber-700' : 'bg-amber-50 text-amber-700 border-amber-200';
     return isDark ? 'bg-rose-900 text-rose-300 border-rose-700' : 'bg-rose-50 text-rose-700 border-rose-200';
@@ -902,8 +976,37 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                     <ChevronRight className="w-4 h-4" />
                   </button>
 
-                  {/* Toggle Concluídas */}
-                  <div className="flex items-center gap-2 pl-4 border-l border-gray-300 dark:border-gray-600">
+                  {/* Toggles: Tarefas, Subtarefas, Concluídas */}
+                  <div className="flex items-center gap-4 pl-4 border-l border-gray-300 dark:border-gray-600">
+                    {/* Toggle: Tarefas */}
+                    <button
+                      onClick={() => setInternalShowTasks(!internalShowTasks)}
+                      className="flex items-center gap-2 cursor-pointer group"
+                      title="Mostrar/Ocultar Tarefas"
+                    >
+                      <div className={`transition-colors ${internalShowTasks ? 'text-sky-500' : 'text-slate-300 dark:text-gray-500'}`}>
+                        {internalShowTasks ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
+                      </div>
+                      <span className={`text-sm font-semibold transition-colors ${internalShowTasks ? 'text-slate-700 dark:text-gray-300' : 'text-slate-400 dark:text-gray-500'}`}>
+                        Tarefas
+                      </span>
+                    </button>
+
+                    {/* Toggle: Subtarefas */}
+                    <button
+                      onClick={() => setInternalShowSubtasks(!internalShowSubtasks)}
+                      className="flex items-center gap-2 cursor-pointer group"
+                      title="Mostrar/Ocultar Subtarefas"
+                    >
+                      <div className={`transition-colors ${internalShowSubtasks ? 'text-sky-500' : 'text-slate-300 dark:text-gray-500'}`}>
+                        {internalShowSubtasks ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
+                      </div>
+                      <span className={`text-sm font-semibold transition-colors ${internalShowSubtasks ? 'text-slate-700 dark:text-gray-300' : 'text-slate-400 dark:text-gray-500'}`}>
+                        Subtarefas
+                      </span>
+                    </button>
+
+                    {/* Toggle: Concluídas */}
                     <button
                       onClick={() => {
                         const newValue = !internalShowCompleted;
@@ -911,11 +1014,14 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                         onCompletedChange?.(newValue);
                       }}
                       className="flex items-center gap-2 cursor-pointer group"
+                      title="Mostrar/Ocultar Concluídas"
                     >
-                      <div className={`transition-colors ${internalShowCompleted ? 'text-emerald-500' : 'text-slate-400 dark:text-gray-500'}`}>
-                        {internalShowCompleted ? <ToggleRight size={32} /> : <ToggleLeft size={32} />}
+                      <div className={`transition-colors ${internalShowCompleted ? 'text-sky-500' : 'text-slate-300 dark:text-gray-500'}`}>
+                        {internalShowCompleted ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
                       </div>
-                      <span className="text-sm font-semibold text-slate-700 dark:text-gray-300">Concluídas</span>
+                      <span className={`text-sm font-semibold transition-colors ${internalShowCompleted ? 'text-slate-700 dark:text-gray-300' : 'text-slate-400 dark:text-gray-500'}`}>
+                        Concluídas
+                      </span>
                     </button>
                   </div>
 
@@ -1053,7 +1159,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                                 </div>
                               </div>
 
-                              {isExpanded && (
+                              {isExpanded && internalShowTasks && (
                                 <>
                                   {project.tasks.map((task, taskIdx) => (
                                     <div key={task.id} className={`h-12 px-6 ${isDark ? 'bg-gray-850 hover:bg-gray-800' : 'bg-gray-50 hover:bg-gray-100'} transition-colors flex items-center ${taskIdx > 0 ? `border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}` : 'border-t border-gray-200 dark:border-gray-700'
@@ -1149,7 +1255,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                                   })}
                                 </div>
 
-                                {isExpanded && project.tasks.map((task, taskIdx) => (
+                                {isExpanded && internalShowTasks && project.tasks.map((task, taskIdx) => (
                                   <div key={task.id} className={`h-12 flex ${isDark ? 'bg-gray-850' : 'bg-gray-50'} ${taskIdx > 0 ? `border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}` : 'border-t border-gray-200 dark:border-gray-700'
                                     }`}>
                                     {days.map((day, dayIdx) => {

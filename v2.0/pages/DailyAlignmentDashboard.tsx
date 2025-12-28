@@ -30,7 +30,9 @@ import {
   Save,
   CheckSquare,
   ListTree,
-  Box
+  Box,
+  ToggleLeft,
+  ToggleRight
 } from 'lucide-react';
 import { GroupedData, Task, Project } from '../types';
 import { useData } from '../contexts/DataContext';
@@ -49,6 +51,7 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
+  horizontalListSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -58,17 +61,7 @@ import { Tag } from 'lucide-react';
 import { SyncControlsBar } from '../components/SyncControlsBar';
 import { LocalFilters, createDefaultLocalFilters, applyLocalFilters } from '../components/filters/LocalFilterBar';
 import { DailySettingsPanel, DailySettings, createDefaultDailySettings, loadDailySettings, saveDailySettings } from '../components/DailySettingsPanel';
-import { userPreferences, initializePreferences } from '../services/userPreferencesService';
-
-// --- CONFIGURAÇÕES DE QUALIDADE ---
-const PENALTY_WEIGHTS = {
-  assignee: 15,
-  dueDate: 10,
-  priority: 5,
-  startDate: 2,
-  estimate: 5,
-  description: 1
-};
+import { userPreferences, initializePreferences, syncPreferencesToCloud } from '../services/userPreferencesService';
 
 // --- TYPES ESTENDIDOS ---
 interface ExtendedProject extends Omit<Project, 'stats'> {
@@ -202,34 +195,6 @@ const PriorityFlag = ({ priority }: { priority?: string }) => {
   );
 };
 
-// Card Circular SIMPLES de Qualidade (só círculo + %)
-const CircularQualityBadge = ({ score }: { score: number }) => {
-  const radius = 28;
-  const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (score / 100) * circumference;
-
-  // Cores dinâmicas: vermelho <60, amarelo 60-70, verde >70
-  const color = score < 60 ? '#ef4444' : score < 70 ? '#eab308' : '#10b981';
-  const textColor = score < 60 ? 'text-red-600' : score < 70 ? 'text-yellow-600' : 'text-emerald-600';
-
-  return (
-    <div className="relative flex items-center justify-center" style={{ width: 70, height: 70 }}>
-      <svg className="transform -rotate-90 w-full h-full">
-        <circle cx={35} cy={35} r={radius} stroke="#e2e8f0" strokeWidth={4} fill="transparent" />
-        <circle
-          cx={35} cy={35} r={radius}
-          stroke={color} strokeWidth={4} fill="transparent"
-          strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round"
-          className="transition-all duration-1000 ease-out"
-        />
-      </svg>
-      <div className="absolute flex flex-col items-center">
-        <span className={`font-bold ${textColor} text-2xl leading-none`}>{score}%</span>
-      </div>
-    </div>
-  );
-};
-
 // Ícone de HORAS EXCEDIDAS piscante
 const ExceededHoursIcon = ({ timeLogged, timeEstimate }: { timeLogged?: number; timeEstimate?: number }) => {
   const isOver = (timeLogged || 0) > (timeEstimate || 0);
@@ -240,6 +205,90 @@ const ExceededHoursIcon = ({ timeLogged, timeEstimate }: { timeLogged?: number; 
     <div className="flex items-center gap-1 text-rose-600 font-bold" title="Estouro de Horas">
       <AlertTriangle size={12} className="text-rose-500 animate-pulse" />
       <span className="text-[10px]">Estourado</span>
+    </div>
+  );
+};
+
+// --- COMPONENTE SORTABLE PARA DRAG-DROP (PROJETOS) ---
+interface SortableProjectCardProps {
+  id: string;
+  children: React.ReactNode;
+}
+
+const SortableProjectCard: React.FC<SortableProjectCardProps> = ({ id, children }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : 'auto',
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      <div className="relative group">
+        {/* Drag Handle */}
+        <div
+          {...listeners}
+          className="absolute left-2 top-1/2 -translate-y-1/2 p-2 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-white/80 rounded-lg shadow-sm"
+          title="Arrastar para reordenar"
+        >
+          <GripVertical size={16} className="text-slate-400" />
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+// --- COMPONENTE SORTABLE PARA MEMBROS (ABAS) ---
+interface SortableMemberTabProps {
+  id: string;
+  isActive: boolean;
+  name: string;
+  onClick: () => void;
+}
+
+const SortableMemberTab: React.FC<SortableMemberTabProps> = ({ id, isActive, name, onClick }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+    zIndex: isDragging ? 50 : 'auto',
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} className="relative group">
+      <button
+        onClick={onClick}
+        className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap border cursor-pointer ${
+          isActive
+            ? 'bg-slate-800 border-slate-800 text-white shadow-lg scale-105'
+            : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
+        }`}
+      >
+        {/* Drag handle invisível integrado */}
+        <span {...listeners} className="cursor-grab active:cursor-grabbing">
+          {name}
+        </span>
+      </button>
     </div>
   );
 };
@@ -530,7 +579,6 @@ export const DailyAlignmentDashboard: React.FC = () => {
   const [dashboardData, setDashboardData] = useState<ExtendedGroupedData[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [showManageModal, setShowManageModal] = useState(false);
-  const [showTasks, setShowTasks] = useState(true);
   const [viewScale, setViewScale] = useState(1);
 
   // ESTADOS PERSISTENTES - Carregados do userPreferences
@@ -545,16 +593,30 @@ export const DailyAlignmentDashboard: React.FC = () => {
   const [savedSettings, setSavedSettings] = useState<DailySettings>(() => loadDailySettings());
   const hasUnsavedChanges = JSON.stringify(dailySettings) !== JSON.stringify(savedSettings);
 
-  // showCompleted e showSubtasks sincronizados com dailySettings (persistente)
-  const showCompleted = dailySettings.showCompleted;
-  const setShowCompleted = useCallback((value: boolean) => {
-    setDailySettings(prev => ({ ...prev, showCompleted: value }));
-  }, []);
+  // Todos os toggles sincronizados com dailySettings (persistente + auto-save)
+  const showTasks = dailySettings.showTasks;
+  const setShowTasks = useCallback((value: boolean) => {
+    const newSettings = { ...dailySettings, showTasks: value };
+    setDailySettings(newSettings);
+    setSavedSettings(newSettings); // Marcar como salvo
+    saveDailySettings(newSettings); // Auto-save ao mudar toggle
+  }, [dailySettings]);
 
   const showSubtasks = dailySettings.showSubtasks;
   const setShowSubtasks = useCallback((value: boolean) => {
-    setDailySettings(prev => ({ ...prev, showSubtasks: value }));
-  }, []);
+    const newSettings = { ...dailySettings, showSubtasks: value };
+    setDailySettings(newSettings);
+    setSavedSettings(newSettings); // Marcar como salvo
+    saveDailySettings(newSettings); // Auto-save ao mudar toggle
+  }, [dailySettings]);
+
+  const showCompleted = dailySettings.showCompleted;
+  const setShowCompleted = useCallback((value: boolean) => {
+    const newSettings = { ...dailySettings, showCompleted: value };
+    setDailySettings(newSettings);
+    setSavedSettings(newSettings); // Marcar como salvo
+    saveDailySettings(newSettings); // Auto-save ao mudar toggle
+  }, [dailySettings]);
 
   // NEW: State for advanced features (persistentes)
   const [boxOrder, setBoxOrderState] = useState<Record<string, string[]>>({});
@@ -900,7 +962,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
     });
   };
 
-  // NEW: Drag-drop handler for boxes
+  // NEW: Drag-drop handler for boxes (projetos)
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id || !activeMemberId) return;
@@ -923,6 +985,43 @@ export const DailyAlignmentDashboard: React.FC = () => {
 
       return { ...group, projects: newProjects };
     }));
+  };
+
+  // NEW: Drag-drop handler for members (abas de pessoas)
+  const handleMemberDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    // Obter lista atual de membros filtrados
+    const filteredMembers = dashboardData
+      .filter(group => {
+        if (group.assignee === 'Não atribuído' && !dailySettings.showUnassigned) return false;
+        if (dailySettings.visibleMembers.length > 0 && !dailySettings.visibleMembers.includes(group.assignee)) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        if (dailySettings.memberOrder.length === 0) return 0;
+        const indexA = dailySettings.memberOrder.indexOf(a.assignee);
+        const indexB = dailySettings.memberOrder.indexOf(b.assignee);
+        if (indexA === -1 && indexB === -1) return 0;
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        return indexA - indexB;
+      });
+
+    const memberNames = filteredMembers.map(m => m.assignee);
+    const oldIndex = memberNames.indexOf(active.id as string);
+    const newIndex = memberNames.indexOf(over.id as string);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const newOrder = arrayMove(memberNames, oldIndex, newIndex);
+
+    // Salvar nova ordem no dailySettings
+    const newSettings = { ...dailySettings, memberOrder: newOrder };
+    setDailySettings(newSettings);
+    setSavedSettings(newSettings);
+    saveDailySettings(newSettings);
   };
 
   // NEW: Start renaming a project
@@ -1075,29 +1174,6 @@ export const DailyAlignmentDashboard: React.FC = () => {
   };
 
 
-  // Cálculo de Qualidade
-  const qualityStats = useMemo(() => {
-    const active = dashboardData.find(g => g.assignee === activeMemberId);
-    if (!active) return { score: 0 };
-
-    let totalTasks = 0;
-    let penaltyPoints = 0;
-
-    active.projects.forEach(p => {
-      p.tasks.forEach(t => {
-        if (t.status?.toLowerCase().includes('conclu')) return;
-        totalTasks++;
-        if (!t.assignee || t.assignee === 'Sem responsável') penaltyPoints += PENALTY_WEIGHTS.assignee;
-        if (!t.priority || t.priority === '4') penaltyPoints += PENALTY_WEIGHTS.priority;
-        if (!t.dueDate) penaltyPoints += PENALTY_WEIGHTS.dueDate;
-        if (!t.timeEstimate) penaltyPoints += PENALTY_WEIGHTS.estimate;
-      });
-    });
-
-    const score = totalTasks === 0 ? 100 : Math.max(0, Math.round(100 - (penaltyPoints / totalTasks * 2)));
-    return { score };
-  }, [dashboardData, activeMemberId]);
-
   const activeGroup = activeGroupData || dashboardData[0];
 
   if (!activeGroup) return null;
@@ -1129,56 +1205,99 @@ export const DailyAlignmentDashboard: React.FC = () => {
           </button>
         </div>
 
-        {/* Centro: Tabs de Membros com filtro showUnassigned/visibleMembers */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-[60%] pb-1">
-          {dashboardData
-            .filter(group => {
-              // Filtrar "Não atribuído" se showUnassigned estiver desligado
-              if (group.assignee === 'Não atribuído' && !dailySettings.showUnassigned) return false;
-              // Filtrar por visibleMembers se definido
-              if (dailySettings.visibleMembers.length > 0 && !dailySettings.visibleMembers.includes(group.assignee)) return false;
-              return true;
-            })
-            .sort((a, b) => {
-              // Ordenar por memberOrder se definido
-              if (dailySettings.memberOrder.length === 0) return 0;
-              const indexA = dailySettings.memberOrder.indexOf(a.assignee);
-              const indexB = dailySettings.memberOrder.indexOf(b.assignee);
-              if (indexA === -1 && indexB === -1) return 0;
-              if (indexA === -1) return 1;
-              if (indexB === -1) return -1;
-              return indexA - indexB;
-            })
-            .map(group => (
-              <button
-                key={group.assignee}
-                onClick={() => setActiveMemberId(group.assignee)}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap border ${activeMemberId === group.assignee ? 'bg-slate-800 border-slate-800 text-white shadow-lg scale-105' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}
-              >
-                {group.assignee}
-              </button>
-            ))}
-        </div>
+        {/* Centro: Tabs de Membros com filtro showUnassigned/visibleMembers - DRAG-DROP */}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleMemberDragEnd}>
+          <SortableContext
+            items={dashboardData
+              .filter(group => {
+                if (group.assignee === 'Não atribuído' && !dailySettings.showUnassigned) return false;
+                if (dailySettings.visibleMembers.length > 0 && !dailySettings.visibleMembers.includes(group.assignee)) return false;
+                return true;
+              })
+              .sort((a, b) => {
+                if (dailySettings.memberOrder.length === 0) return 0;
+                const indexA = dailySettings.memberOrder.indexOf(a.assignee);
+                const indexB = dailySettings.memberOrder.indexOf(b.assignee);
+                if (indexA === -1 && indexB === -1) return 0;
+                if (indexA === -1) return 1;
+                if (indexB === -1) return -1;
+                return indexA - indexB;
+              })
+              .map(g => g.assignee)
+            }
+            strategy={horizontalListSortingStrategy}
+          >
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-[60%] pb-1">
+              {dashboardData
+                .filter(group => {
+                  if (group.assignee === 'Não atribuído' && !dailySettings.showUnassigned) return false;
+                  if (dailySettings.visibleMembers.length > 0 && !dailySettings.visibleMembers.includes(group.assignee)) return false;
+                  return true;
+                })
+                .sort((a, b) => {
+                  if (dailySettings.memberOrder.length === 0) return 0;
+                  const indexA = dailySettings.memberOrder.indexOf(a.assignee);
+                  const indexB = dailySettings.memberOrder.indexOf(b.assignee);
+                  if (indexA === -1 && indexB === -1) return 0;
+                  if (indexA === -1) return 1;
+                  if (indexB === -1) return -1;
+                  return indexA - indexB;
+                })
+                .map(group => (
+                  <SortableMemberTab
+                    key={group.assignee}
+                    id={group.assignee}
+                    isActive={activeMemberId === group.assignee}
+                    name={group.assignee}
+                    onClick={() => setActiveMemberId(group.assignee)}
+                  />
+                ))}
+            </div>
+          </SortableContext>
+        </DndContext>
 
         {/* Direita: Toggles Globais + Engrenagem */}
-        <div className="flex items-center gap-2">
-          {/* Toggle: Concluídas */}
+        <div className="flex items-center gap-4">
+          {/* Toggle: Tarefas */}
           <button
-            onClick={() => setShowCompleted(!showCompleted)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${showCompleted ? 'bg-emerald-100 border-emerald-300 text-emerald-700' : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'}`}
-            title="Mostrar Concluídas"
+            onClick={() => setShowTasks(!showTasks)}
+            className="flex items-center gap-2 cursor-pointer group"
+            title="Mostrar/Ocultar Tarefas"
           >
-            ✓ Concluídas
+            <div className={`transition-colors ${showTasks ? 'text-sky-500' : 'text-slate-300'}`}>
+              {showTasks ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
+            </div>
+            <span className={`text-sm font-semibold transition-colors ${showTasks ? 'text-slate-700' : 'text-slate-400'}`}>
+              Tarefas
+            </span>
           </button>
 
           {/* Toggle: Subtarefas */}
           <button
             onClick={() => setShowSubtasks(!showSubtasks)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${showSubtasks ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'}`}
-            title="Mostrar Subtarefas"
+            className="flex items-center gap-2 cursor-pointer group"
+            title="Mostrar/Ocultar Subtarefas"
           >
-            <ListTree size={14} className="inline mr-1" />
-            Sub
+            <div className={`transition-colors ${showSubtasks ? 'text-sky-500' : 'text-slate-300'}`}>
+              {showSubtasks ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
+            </div>
+            <span className={`text-sm font-semibold transition-colors ${showSubtasks ? 'text-slate-700' : 'text-slate-400'}`}>
+              Subtarefas
+            </span>
+          </button>
+
+          {/* Toggle: Concluídas */}
+          <button
+            onClick={() => setShowCompleted(!showCompleted)}
+            className="flex items-center gap-2 cursor-pointer group"
+            title="Mostrar/Ocultar Concluídas"
+          >
+            <div className={`transition-colors ${showCompleted ? 'text-sky-500' : 'text-slate-300'}`}>
+              {showCompleted ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
+            </div>
+            <span className={`text-sm font-semibold transition-colors ${showCompleted ? 'text-slate-700' : 'text-slate-400'}`}>
+              Concluídas
+            </span>
           </button>
 
           {/* Engrenagem */}
@@ -1206,9 +1325,6 @@ export const DailyAlignmentDashboard: React.FC = () => {
             <div className="flex items-center gap-4">
               <h2 className="text-3xl font-black text-slate-800 tracking-tighter">{activeGroup.assignee}</h2>
             </div>
-
-            {/* Card Circular de Qualidade */}
-            <CircularQualityBadge score={qualityStats.score} />
           </div>
 
           {/* ============================================ */}
@@ -1259,7 +1375,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    {isExpanded && (
+                    {isExpanded && showTasks && (
                       <div className="p-4">
                         <table className="w-full">
                           <thead>
@@ -1288,15 +1404,20 @@ export const DailyAlignmentDashboard: React.FC = () => {
             </div>
           )}
 
-          {/* Projects Grid */}
-          <div className="grid gap-6">
-            {[...activeGroup.projects]
-              .sort((a, b) => dailySettings.sortProjectsAlphabetically
-                ? a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })
-                : 0
-              )
-              .map((project, pIdx) => {
-                const uniqueId = `${activeGroup.assignee}-${project.name}`;
+          {/* Projects Grid with Drag-and-Drop */}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext
+              items={activeGroup.projects.map(p => p.name)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="grid gap-6">
+                {[...activeGroup.projects]
+                  .sort((a, b) => dailySettings.sortProjectsAlphabetically
+                    ? a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })
+                    : 0
+                  )
+                  .map((project, pIdx) => {
+                    const uniqueId = `${activeGroup.assignee}-${project.name}`;
                 const isExpanded = expandedProjects.has(uniqueId);
                 // Apply exclusivity: filter out tasks in custom boxes
                 // Apply view filters: tags, statuses, completed, exclusive
@@ -1334,10 +1455,11 @@ export const DailyAlignmentDashboard: React.FC = () => {
                 if (filteredTasks.length === 0) return null;
 
                 return (
-                  <div key={uniqueId} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all hover:shadow-md">
-                    <div className={`${bgHeader} px-6 py-4 flex items-center justify-between group`}>
-                      <div onClick={() => toggleProject(uniqueId)} className="flex-1 flex items-center gap-4 cursor-pointer">
-                        <div className="p-2 bg-white/20 rounded-xl text-white"><Layers size={20} /></div>
+                  <SortableProjectCard key={uniqueId} id={project.name}>
+                    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all hover:shadow-md ml-8">
+                      <div className={`${bgHeader} px-6 py-4 flex items-center justify-between group`}>
+                        <div onClick={() => toggleProject(uniqueId)} className="flex-1 flex items-center gap-4 cursor-pointer">
+                          <div className="p-2 bg-white/20 rounded-xl text-white"><Layers size={20} /></div>
 
                         {/* NEW: Rename inline */}
                         {isEditing ? (
@@ -1373,7 +1495,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
                       </button>
                     </div>
 
-                    {isExpanded && (
+                    {isExpanded && showTasks && (
                       <div className="overflow-x-auto">
                         <table className="w-full text-left">
                           <thead>
@@ -1395,12 +1517,15 @@ export const DailyAlignmentDashboard: React.FC = () => {
                             )}
                           </tbody>
                         </table>
-                      </div>
-                    )}
-                  </div>
+                        </div>
+                      )}
+                    </div>
+                  </SortableProjectCard>
                 );
               })}
-          </div>
+              </div>
+            </SortableContext>
+          </DndContext>
         </div>
 
         {
@@ -1442,9 +1567,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
         settings={dailySettings}
         onSettingsChange={(newSettings) => {
           setDailySettings(newSettings);
-          // Sincronizar com estados locais de visualização
-          setShowTasks(newSettings.showTasks);
-          // showCompleted e showSubtasks são derivados de dailySettings
+          // showTasks, showCompleted e showSubtasks são derivados de dailySettings
           setViewScale(newSettings.viewScale);
         }}
         onSave={() => {
@@ -1456,8 +1579,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
           setDailySettings(defaults);
           saveDailySettings(defaults);
           setSavedSettings(defaults);
-          setShowTasks(defaults.showTasks);
-          // showCompleted e showSubtasks são derivados de dailySettings
+          // showTasks, showCompleted e showSubtasks são derivados de dailySettings
           setViewScale(defaults.viewScale);
         }}
         availableTags={getCachedTags()}
@@ -1466,6 +1588,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
         activeMemberId={activeMemberId || ''}
         memberName={activeGroup?.assignee || ''}
         hasUnsavedChanges={hasUnsavedChanges}
+        onCloudSync={syncPreferencesToCloud}
       />
     </div>
   );

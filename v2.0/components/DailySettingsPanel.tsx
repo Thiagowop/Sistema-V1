@@ -31,7 +31,10 @@ import {
     ArrowUpAZ,
     ArrowUp,
     ArrowDown,
-    GripVertical
+    GripVertical,
+    Cloud,
+    CloudOff,
+    Loader2
 } from 'lucide-react';
 import { LocalFilters, createDefaultLocalFilters } from './filters/LocalFilterBar';
 import { TagSelector } from './filters/TagSelector';
@@ -152,6 +155,7 @@ interface DailySettingsPanelProps {
     activeMemberId: string;  // NOVO
     memberName: string;
     hasUnsavedChanges: boolean;
+    onCloudSync?: () => Promise<boolean>;  // Sync para Supabase
 }
 
 export const DailySettingsPanel: React.FC<DailySettingsPanelProps> = ({
@@ -166,10 +170,35 @@ export const DailySettingsPanel: React.FC<DailySettingsPanelProps> = ({
     availableMembers,
     activeMemberId,
     memberName,
-    hasUnsavedChanges
+    hasUnsavedChanges,
+    onCloudSync
 }) => {
     // Estado para abas
     const [activeTab, setActiveTab] = useState<SettingsTab>('geral');
+
+    // Estado para sync na nuvem
+    const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+    const [cloudSyncStatus, setCloudSyncStatus] = useState<'idle' | 'success' | 'error'>('idle');
+
+    const handleCloudSync = async () => {
+        if (!onCloudSync || isCloudSyncing) return;
+
+        setIsCloudSyncing(true);
+        setCloudSyncStatus('idle');
+
+        try {
+            const success = await onCloudSync();
+            setCloudSyncStatus(success ? 'success' : 'error');
+
+            // Resetar status após 3 segundos
+            setTimeout(() => setCloudSyncStatus('idle'), 3000);
+        } catch (e) {
+            setCloudSyncStatus('error');
+            setTimeout(() => setCloudSyncStatus('idle'), 3000);
+        } finally {
+            setIsCloudSyncing(false);
+        }
+    };
 
     // Estado para novo/editar box
     const [boxFormMode, setBoxFormMode] = useState<'create' | 'edit' | null>(null);
@@ -769,25 +798,59 @@ export const DailySettingsPanel: React.FC<DailySettingsPanelProps> = ({
                 </div>
 
                 {/* Footer - Botões de Ação */}
-                <div className="shrink-0 px-5 py-4 bg-slate-50 border-t border-slate-200 flex gap-3">
-                    <button
-                        onClick={onReset}
-                        className="flex-1 py-2.5 bg-white border border-slate-300 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-100 transition-colors flex items-center justify-center gap-2"
-                    >
-                        <RotateCcw size={16} />
-                        Resetar
-                    </button>
-                    <button
-                        onClick={() => {
-                            onSave();
-                            onClose();
-                        }}
-                        className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2 ${hasUnsavedChanges
-                            ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                            : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                <div className="shrink-0 px-5 py-4 bg-slate-50 border-t border-slate-200 space-y-3">
+                    {/* Botão Backup na Nuvem (se disponível) */}
+                    {onCloudSync && (
+                        <button
+                            onClick={handleCloudSync}
+                            disabled={isCloudSyncing}
+                            className={`w-full py-2.5 text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2 ${
+                                cloudSyncStatus === 'success'
+                                    ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                                    : cloudSyncStatus === 'error'
+                                        ? 'bg-rose-100 text-rose-700 border border-rose-300'
+                                        : 'bg-sky-100 text-sky-700 border border-sky-300 hover:bg-sky-200'
                             }`}
-                    >
-                        <Save size={16} />
+                        >
+                            {isCloudSyncing ? (
+                                <Loader2 size={16} className="animate-spin" />
+                            ) : cloudSyncStatus === 'success' ? (
+                                <Check size={16} />
+                            ) : cloudSyncStatus === 'error' ? (
+                                <CloudOff size={16} />
+                            ) : (
+                                <Cloud size={16} />
+                            )}
+                            {isCloudSyncing
+                                ? 'Salvando na Nuvem...'
+                                : cloudSyncStatus === 'success'
+                                    ? 'Salvo na Nuvem!'
+                                    : cloudSyncStatus === 'error'
+                                        ? 'Erro ao Salvar'
+                                        : 'Backup na Nuvem (Supabase)'
+                            }
+                        </button>
+                    )}
+
+                    <div className="flex gap-3">
+                        <button
+                            onClick={onReset}
+                            className="flex-1 py-2.5 bg-white border border-slate-300 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-100 transition-colors flex items-center justify-center gap-2"
+                        >
+                            <RotateCcw size={16} />
+                            Resetar
+                        </button>
+                        <button
+                            onClick={() => {
+                                onSave();
+                                onClose();
+                            }}
+                            className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2 ${hasUnsavedChanges
+                                ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                }`}
+                        >
+                            <Save size={16} />
                         {hasUnsavedChanges ? 'Salvar' : 'Salvar e Fechar'}
                     </button>
                 </div>

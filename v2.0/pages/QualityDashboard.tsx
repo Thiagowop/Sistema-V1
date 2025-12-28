@@ -367,7 +367,12 @@ export const QualityDashboard: React.FC<QualityDashboardProps> = ({ data }) => {
                       <span>{task.assignee}</span>
                     </div>
                   </div>
-                  <button className="flex-shrink-0 px-4 py-2 bg-[#0f172a] text-white text-[10px] font-black uppercase rounded-xl opacity-0 group-hover:opacity-100 transition-all hover:bg-black shadow-lg">Corrigir</button>
+                  <button
+                    onClick={() => window.open(`https://app.clickup.com/t/${task.id}`, '_blank')}
+                    className="flex-shrink-0 px-4 py-2 bg-[#0f172a] text-white text-[10px] font-black uppercase rounded-xl opacity-0 group-hover:opacity-100 transition-all hover:bg-black shadow-lg"
+                  >
+                    Corrigir
+                  </button>
                 </div>
               ))}
             </div>

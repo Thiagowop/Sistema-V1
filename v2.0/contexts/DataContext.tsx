@@ -539,13 +539,38 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
   // ============================================
 
   const clearCache = useCallback(async () => {
-    console.log('[CTX-DATA-001] Clearing all cache...');
+    console.log('[CTX-DATA-001] Clearing task cache (preserving reference data)...');
     await clearAllCache();
     setRawTasks([]);
     setGroupedData([]);
-    setMetadata(null);
     setSyncState(defaultSyncState);
-    console.log('[CTX-DATA-001] Cache cleared');
+
+    // Repopulate metadata from persistent reference data
+    // This ensures tags/team members are still available after cache clear
+    const equipTags = getEquipTags();
+    const teamMembers = getTeamMembers();
+    const projects = getProjects();
+
+    if (equipTags.length > 0 || teamMembers.length > 0 || projects.length > 0) {
+      const refMetadata: FilterMetadata = {
+        tags: equipTags.map(t => t.name),
+        statuses: [], // Statuses are not persisted in reference data
+        assignees: teamMembers.map(m => m.name),
+        projects: projects.map(p => p.name),
+        priorities: []
+      };
+      setMetadata(refMetadata);
+      console.log('[CTX-DATA-001] ✅ Metadata restored from reference data:', {
+        tags: refMetadata.tags.length,
+        assignees: refMetadata.assignees.length,
+        projects: refMetadata.projects.length
+      });
+    } else {
+      setMetadata(null);
+      console.log('[CTX-DATA-001] ℹ️ No reference data available');
+    }
+
+    console.log('[CTX-DATA-001] ✅ Task cache cleared (reference data preserved)');
   }, []);
 
   // ============================================

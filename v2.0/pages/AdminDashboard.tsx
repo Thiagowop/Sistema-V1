@@ -54,11 +54,6 @@ export const AdminDashboard: React.FC = () => {
     const [filterMetadata, setFilterMetadata] = useState<FilterMetadata | null>(null);
     const [showFiltersModal, setShowFiltersModal] = useState(false);
 
-    // API Protection state
-    const [isApiUnlocked, setIsApiUnlocked] = useState(false);
-    const [apiPassword, setApiPassword] = useState('');
-    const [apiPasswordError, setApiPasswordError] = useState('');
-
     // Emergency extract state
     const [isExtracting, setIsExtracting] = useState(false);
     const [extractResult, setExtractResult] = useState<{ tags: number; members: number; projects: number } | null>(null);
@@ -177,31 +172,6 @@ export const AdminDashboard: React.FC = () => {
             keys.forEach(k => localStorage.removeItem(k));
             alert('Reset completo! A página será recarregada.');
             window.location.reload();
-        }
-    };
-
-    // API Protection handlers
-    const handleApiUnlock = () => {
-        // Get stored password or use default if first time
-        const storedPassword = localStorage.getItem('dailyFlow_adminPassword');
-        const correctPassword = storedPassword || 'admin123'; // Default password
-
-        if (apiPassword === correctPassword) {
-            setIsApiUnlocked(true);
-            setApiPasswordError('');
-            setApiPassword('');
-        } else {
-            setApiPasswordError('Senha incorreta. Tente novamente.');
-        }
-    };
-
-    const handleSetAdminPassword = () => {
-        const newPassword = prompt('Digite a nova senha de administrador:');
-        if (newPassword && newPassword.length >= 4) {
-            localStorage.setItem('dailyFlow_adminPassword', newPassword);
-            alert('✅ Senha de administrador alterada com sucesso!');
-        } else if (newPassword) {
-            alert('⚠️ A senha deve ter pelo menos 4 caracteres.');
         }
     };
 
@@ -376,339 +346,6 @@ export const AdminDashboard: React.FC = () => {
                                 </div>
                             </div>
                         </div>
-
-                        {/* Header */}
-                        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white opacity-50">
-                            <div className="flex items-center justify-between gap-3 mb-2">
-                                <div className="flex items-center gap-3">
-                                    <Settings size={28} />
-                                    <div>
-                                        <h3 className="text-2xl font-bold">Filtros de Sincronização</h3>
-                                        <p className="text-indigo-100 text-sm mt-1">
-                                            Configure TODOS os filtros para importar apenas os dados necessários da API do ClickUp
-                                        </p>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => setShowFiltersModal(true)}
-                                    disabled
-                                    className="px-5 py-2.5 bg-white/20 backdrop-blur-sm text-white font-bold rounded-xl flex items-center gap-2 border border-white/30 cursor-not-allowed"
-                                >
-                                    <Filter size={18} />
-                                    Em Breve
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* ============================================ */}
-                        {/* 1. TAGS FILTER */}
-                        {/* ============================================ */}
-                        <div className="bg-white rounded-2xl border-2 border-slate-200 overflow-hidden">
-                            <div className="bg-indigo-50 px-6 py-4 border-b border-indigo-100">
-                                <div className="flex items-center gap-3">
-                                    <Tag size={20} className="text-indigo-600" />
-                                    <div>
-                                        <h4 className="font-bold text-slate-800">Tags</h4>
-                                        <p className="text-xs text-slate-500">
-                                            Filtrar tarefas por tags específicas (OR logic - qualquer tag selecionada)
-                                        </p>
-                                    </div>
-                                    {apiTagFilters.length > 0 && (
-                                        <span className="ml-auto bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-bold">
-                                            {apiTagFilters.length} selecionada{apiTagFilters.length > 1 ? 's' : ''}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="p-6">
-                                {filterMetadata && filterMetadata.tags.length > 0 ? (
-                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                                        {filterMetadata.tags.map(tag => (
-                                            <label
-                                                key={tag}
-                                                className={`flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all ${apiTagFilters.includes(tag)
-                                                    ? 'border-indigo-500 bg-indigo-50'
-                                                    : 'border-slate-200 hover:border-slate-300'
-                                                    }`}
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={apiTagFilters.includes(tag)}
-                                                    onChange={() => toggleTag(tag)}
-                                                    className="w-4 h-4 text-indigo-600"
-                                                />
-                                                <span className="text-sm font-medium">#{tag}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p className="text-center text-slate-400 py-4">Nenhuma tag disponível. Faça um sync primeiro.</p>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* ============================================ */}
-                        {/* 2. ASSIGNEES/RESPONSÁVEIS FILTER */}
-                        {/* ============================================ */}
-                        <div className="bg-white rounded-2xl border-2 border-slate-200 overflow-hidden">
-                            <div className="bg-purple-50 px-6 py-4 border-b border-purple-100">
-                                <div className="flex items-center gap-3">
-                                    <Users size={20} className="text-purple-600" />
-                                    <div>
-                                        <h4 className="font-bold text-slate-800">Responsáveis (Assignees)</h4>
-                                        <p className="text-xs text-slate-500">
-                                            Filtrar apenas tarefas de membros específicos da equipe
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="p-6">
-                                {filterMetadata && filterMetadata.assignees.length > 0 ? (
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                        {filterMetadata.assignees.map(assignee => (
-                                            <label
-                                                key={assignee}
-                                                className="flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all border-slate-200 hover:border-slate-300"
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    className="w-4 h-4 text-purple-600"
-                                                />
-                                                <span className="text-sm font-medium">{assignee}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p className="text-center text-slate-400 py-4">Nenhum responsável disponível. Faça um sync primeiro.</p>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* ============================================ */}
-                        {/* 3. STATUS FILTER */}
-                        {/* ============================================ */}
-                        <div className="bg-white rounded-2xl border-2 border-slate-200 overflow-hidden">
-                            <div className="bg-emerald-50 px-6 py-4 border-b border-emerald-100">
-                                <div className="flex items-center gap-3">
-                                    <CheckCircle size={20} className="text-emerald-600" />
-                                    <div>
-                                        <h4 className="font-bold text-slate-800">Status</h4>
-                                        <p className="text-xs text-slate-500">
-                                            Filtrar tarefas por status específicos
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="p-6">
-                                {filterMetadata && filterMetadata.statuses.length > 0 ? (
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                                        {filterMetadata.statuses.map(status => (
-                                            <label
-                                                key={status}
-                                                className="flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all border-slate-200 hover:border-slate-300"
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    className="w-4 h-4 text-emerald-600"
-                                                />
-                                                <span className="text-sm font-medium">{status}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p className="text-center text-slate-400 py-4">Nenhum status disponível. Faça um sync primeiro.</p>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* ============================================ */}
-                        {/* 4. PRIORITY FILTER */}
-                        {/* ============================================ */}
-                        <div className="bg-white rounded-2xl border-2 border-slate-200 overflow-hidden">
-                            <div className="bg-amber-50 px-6 py-4 border-b border-amber-100">
-                                <div className="flex items-center gap-3">
-                                    <AlertTriangle size={20} className="text-amber-600" />
-                                    <div>
-                                        <h4 className="font-bold text-slate-800">Prioridade</h4>
-                                        <p className="text-xs text-slate-500">
-                                            Filtrar tarefas por nível de prioridade
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="p-6">
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                                    {['URGENT', 'HIGH', 'NORMAL', 'LOW'].map(priority => (
-                                        <label
-                                            key={priority}
-                                            className="flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all border-slate-200 hover:border-slate-300"
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                className="w-4 h-4 text-amber-600"
-                                            />
-                                            <span className="text-sm font-medium">{priority}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* ============================================ */}
-                        {/* 5. DATE RANGE FILTERS */}
-                        {/* ============================================ */}
-                        <div className="bg-white rounded-2xl border-2 border-slate-200 overflow-hidden">
-                            <div className="bg-blue-50 px-6 py-4 border-b border-blue-100">
-                                <div className="flex items-center gap-3">
-                                    <Calendar size={20} className="text-blue-600" />
-                                    <div>
-                                        <h4 className="font-bold text-slate-800">Período de Datas</h4>
-                                        <p className="text-xs text-slate-500">
-                                            Filtrar tarefas por datas de criação, atualização ou entrega
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="p-6 space-y-4">
-                                {/* Due Date Range */}
-                                <div className="grid md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-600 mb-2">Data de Entrega - Início</label>
-                                        <input
-                                            type="date"
-                                            className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-600 mb-2">Data de Entrega - Fim</label>
-                                        <input
-                                            type="date"
-                                            className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Date Created Range */}
-                                <div className="grid md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-600 mb-2">Data de Criação - Início</label>
-                                        <input
-                                            type="date"
-                                            className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-600 mb-2">Data de Criação - Fim</label>
-                                        <input
-                                            type="date"
-                                            className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Date Updated Range */}
-                                <div className="grid md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-600 mb-2">Data de Atualização - Início</label>
-                                        <input
-                                            type="date"
-                                            className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-600 mb-2">Data de Atualização - Fim</label>
-                                        <input
-                                            type="date"
-                                            className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* ============================================ */}
-                        {/* 6. ADDITIONAL OPTIONS */}
-                        {/* ============================================ */}
-                        <div className="bg-white rounded-2xl border-2 border-slate-200 overflow-hidden">
-                            <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
-                                <div className="flex items-center gap-3">
-                                    <Settings2 size={20} className="text-slate-600" />
-                                    <div>
-                                        <h4 className="font-bold text-slate-800">Opções Adicionais</h4>
-                                        <p className="text-xs text-slate-500">
-                                            Configurações extras para refinar a sincronização
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="p-6 space-y-4">
-                                <label className="flex items-center gap-3 p-4 rounded-lg border-2 border-slate-200 cursor-pointer hover:border-slate-300 transition-all">
-                                    <input type="checkbox" className="w-5 h-5 text-indigo-600" />
-                                    <div>
-                                        <span className="text-sm font-bold text-slate-800 block">Incluir Subtarefas</span>
-                                        <span className="text-xs text-slate-500">Importar subtasks junto com as tarefas principais</span>
-                                    </div>
-                                </label>
-
-                                <label className="flex items-center gap-3 p-4 rounded-lg border-2 border-slate-200 cursor-pointer hover:border-slate-300 transition-all">
-                                    <input type="checkbox" className="w-5 h-5 text-indigo-600" />
-                                    <div>
-                                        <span className="text-sm font-bold text-slate-800 block">Incluir Tarefas Arquivadas</span>
-                                        <span className="text-xs text-slate-500">Importar tarefas marcadas como arquivadas</span>
-                                    </div>
-                                </label>
-
-                                <label className="flex items-center gap-3 p-4 rounded-lg border-2 border-slate-200 cursor-pointer hover:border-slate-300 transition-all">
-                                    <input type="checkbox" className="w-5 h-5 text-indigo-600" />
-                                    <div>
-                                        <span className="text-sm font-bold text-slate-800 block">Incluir Tarefas Sem Responsável</span>
-                                        <span className="text-xs text-slate-500">Importar tarefas que não têm assignee definido</span>
-                                    </div>
-                                </label>
-
-                                <label className="flex items-center gap-3 p-4 rounded-lg border-2 border-slate-200 cursor-pointer hover:border-slate-300 transition-all">
-                                    <input type="checkbox" className="w-5 h-5 text-indigo-600" />
-                                    <div>
-                                        <span className="text-sm font-bold text-slate-800 block">Apenas Tarefas Abertas</span>
-                                        <span className="text-xs text-slate-500">Filtrar apenas tarefas que não estão concluídas</span>
-                                    </div>
-                                </label>
-                            </div>
-                        </div>
-
-                        {/* ============================================ */}
-                        {/* SAVE BUTTON */}
-                        {/* ============================================ */}
-                        <div className="flex items-center justify-between gap-4 bg-white rounded-2xl border-2 border-slate-200 p-6">
-                            <div>
-                                <p className="text-sm font-bold text-slate-800">Salvar Configuração de Filtros</p>
-                                <p className="text-xs text-slate-500 mt-1">
-                                    Essas configurações serão aplicadas na próxima sincronização
-                                </p>
-                            </div>
-                            <button
-                                onClick={handleSaveFilters}
-                                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg transition-colors flex items-center gap-2"
-                            >
-                                <Save size={16} />
-                                Salvar Filtros
-                            </button>
-                        </div>
-
-                        {/* Info Box */}
-                        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
-                            <h4 className="font-bold text-blue-900 mb-3 flex items-center gap-2">
-                                <Database size={18} />
-                                Como Funcionam os Filtros de Sync
-                            </h4>
-                            <ul className="text-sm text-blue-800 space-y-2">
-                                <li>🎯 <strong>Filtros aplicados na API:</strong> Reduzem dados antes de importar (10-50x mais rápido)</li>
-                                <li>🔗 <strong>Lógica OR (OU):</strong> Tarefas com QUALQUER filtro selecionado serão importadas</li>
-                                <li>💾 <strong>Performance:</strong> Menos dados = sync mais rápido + menor uso de memória</li>
-                                <li>⚡ <strong>Aplicação automática:</strong> Filtros salvos são usados em todas as sincronizações</li>
-                                <li>🔄 <strong>Sync incremental:</strong> Atualizações respeitam os mesmos filtros</li>
-                            </ul>
-                        </div>
                     </div>
                 )}
 
@@ -727,24 +364,21 @@ export const AdminDashboard: React.FC = () => {
                             <p className="text-sm text-slate-500">Controle de acesso e restrições globais.</p>
                         </div>
 
-                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 font-bold text-slate-700 text-sm">
-                                Privilégios do Sistema
-                            </div>
-
-                            <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-slate-50 transition-colors gap-4">
-                                <div className="flex items-start gap-4">
-                                    <div className={`p-3 rounded-xl ${isReadOnly ? 'bg-amber-100 text-amber-600' : 'bg-indigo-50 text-indigo-600'}`}>
-                                        {isReadOnly ? <Lock size={24} /> : <Unlock size={24} />}
-                                    </div>
-                                    <div>
-                                        <p className="text-base font-bold text-slate-800">Modo Somente Leitura (Global)</p>
-                                        <p className="text-sm text-slate-500 max-w-md">Bloqueia edições para evitar alterações acidentais.</p>
-                                    </div>
+                        {/* Em Construção */}
+                        <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-6 text-white">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                                    <Construction size={32} className="text-white" />
                                 </div>
-                                <button onClick={() => setIsReadOnly(!isReadOnly)} className={isReadOnly ? 'text-amber-600' : 'text-slate-300'}>
-                                    {isReadOnly ? <ToggleRight size={48} /> : <ToggleLeft size={48} />}
-                                </button>
+                                <div>
+                                    <h3 className="text-2xl font-bold flex items-center gap-2">
+                                        Em Construção
+                                        <span className="text-xs bg-white/20 px-2 py-1 rounded-full">v2.1</span>
+                                    </h3>
+                                    <p className="text-amber-100 text-sm mt-1">
+                                        Sistema de permissões e roles será implementado em breve.
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -765,129 +399,65 @@ export const AdminDashboard: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Password Protection Screen */}
-                            {!isApiUnlocked ? (
-                                <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
-                                    <div className="text-center max-w-sm mx-auto">
-                                        <div className="p-4 bg-indigo-50 rounded-full w-fit mx-auto mb-4">
-                                            <Lock size={32} className="text-indigo-600" />
+                            <div className={`bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5 ${isReadOnly ? 'opacity-70 pointer-events-none' : ''}`}>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">API Token</label>
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <Key size={16} className="text-slate-400" />
                                         </div>
-                                        <h4 className="text-xl font-bold text-slate-800 mb-2">Área Protegida</h4>
-                                        <p className="text-sm text-slate-500 mb-6">
-                                            Digite sua senha de administrador para acessar as credenciais da API.
-                                        </p>
-                                        <div className="space-y-4">
-                                            <div className="relative">
-                                                <input
-                                                    type="password"
-                                                    value={apiPassword}
-                                                    onChange={(e) => { setApiPassword(e.target.value); setApiPasswordError(''); }}
-                                                    onKeyDown={(e) => e.key === 'Enter' && handleApiUnlock()}
-                                                    placeholder="Senha de administrador"
-                                                    className={`w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm text-center focus:ring-2 focus:ring-indigo-500 outline-none transition-all ${apiPasswordError ? 'border-rose-300 bg-rose-50' : 'border-slate-200'}`}
-                                                />
-                                            </div>
-                                            {apiPasswordError && (
-                                                <p className="text-xs text-rose-500 font-medium">{apiPasswordError}</p>
-                                            )}
-                                            <button
-                                                onClick={handleApiUnlock}
-                                                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
-                                            >
-                                                <Unlock size={16} />
-                                                Desbloquear
-                                            </button>
-                                            <p className="text-xs text-slate-400 mt-4">
-                                                Senha padrão: <code className="bg-slate-100 px-1.5 py-0.5 rounded">admin123</code>
-                                            </p>
-                                        </div>
+                                        <input
+                                            type={showApiKey ? "text" : "password"}
+                                            value={apiKey}
+                                            onChange={(e) => { setApiKey(e.target.value); markUnsaved(); }}
+                                            placeholder="pk_..."
+                                            className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                        />
+                                        <button
+                                            onClick={() => setShowApiKey(!showApiKey)}
+                                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                                        >
+                                            {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                                        </button>
                                     </div>
                                 </div>
-                            ) : (
-                                <>
-                                    <div className={`bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5 ${isReadOnly ? 'opacity-70 pointer-events-none' : ''}`}>
-                                        <div className="flex items-center justify-between mb-4">
-                                            <span className="text-xs font-bold text-emerald-600 flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-full">
-                                                <Unlock size={12} />
-                                                Desbloqueado
-                                            </span>
-                                            <div className="flex gap-2">
-                                                <button
-                                                    onClick={handleSetAdminPassword}
-                                                    className="text-xs text-slate-500 hover:text-indigo-600 font-medium flex items-center gap-1"
-                                                >
-                                                    <Key size={12} />
-                                                    Alterar Senha
-                                                </button>
-                                                <button
-                                                    onClick={() => setIsApiUnlocked(false)}
-                                                    className="text-xs text-slate-500 hover:text-rose-600 font-medium flex items-center gap-1"
-                                                >
-                                                    <Lock size={12} />
-                                                    Bloquear
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">API Token</label>
-                                            <div className="relative">
-                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                    <Key size={16} className="text-slate-400" />
-                                                </div>
-                                                <input
-                                                    type={showApiKey ? "text" : "password"}
-                                                    value={apiKey}
-                                                    onChange={(e) => { setApiKey(e.target.value); markUnsaved(); }}
-                                                    placeholder="pk_..."
-                                                    className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                                                />
-                                                <button
-                                                    onClick={() => setShowApiKey(!showApiKey)}
-                                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
-                                                >
-                                                    {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                                                </button>
-                                            </div>
-                                        </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                            <div>
-                                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Team ID</label>
-                                                <input
-                                                    type="text"
-                                                    value={teamId}
-                                                    onChange={(e) => { setTeamId(e.target.value); markUnsaved(); }}
-                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                                    placeholder="Ex: 9015..."
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">View ID</label>
-                                                <input
-                                                    type="text"
-                                                    value={viewId}
-                                                    onChange={(e) => { setViewId(e.target.value); markUnsaved(); }}
-                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                                    placeholder="Ex: 8c9k-..."
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-2">
-                                                CORS Proxy URL <Globe size={12} />
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={corsProxy}
-                                                onChange={(e) => { setCorsProxy(e.target.value); markUnsaved(); }}
-                                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                                placeholder="https://corsproxy.io/?"
-                                            />
-                                        </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Team ID</label>
+                                        <input
+                                            type="text"
+                                            value={teamId}
+                                            onChange={(e) => { setTeamId(e.target.value); markUnsaved(); }}
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            placeholder="Ex: 9015..."
+                                        />
                                     </div>
-                                </>
-                            )}
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">View ID</label>
+                                        <input
+                                            type="text"
+                                            value={viewId}
+                                            onChange={(e) => { setViewId(e.target.value); markUnsaved(); }}
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            placeholder="Ex: 8c9k-..."
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-2">
+                                        CORS Proxy URL <Globe size={12} />
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={corsProxy}
+                                        onChange={(e) => { setCorsProxy(e.target.value); markUnsaved(); }}
+                                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        placeholder="https://corsproxy.io/?"
+                                    />
+                                </div>
+                            </div>
                         </div>
                     )
                 }

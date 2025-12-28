@@ -488,22 +488,12 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
       isToday: day.isToday
     }));
 
-    // Caso "Todos da Equipe": agregar projetos de todos os membros
+    // Caso "Todos da Equipe": criar estrutura de persons com projetos
     if (selectedMemberFilter === 'all') {
-      // Mapa para agregar projetos por nome
-      const projectMap = new Map<string, {
-        id: string;
-        name: string;
-        hoursPerDay: { planned: number; actual: number; deviation: number; deviationPercent: number }[];
-        totalPlanned: number;
-        totalActual: number;
-      }>();
-
-      // Iterar por todos os membros e agregar projetos
-      teamMembers.forEach(member => {
-        member.projects.forEach(project => {
-          const existingProject = projectMap.get(project.name);
-
+      // Criar array de persons com seus projetos
+      const persons = teamMembers.map(member => {
+        // Converter projetos do membro para formato Excel
+        const memberProjects = member.projects.map(project => {
           const hoursPerDay = allDays.map((_, dayIdx) => {
             const hours = sumTaskHours(project.tasks, dayIdx);
             return {
@@ -517,49 +507,54 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
           const totalPlanned = hoursPerDay.reduce((sum, h) => sum + h.planned, 0);
           const totalActual = hoursPerDay.reduce((sum, h) => sum + h.actual, 0);
 
-          if (existingProject) {
-            // Agregar horas ao projeto existente
-            hoursPerDay.forEach((dayHours, idx) => {
-              existingProject.hoursPerDay[idx].planned += dayHours.planned;
-              existingProject.hoursPerDay[idx].actual += dayHours.actual;
-              existingProject.hoursPerDay[idx].deviation =
-                existingProject.hoursPerDay[idx].actual - existingProject.hoursPerDay[idx].planned;
-              existingProject.hoursPerDay[idx].deviationPercent =
-                existingProject.hoursPerDay[idx].planned > 0
-                  ? ((existingProject.hoursPerDay[idx].actual - existingProject.hoursPerDay[idx].planned) / existingProject.hoursPerDay[idx].planned) * 100
-                  : 0;
-            });
-            existingProject.totalPlanned += totalPlanned;
-            existingProject.totalActual += totalActual;
-          } else {
-            // Novo projeto no mapa
-            projectMap.set(project.name, {
-              id: project.id,
-              name: project.name,
-              hoursPerDay,
-              totalPlanned,
-              totalActual
-            });
-          }
+          return {
+            id: project.id,
+            name: project.name,
+            hoursPerDay,
+            totalPlanned,
+            totalActual,
+            totalDeviation: totalActual - totalPlanned
+          };
         });
-      });
 
-      // Converter mapa para array e calcular desvio total
-      const excelProjects = Array.from(projectMap.values()).map(p => ({
-        ...p,
-        totalDeviation: p.totalActual - p.totalPlanned
-      }));
+        // Calcular totais do membro (soma de todos os projetos)
+        const memberHoursPerDay = allDays.map((_, dayIdx) => {
+          const planned = memberProjects.reduce((sum, p) => sum + (p.hoursPerDay[dayIdx]?.planned || 0), 0);
+          const actual = memberProjects.reduce((sum, p) => sum + (p.hoursPerDay[dayIdx]?.actual || 0), 0);
+          return {
+            planned,
+            actual,
+            deviation: actual - planned,
+            deviationPercent: planned > 0 ? ((actual - planned) / planned) * 100 : 0
+          };
+        });
+
+        const totalPlanned = memberProjects.reduce((sum, p) => sum + p.totalPlanned, 0);
+        const totalActual = memberProjects.reduce((sum, p) => sum + p.totalActual, 0);
+
+        return {
+          id: member.id,
+          name: member.name,
+          hoursPerDay: memberHoursPerDay,
+          totalPlanned,
+          totalActual,
+          totalDeviation: totalActual - totalPlanned,
+          projects: memberProjects
+        };
+      });
 
       return {
         days: excelDays,
-        projects: excelProjects,
-        memberName: 'Todos da Equipe'
+        projects: [], // Empty, using persons instead
+        memberName: 'Todos da Equipe',
+        persons,
+        showAllMode: true
       };
     }
 
     // Caso membro específico selecionado
     const selectedMember = teamMembers.find(m => m.id === selectedMemberFilter);
-    if (!selectedMember) return { days: [], projects: [], memberName: '' };
+    if (!selectedMember) return { days: [], projects: [], memberName: '', showAllMode: false };
 
     // Converter projetos para formato Excel
     const excelProjects = selectedMember.projects.map(project => {
@@ -589,7 +584,8 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
     return {
       days: excelDays,
       projects: excelProjects,
-      memberName: selectedMember.name
+      memberName: selectedMember.name,
+      showAllMode: false
     };
   }, [teamMembers, selectedMemberFilter, allDays]);
 
@@ -1100,6 +1096,8 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
               // TODO: Implementar exportação para Excel
               alert('Exportação em desenvolvimento');
             }}
+            persons={excelViewData.persons}
+            showAllMode={excelViewData.showAllMode}
           />
         ) : activeTab === 'calendar' ? <CalendarView /> : (
           <div className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border rounded-lg overflow-hidden`}>

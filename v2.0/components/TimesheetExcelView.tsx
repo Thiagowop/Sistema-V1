@@ -12,8 +12,9 @@
  * - Exportação para Excel
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { Download, ChevronDown, ChevronRight, FileSpreadsheet, User } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 // ============================================
 // TIPOS
@@ -178,6 +179,145 @@ export const TimesheetExcelView: React.FC<TimesheetExcelViewProps> = ({
     });
   };
 
+  // Helper para formatar horas para Excel (número decimal)
+  const formatTimeForExcel = (hours: number): number => {
+    return Math.round(hours * 100) / 100;
+  };
+
+  // Função de exportação para Excel
+  const handleExport = useCallback(() => {
+    // Criar array de dados para a planilha
+    const data: (string | number)[][] = [];
+
+    // Linha 1: Cabeçalho com datas
+    const headerRow1: (string | number)[] = [''];
+    workDays.forEach(day => {
+      headerRow1.push(`${day.day} de ${day.monthName}`, '', '');
+    });
+    headerRow1.push('TOTAL', '', '');
+    data.push(headerRow1);
+
+    // Linha 2: Sub-cabeçalho Planej./Gastas/Desvio
+    const headerRow2: (string | number)[] = [showAllMode ? 'Equipe / Projetos' : "Job's / Projetos"];
+    workDays.forEach(() => {
+      headerRow2.push('Planej.', 'Gastas', 'Desvio');
+    });
+    headerRow2.push('Planej.', 'Gastas', 'Desvio');
+    data.push(headerRow2);
+
+    // Linha 3: Subtotal de horas diárias
+    const subtotalRow: (string | number)[] = ['Subtotal de horas diárias'];
+    workDays.forEach(day => {
+      const subtotal = dailySubtotals[days.indexOf(day)];
+      subtotalRow.push(
+        formatTimeForExcel(subtotal?.planned || 0),
+        formatTimeForExcel(subtotal?.actual || 0),
+        formatTimeForExcel(subtotal?.deviation || 0)
+      );
+    });
+    subtotalRow.push(
+      formatTimeForExcel(grandTotals.planned),
+      formatTimeForExcel(grandTotals.actual),
+      formatTimeForExcel(grandTotals.deviation)
+    );
+    data.push(subtotalRow);
+
+    // Linhas de dados: Persons com seus projetos OU apenas projetos
+    if (showAllMode && persons) {
+      persons.forEach(person => {
+        // Linha da pessoa
+        const personRow: (string | number)[] = [person.name];
+        workDays.forEach(day => {
+          const dayData = person.hoursPerDay[days.indexOf(day)];
+          personRow.push(
+            formatTimeForExcel(dayData?.planned || 0),
+            formatTimeForExcel(dayData?.actual || 0),
+            formatTimeForExcel(dayData?.deviation || 0)
+          );
+        });
+        personRow.push(
+          formatTimeForExcel(person.totalPlanned),
+          formatTimeForExcel(person.totalActual),
+          formatTimeForExcel(person.totalDeviation)
+        );
+        data.push(personRow);
+
+        // Projetos da pessoa (indentados)
+        person.projects.forEach(project => {
+          const projectRow: (string | number)[] = [`  → ${project.name}`];
+          workDays.forEach(day => {
+            const dayData = project.hoursPerDay[days.indexOf(day)];
+            projectRow.push(
+              formatTimeForExcel(dayData?.planned || 0),
+              formatTimeForExcel(dayData?.actual || 0),
+              formatTimeForExcel(dayData?.deviation || 0)
+            );
+          });
+          projectRow.push(
+            formatTimeForExcel(project.totalPlanned),
+            formatTimeForExcel(project.totalActual),
+            formatTimeForExcel(project.totalDeviation)
+          );
+          data.push(projectRow);
+        });
+      });
+    } else {
+      // Modo de membro único - apenas projetos
+      projects.forEach(project => {
+        const projectRow: (string | number)[] = [project.name];
+        workDays.forEach(day => {
+          const dayData = project.hoursPerDay[days.indexOf(day)];
+          projectRow.push(
+            formatTimeForExcel(dayData?.planned || 0),
+            formatTimeForExcel(dayData?.actual || 0),
+            formatTimeForExcel(dayData?.deviation || 0)
+          );
+        });
+        projectRow.push(
+          formatTimeForExcel(project.totalPlanned),
+          formatTimeForExcel(project.totalActual),
+          formatTimeForExcel(project.totalDeviation)
+        );
+        data.push(projectRow);
+      });
+    }
+
+    // Criar workbook e worksheet
+    const ws = XLSX.utils.aoa_to_sheet(data);
+
+    // Ajustar largura das colunas
+    const colWidths = [{ wch: 30 }]; // Primeira coluna mais larga
+    for (let i = 0; i < workDays.length * 3 + 3; i++) {
+      colWidths.push({ wch: 10 });
+    }
+    ws['!cols'] = colWidths;
+
+    // Mesclar células do cabeçalho de datas
+    const merges: XLSX.Range[] = [];
+    for (let i = 0; i < workDays.length; i++) {
+      merges.push({
+        s: { r: 0, c: 1 + i * 3 },
+        e: { r: 0, c: 3 + i * 3 }
+      });
+    }
+    // Mesclar TOTAL
+    merges.push({
+      s: { r: 0, c: 1 + workDays.length * 3 },
+      e: { r: 0, c: 3 + workDays.length * 3 }
+    });
+    ws['!merges'] = merges;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Timesheet');
+
+    // Gerar nome do arquivo com data
+    const today = new Date();
+    const fileName = `Timesheet_${memberName.replace(/\s+/g, '_')}_${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}.xlsx`;
+
+    // Download do arquivo
+    XLSX.writeFile(wb, fileName);
+  }, [workDays, days, dailySubtotals, grandTotals, persons, projects, showAllMode, memberName]);
+
   // Render hours cells for a row
   const renderHoursCells = (hoursPerDay: HoursData[], totals: { planned: number; actual: number; deviation: number }, isHighlight = false) => (
     <>
@@ -225,18 +365,16 @@ export const TimesheetExcelView: React.FC<TimesheetExcelViewProps> = ({
             <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>Visão detalhada de desvio (Excel Mode)</p>
           </div>
         </div>
-        {onExport && (
-          <button
-            onClick={onExport}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${isDark
-              ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
-              : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-              }`}
-          >
-            <Download className="w-4 h-4" />
-            Exportar
-          </button>
-        )}
+        <button
+          onClick={handleExport}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${isDark
+            ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+            : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+            }`}
+        >
+          <Download className="w-4 h-4" />
+          Exportar Excel
+        </button>
       </div>
 
       {/* Table - with both horizontal and vertical scroll */}

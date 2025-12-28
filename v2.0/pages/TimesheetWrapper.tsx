@@ -74,7 +74,7 @@ export const TimesheetWrapper: React.FC = () => {
         const today = new Date();
         return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
     });
-    const [showCompleted, setShowCompleted] = React.useState(false);
+    const [showCompleted, setShowCompleted] = React.useState(true);
 
     // Transformar dados do ClickUp em formato do Timesheet
     const teamMembers = useMemo<Member[]>(() => {

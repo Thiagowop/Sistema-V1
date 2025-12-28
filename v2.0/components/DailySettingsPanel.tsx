@@ -290,16 +290,6 @@ export const DailySettingsPanel: React.FC<DailySettingsPanelProps> = ({
         updateMemberBoxes(currentMemberBoxes.filter(b => b.id !== boxId));
     };
 
-    const moveBox = (boxId: string, direction: 'up' | 'down') => {
-        const boxes = [...currentMemberBoxes];
-        const index = boxes.findIndex(b => b.id === boxId);
-        if (index === -1) return;
-        const newIndex = direction === 'up' ? index - 1 : index + 1;
-        if (newIndex < 0 || newIndex >= boxes.length) return;
-        [boxes[index], boxes[newIndex]] = [boxes[newIndex], boxes[index]];
-        updateMemberBoxes(boxes);
-    };
-
     // Contagem de filtros ativos
     const activeFilterCount = useMemo(() => {
         const { localFilters } = settings;
@@ -763,20 +753,6 @@ export const DailySettingsPanel: React.FC<DailySettingsPanelProps> = ({
                                             </div>
                                             <div className="flex gap-0.5">
                                                 <button
-                                                    onClick={() => moveBox(box.id, 'up')}
-                                                    disabled={index === 0}
-                                                    className="p-1.5 text-slate-400 hover:text-slate-600 disabled:opacity-30"
-                                                >
-                                                    ↑
-                                                </button>
-                                                <button
-                                                    onClick={() => moveBox(box.id, 'down')}
-                                                    disabled={index === currentMemberBoxes.length - 1}
-                                                    className="p-1.5 text-slate-400 hover:text-slate-600 disabled:opacity-30"
-                                                >
-                                                    ↓
-                                                </button>
-                                                <button
                                                     onClick={() => openEditForm(box)}
                                                     className="p-1.5 text-slate-400 hover:text-indigo-600"
                                                 >
@@ -851,8 +827,9 @@ export const DailySettingsPanel: React.FC<DailySettingsPanelProps> = ({
                                 }`}
                         >
                             <Save size={16} />
-                        {hasUnsavedChanges ? 'Salvar' : 'Salvar e Fechar'}
-                    </button>
+                            {hasUnsavedChanges ? 'Salvar' : 'Salvar e Fechar'}
+                        </button>
+                    </div>
                 </div>
             </div>
         </>

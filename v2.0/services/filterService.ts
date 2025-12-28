@@ -9,7 +9,7 @@
 
 import { FilterConfig, FilterState, FilterGroup, FilterMetadata } from '../types/FilterConfig';
 import { loadMetadata as loadCacheMetadata, MetadataCache } from './advancedCacheService';
-import { getEquipTagNames, getTeamMemberNames, getProjectNames, referenceData } from './referenceDataService';
+import { getEquipTagNames, getTeamMemberNames, getProjectNames } from './referenceDataService';
 
 // ============================================
 // CACHED METADATA ACCESS
@@ -75,40 +75,6 @@ export const getCachedTags = (): string[] => {
 export const getCachedStatuses = (): string[] => {
     const cached = loadCacheMetadata();
     return cached?.statuses || [];
-};
-
-/**
- * Carrega apenas os projetos do cache
- * Usa referenceDataService como fallback quando cache está vazio
- */
-export const getCachedProjects = (): string[] => {
-    const cached = loadCacheMetadata();
-    const cacheProjects = cached?.projects || [];
-
-    // Se cache tem projetos, retornar do cache
-    if (cacheProjects.length > 0) {
-        return cacheProjects;
-    }
-
-    // Fallback para dados persistentes
-    return getProjectNames();
-};
-
-/**
- * Carrega apenas os assignees do cache
- * Usa referenceDataService como fallback quando cache está vazio
- */
-export const getCachedAssignees = (): string[] => {
-    const cached = loadCacheMetadata();
-    const cacheAssignees = cached?.assignees || [];
-
-    // Se cache tem assignees, retornar do cache
-    if (cacheAssignees.length > 0) {
-        return cacheAssignees;
-    }
-
-    // Fallback para dados persistentes
-    return getTeamMemberNames();
 };
 
 /**

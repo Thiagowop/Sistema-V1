@@ -13,6 +13,3 @@ export type { UseFiltersReturn } from './useFilters';
 
 export { useTasks } from './useTasks';
 export type { TaskStats, UseTasksReturn } from './useTasks';
-
-export { useCache } from './useCache';
-export type { CacheInfo, UseCacheReturn } from './useCache';

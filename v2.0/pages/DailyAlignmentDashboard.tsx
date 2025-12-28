@@ -51,6 +51,7 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
+  horizontalListSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -61,16 +62,6 @@ import { SyncControlsBar } from '../components/SyncControlsBar';
 import { LocalFilters, createDefaultLocalFilters, applyLocalFilters } from '../components/filters/LocalFilterBar';
 import { DailySettingsPanel, DailySettings, createDefaultDailySettings, loadDailySettings, saveDailySettings } from '../components/DailySettingsPanel';
 import { userPreferences, initializePreferences, syncPreferencesToCloud } from '../services/userPreferencesService';
-
-// --- CONFIGURAÇÕES DE QUALIDADE ---
-const PENALTY_WEIGHTS = {
-  assignee: 15,
-  dueDate: 10,
-  priority: 5,
-  startDate: 2,
-  estimate: 5,
-  description: 1
-};
 
 // --- TYPES ESTENDIDOS ---
 interface ExtendedProject extends Omit<Project, 'stats'> {
@@ -204,34 +195,6 @@ const PriorityFlag = ({ priority }: { priority?: string }) => {
   );
 };
 
-// Card Circular SIMPLES de Qualidade (só círculo + %)
-const CircularQualityBadge = ({ score }: { score: number }) => {
-  const radius = 28;
-  const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (score / 100) * circumference;
-
-  // Cores dinâmicas: vermelho <60, amarelo 60-70, verde >70
-  const color = score < 60 ? '#ef4444' : score < 70 ? '#eab308' : '#10b981';
-  const textColor = score < 60 ? 'text-red-600' : score < 70 ? 'text-yellow-600' : 'text-emerald-600';
-
-  return (
-    <div className="relative flex items-center justify-center" style={{ width: 70, height: 70 }}>
-      <svg className="transform -rotate-90 w-full h-full">
-        <circle cx={35} cy={35} r={radius} stroke="#e2e8f0" strokeWidth={4} fill="transparent" />
-        <circle
-          cx={35} cy={35} r={radius}
-          stroke={color} strokeWidth={4} fill="transparent"
-          strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round"
-          className="transition-all duration-1000 ease-out"
-        />
-      </svg>
-      <div className="absolute flex flex-col items-center">
-        <span className={`font-bold ${textColor} text-2xl leading-none`}>{score}%</span>
-      </div>
-    </div>
-  );
-};
-
 // Ícone de HORAS EXCEDIDAS piscante
 const ExceededHoursIcon = ({ timeLogged, timeEstimate }: { timeLogged?: number; timeEstimate?: number }) => {
   const isOver = (timeLogged || 0) > (timeEstimate || 0);
@@ -246,7 +209,7 @@ const ExceededHoursIcon = ({ timeLogged, timeEstimate }: { timeLogged?: number; 
   );
 };
 
-// --- COMPONENTE SORTABLE PARA DRAG-DROP ---
+// --- COMPONENTE SORTABLE PARA DRAG-DROP (PROJETOS) ---
 interface SortableProjectCardProps {
   id: string;
   children: React.ReactNode;
@@ -282,6 +245,50 @@ const SortableProjectCard: React.FC<SortableProjectCardProps> = ({ id, children 
         </div>
         {children}
       </div>
+    </div>
+  );
+};
+
+// --- COMPONENTE SORTABLE PARA MEMBROS (ABAS) ---
+interface SortableMemberTabProps {
+  id: string;
+  isActive: boolean;
+  name: string;
+  onClick: () => void;
+}
+
+const SortableMemberTab: React.FC<SortableMemberTabProps> = ({ id, isActive, name, onClick }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+    zIndex: isDragging ? 50 : 'auto',
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} className="relative group">
+      <button
+        onClick={onClick}
+        className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap border cursor-pointer ${
+          isActive
+            ? 'bg-slate-800 border-slate-800 text-white shadow-lg scale-105'
+            : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
+        }`}
+      >
+        {/* Drag handle invisível integrado */}
+        <span {...listeners} className="cursor-grab active:cursor-grabbing">
+          {name}
+        </span>
+      </button>
     </div>
   );
 };
@@ -955,7 +962,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
     });
   };
 
-  // NEW: Drag-drop handler for boxes
+  // NEW: Drag-drop handler for boxes (projetos)
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id || !activeMemberId) return;
@@ -978,6 +985,43 @@ export const DailyAlignmentDashboard: React.FC = () => {
 
       return { ...group, projects: newProjects };
     }));
+  };
+
+  // NEW: Drag-drop handler for members (abas de pessoas)
+  const handleMemberDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    // Obter lista atual de membros filtrados
+    const filteredMembers = dashboardData
+      .filter(group => {
+        if (group.assignee === 'Não atribuído' && !dailySettings.showUnassigned) return false;
+        if (dailySettings.visibleMembers.length > 0 && !dailySettings.visibleMembers.includes(group.assignee)) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        if (dailySettings.memberOrder.length === 0) return 0;
+        const indexA = dailySettings.memberOrder.indexOf(a.assignee);
+        const indexB = dailySettings.memberOrder.indexOf(b.assignee);
+        if (indexA === -1 && indexB === -1) return 0;
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        return indexA - indexB;
+      });
+
+    const memberNames = filteredMembers.map(m => m.assignee);
+    const oldIndex = memberNames.indexOf(active.id as string);
+    const newIndex = memberNames.indexOf(over.id as string);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const newOrder = arrayMove(memberNames, oldIndex, newIndex);
+
+    // Salvar nova ordem no dailySettings
+    const newSettings = { ...dailySettings, memberOrder: newOrder };
+    setDailySettings(newSettings);
+    setSavedSettings(newSettings);
+    saveDailySettings(newSettings);
   };
 
   // NEW: Start renaming a project
@@ -1130,29 +1174,6 @@ export const DailyAlignmentDashboard: React.FC = () => {
   };
 
 
-  // Cálculo de Qualidade
-  const qualityStats = useMemo(() => {
-    const active = dashboardData.find(g => g.assignee === activeMemberId);
-    if (!active) return { score: 0 };
-
-    let totalTasks = 0;
-    let penaltyPoints = 0;
-
-    active.projects.forEach(p => {
-      p.tasks.forEach(t => {
-        if (t.status?.toLowerCase().includes('conclu')) return;
-        totalTasks++;
-        if (!t.assignee || t.assignee === 'Sem responsável') penaltyPoints += PENALTY_WEIGHTS.assignee;
-        if (!t.priority || t.priority === '4') penaltyPoints += PENALTY_WEIGHTS.priority;
-        if (!t.dueDate) penaltyPoints += PENALTY_WEIGHTS.dueDate;
-        if (!t.timeEstimate) penaltyPoints += PENALTY_WEIGHTS.estimate;
-      });
-    });
-
-    const score = totalTasks === 0 ? 100 : Math.max(0, Math.round(100 - (penaltyPoints / totalTasks * 2)));
-    return { score };
-  }, [dashboardData, activeMemberId]);
-
   const activeGroup = activeGroupData || dashboardData[0];
 
   if (!activeGroup) return null;
@@ -1184,36 +1205,56 @@ export const DailyAlignmentDashboard: React.FC = () => {
           </button>
         </div>
 
-        {/* Centro: Tabs de Membros com filtro showUnassigned/visibleMembers */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-[60%] pb-1">
-          {dashboardData
-            .filter(group => {
-              // Filtrar "Não atribuído" se showUnassigned estiver desligado
-              if (group.assignee === 'Não atribuído' && !dailySettings.showUnassigned) return false;
-              // Filtrar por visibleMembers se definido
-              if (dailySettings.visibleMembers.length > 0 && !dailySettings.visibleMembers.includes(group.assignee)) return false;
-              return true;
-            })
-            .sort((a, b) => {
-              // Ordenar por memberOrder se definido
-              if (dailySettings.memberOrder.length === 0) return 0;
-              const indexA = dailySettings.memberOrder.indexOf(a.assignee);
-              const indexB = dailySettings.memberOrder.indexOf(b.assignee);
-              if (indexA === -1 && indexB === -1) return 0;
-              if (indexA === -1) return 1;
-              if (indexB === -1) return -1;
-              return indexA - indexB;
-            })
-            .map(group => (
-              <button
-                key={group.assignee}
-                onClick={() => setActiveMemberId(group.assignee)}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap border ${activeMemberId === group.assignee ? 'bg-slate-800 border-slate-800 text-white shadow-lg scale-105' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}
-              >
-                {group.assignee}
-              </button>
-            ))}
-        </div>
+        {/* Centro: Tabs de Membros com filtro showUnassigned/visibleMembers - DRAG-DROP */}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleMemberDragEnd}>
+          <SortableContext
+            items={dashboardData
+              .filter(group => {
+                if (group.assignee === 'Não atribuído' && !dailySettings.showUnassigned) return false;
+                if (dailySettings.visibleMembers.length > 0 && !dailySettings.visibleMembers.includes(group.assignee)) return false;
+                return true;
+              })
+              .sort((a, b) => {
+                if (dailySettings.memberOrder.length === 0) return 0;
+                const indexA = dailySettings.memberOrder.indexOf(a.assignee);
+                const indexB = dailySettings.memberOrder.indexOf(b.assignee);
+                if (indexA === -1 && indexB === -1) return 0;
+                if (indexA === -1) return 1;
+                if (indexB === -1) return -1;
+                return indexA - indexB;
+              })
+              .map(g => g.assignee)
+            }
+            strategy={horizontalListSortingStrategy}
+          >
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-[60%] pb-1">
+              {dashboardData
+                .filter(group => {
+                  if (group.assignee === 'Não atribuído' && !dailySettings.showUnassigned) return false;
+                  if (dailySettings.visibleMembers.length > 0 && !dailySettings.visibleMembers.includes(group.assignee)) return false;
+                  return true;
+                })
+                .sort((a, b) => {
+                  if (dailySettings.memberOrder.length === 0) return 0;
+                  const indexA = dailySettings.memberOrder.indexOf(a.assignee);
+                  const indexB = dailySettings.memberOrder.indexOf(b.assignee);
+                  if (indexA === -1 && indexB === -1) return 0;
+                  if (indexA === -1) return 1;
+                  if (indexB === -1) return -1;
+                  return indexA - indexB;
+                })
+                .map(group => (
+                  <SortableMemberTab
+                    key={group.assignee}
+                    id={group.assignee}
+                    isActive={activeMemberId === group.assignee}
+                    name={group.assignee}
+                    onClick={() => setActiveMemberId(group.assignee)}
+                  />
+                ))}
+            </div>
+          </SortableContext>
+        </DndContext>
 
         {/* Direita: Toggles Globais + Engrenagem */}
         <div className="flex items-center gap-4">
@@ -1284,9 +1325,6 @@ export const DailyAlignmentDashboard: React.FC = () => {
             <div className="flex items-center gap-4">
               <h2 className="text-3xl font-black text-slate-800 tracking-tighter">{activeGroup.assignee}</h2>
             </div>
-
-            {/* Card Circular de Qualidade */}
-            <CircularQualityBadge score={qualityStats.score} />
           </div>
 
           {/* ============================================ */}

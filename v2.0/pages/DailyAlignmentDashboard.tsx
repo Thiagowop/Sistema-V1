@@ -293,6 +293,46 @@ const SortableMemberTab: React.FC<SortableMemberTabProps> = ({ id, isActive, nam
   );
 };
 
+// --- COMPONENTE SORTABLE PARA CUSTOM BOXES ---
+interface SortableCustomBoxProps {
+  id: string;
+  children: React.ReactNode;
+}
+
+const SortableCustomBox: React.FC<SortableCustomBoxProps> = ({ id, children }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : 'auto',
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      <div className="relative group">
+        {/* Drag Handle */}
+        <div
+          {...listeners}
+          className="absolute left-2 top-1/2 -translate-y-1/2 p-2 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-white/80 rounded-lg shadow-sm"
+          title="Arrastar para reordenar"
+        >
+          <GripVertical size={16} className="text-slate-400" />
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+};
+
 // --- COMPONENTES AUXILIARES ---
 
 const formatDate = (dateString?: string | null | Date) => {
@@ -1024,6 +1064,35 @@ export const DailyAlignmentDashboard: React.FC = () => {
     saveDailySettings(newSettings);
   };
 
+  // NEW: Drag-drop handler for custom boxes
+  const handleCustomBoxDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const currentBoxes = dailySettings.customBoxesByMember?.[activeMemberId] || [];
+    const oldIndex = currentBoxes.findIndex(b => b.id === active.id);
+    const newIndex = currentBoxes.findIndex(b => b.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const newBoxes = arrayMove(currentBoxes, oldIndex, newIndex);
+
+    // Update order property
+    const updatedBoxes = newBoxes.map((box, idx) => ({ ...box, order: idx }));
+
+    // Salvar nova ordem no dailySettings
+    const newSettings = {
+      ...dailySettings,
+      customBoxesByMember: {
+        ...dailySettings.customBoxesByMember,
+        [activeMemberId]: updatedBoxes
+      }
+    };
+    setDailySettings(newSettings);
+    setSavedSettings(newSettings);
+    saveDailySettings(newSettings);
+  };
+
   // NEW: Start renaming a project
   const startRename = (projectId: string, currentName: string) => {
     setEditingProjectId(projectId);
@@ -1331,77 +1400,86 @@ export const DailyAlignmentDashboard: React.FC = () => {
           {/* CUSTOM BOXES - Boxes customizados criados pelo usuário */}
           {/* ============================================ */}
           {computedCustomBoxes.length > 0 && (
-            <div className="grid gap-6">
-              {computedCustomBoxes.map((box) => {
-                const boxId = `custom-${box.id}`;
-                const isExpanded = expandedProjects.has(boxId);
-                const filteredTasks = box.tasks.filter((t: Task) => showCompleted || !t.status?.toLowerCase().includes('conclu'));
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleCustomBoxDragEnd}>
+              <SortableContext
+                items={computedCustomBoxes.map(b => b.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="grid gap-6">
+                  {computedCustomBoxes.map((box) => {
+                    const boxId = `custom-${box.id}`;
+                    const isExpanded = expandedProjects.has(boxId);
+                    const filteredTasks = box.tasks.filter((t: Task) => showCompleted || !t.status?.toLowerCase().includes('conclu'));
 
-                // Hide empty custom boxes after filtering
-                if (filteredTasks.length === 0) return null;
+                    // Hide empty custom boxes after filtering
+                    if (filteredTasks.length === 0) return null;
 
-                return (
-                  <div key={boxId} className="bg-white rounded-3xl border-2 border-dashed border-purple-200 shadow-sm overflow-hidden transition-all hover:shadow-md hover:border-purple-300">
-                    <div
-                      className="px-6 py-4 flex items-center justify-between cursor-pointer"
-                      style={{ backgroundColor: box.color || '#7c3aed' }}
-                      onClick={() => toggleProject(boxId)}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="p-2 bg-white/20 rounded-xl text-white">
-                          <Box size={20} />
-                        </div>
-                        <div>
-                          <h3 className="text-white font-black text-lg tracking-tight uppercase">{box.name}</h3>
-                          <div className="flex gap-2 mt-0.5">
-                            {box.filterTags.length > 0 && (
-                              <span className="text-white/70 text-xs">{box.filterTags.length} tags</span>
-                            )}
-                            {box.filterStatuses?.length > 0 && (
-                              <span className="text-white/70 text-xs">{box.filterStatuses.length} status</span>
-                            )}
+                    return (
+                      <SortableCustomBox key={box.id} id={box.id}>
+                        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all hover:shadow-md ml-8">
+                          <div
+                            className="px-6 py-4 flex items-center justify-between cursor-pointer"
+                            style={{ backgroundColor: box.color || '#7c3aed' }}
+                            onClick={() => toggleProject(boxId)}
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="p-2 bg-white/20 rounded-xl text-white">
+                                <Box size={20} />
+                              </div>
+                              <div>
+                                <h3 className="text-white font-black text-lg tracking-tight uppercase">{box.name}</h3>
+                                <div className="flex gap-2 mt-0.5">
+                                  {box.filterTags.length > 0 && (
+                                    <span className="text-white/70 text-xs">{box.filterTags.length} tags</span>
+                                  )}
+                                  {box.filterStatuses?.length > 0 && (
+                                    <span className="text-white/70 text-xs">{box.filterStatuses.length} status</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <span className="bg-white/20 text-white px-3 py-1 rounded-full text-sm font-bold">
+                                {filteredTasks.length} tarefas
+                              </span>
+                              {isExpanded ? (
+                                <ChevronDown size={24} className="text-white/80" />
+                              ) : (
+                                <ChevronRight size={24} className="text-white/80" />
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <span className="bg-white/20 text-white px-3 py-1 rounded-full text-sm font-bold">
-                          {filteredTasks.length} tarefas
-                        </span>
-                        {isExpanded ? (
-                          <ChevronDown size={24} className="text-white/80" />
-                        ) : (
-                          <ChevronRight size={24} className="text-white/80" />
-                        )}
-                      </div>
-                    </div>
 
-                    {isExpanded && showTasks && (
-                      <div className="p-4">
-                        <table className="w-full">
-                          <thead>
-                            <tr className="text-slate-400 text-xs font-black uppercase tracking-wider border-b border-slate-100">
-                              <th className="text-left py-3 px-3 w-1/2">Tarefa</th>
-                              <th className="text-left py-3 px-3">Status</th>
-                              <th className="text-left py-3 px-3">Prioridade</th>
-                              <th className="text-right py-3 px-3">Horas</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-50">
-                            {filteredTasks.length === 0 ? (
-                              <tr><td colSpan={4} className="p-12 text-center text-slate-400 text-sm font-medium italic">Nenhuma tarefa encontrada com esses filtros.</td></tr>
-                            ) : (
-                              filteredTasks.map((task: Task) => (
-                                <TaskRow key={task.id} task={task} depth={0} />
-                              ))
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                          {isExpanded && showTasks && (
+                            <div className="p-4">
+                              <table className="w-full">
+                                <thead>
+                                  <tr className="text-slate-400 text-xs font-black uppercase tracking-wider border-b border-slate-100">
+                                    <th className="text-left py-3 px-3 w-1/2">Tarefa</th>
+                                    <th className="text-left py-3 px-3">Status</th>
+                                    <th className="text-left py-3 px-3">Prioridade</th>
+                                    <th className="text-right py-3 px-3">Horas</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50">
+                                  {filteredTasks.length === 0 ? (
+                                    <tr><td colSpan={4} className="p-12 text-center text-slate-400 text-sm font-medium italic">Nenhuma tarefa encontrada com esses filtros.</td></tr>
+                                  ) : (
+                                    filteredTasks.map((task: Task) => (
+                                      <TaskRow key={task.id} task={task} depth={0} />
+                                    ))
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                      </SortableCustomBox>
+                    );
+                  })}
+                </div>
+              </SortableContext>
+            </DndContext>
           )}
 
           {/* Projects Grid with Drag-and-Drop */}

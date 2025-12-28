@@ -10,8 +10,10 @@ import { useData } from '../contexts/DataContext';
 import {
     Save, Key, Plus, Trash2, Upload, HardDrive, Eye, EyeOff, Check,
     Shield, AlertTriangle, Users, Globe, Lock, Unlock, ToggleRight,
-    ToggleLeft, Download, RotateCcw, Database, Settings, BookOpen, FolderOpen, Settings2, Calendar
+    ToggleLeft, Download, RotateCcw, Database, Settings, BookOpen, FolderOpen, Settings2, Calendar,
+    Construction, Zap, CloudUpload
 } from 'lucide-react';
+import { referenceData, getEquipTags, getTeamMembers, getProjects } from '../services/referenceDataService';
 import { DailySpace } from '../components/DailySpace';
 import { FilterMetadata } from '../types/FilterConfig';
 import { extractFilterMetadata } from '../services/clickup';
@@ -51,6 +53,15 @@ export const AdminDashboard: React.FC = () => {
     const [apiTagFilters, setApiTagFilters] = useState<string[]>([]);
     const [filterMetadata, setFilterMetadata] = useState<FilterMetadata | null>(null);
     const [showFiltersModal, setShowFiltersModal] = useState(false);
+
+    // API Protection state
+    const [isApiUnlocked, setIsApiUnlocked] = useState(false);
+    const [apiPassword, setApiPassword] = useState('');
+    const [apiPasswordError, setApiPasswordError] = useState('');
+
+    // Emergency extract state
+    const [isExtracting, setIsExtracting] = useState(false);
+    const [extractResult, setExtractResult] = useState<{ tags: number; members: number; projects: number } | null>(null);
 
     // Load from config on mount
     useEffect(() => {
@@ -169,6 +180,91 @@ export const AdminDashboard: React.FC = () => {
         }
     };
 
+    // API Protection handlers
+    const handleApiUnlock = () => {
+        // Get stored password or use default if first time
+        const storedPassword = localStorage.getItem('dailyFlow_adminPassword');
+        const correctPassword = storedPassword || 'admin123'; // Default password
+
+        if (apiPassword === correctPassword) {
+            setIsApiUnlocked(true);
+            setApiPasswordError('');
+            setApiPassword('');
+        } else {
+            setApiPasswordError('Senha incorreta. Tente novamente.');
+        }
+    };
+
+    const handleSetAdminPassword = () => {
+        const newPassword = prompt('Digite a nova senha de administrador:');
+        if (newPassword && newPassword.length >= 4) {
+            localStorage.setItem('dailyFlow_adminPassword', newPassword);
+            alert('✅ Senha de administrador alterada com sucesso!');
+        } else if (newPassword) {
+            alert('⚠️ A senha deve ter pelo menos 4 caracteres.');
+        }
+    };
+
+    // Emergency Extract Reference Data
+    const handleEmergencyExtract = async () => {
+        setIsExtracting(true);
+        setExtractResult(null);
+
+        try {
+            // Get raw tasks from cache or context
+            const { rawTasks } = useData ? { rawTasks: [] } : { rawTasks: [] };
+
+            // Try to extract from filterMetadata if rawTasks not available
+            if (filterMetadata) {
+                // Extract tags
+                const tagsToSave = filterMetadata.tags.map(tag => ({
+                    id: `tag_${tag.toLowerCase().replace(/\s+/g, '_')}`,
+                    name: tag,
+                    displayName: tag,
+                    tagType: 'custom' as const,
+                    isEquipment: tag.toLowerCase().includes('equip')
+                }));
+                await referenceData.mergeItems('equip_tags', tagsToSave, 'manual');
+
+                // Extract team members
+                const membersToSave = filterMetadata.assignees.map(name => ({
+                    id: `member_${name.toLowerCase().replace(/\s+/g, '_')}`,
+                    name: name,
+                    displayName: name,
+                    email: '',
+                    active: true
+                }));
+                await referenceData.mergeItems('team_members', membersToSave, 'manual');
+
+                // Extract projects
+                const projectsToSave = filterMetadata.projects.map(name => ({
+                    id: `project_${name.toLowerCase().replace(/\s+/g, '_')}`,
+                    name: name,
+                    displayName: name
+                }));
+                await referenceData.mergeItems('projects', projectsToSave, 'manual');
+
+                setExtractResult({
+                    tags: tagsToSave.length,
+                    members: membersToSave.length,
+                    projects: projectsToSave.length
+                });
+
+                // Sync to Supabase
+                await referenceData.syncToSupabase();
+
+                alert(`✅ Extração concluída!\n\n📌 ${tagsToSave.length} tags\n👥 ${membersToSave.length} membros\n📁 ${projectsToSave.length} projetos\n\nDados salvos no armazenamento persistente e sincronizados com Supabase.`);
+            } else {
+                alert('⚠️ Nenhum metadado disponível. Faça uma sincronização primeiro.');
+            }
+        } catch (error) {
+            console.error('Emergency extract error:', error);
+            alert('❌ Erro na extração. Verifique o console.');
+        } finally {
+            setIsExtracting(false);
+        }
+    };
+
     // NEW: Filter handlers
     const toggleTag = (tag: string) => {
         setApiTagFilters(prev =>
@@ -263,8 +359,26 @@ export const AdminDashboard: React.FC = () => {
                 {/* Filters Tab */}
                 {activeTab === 'filters' && (
                     <div className="max-w-7xl mx-auto space-y-6 animate-fadeIn p-4 md:p-8">
+                        {/* Em Construção Banner */}
+                        <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-6 text-white">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                                    <Construction size={32} className="text-white" />
+                                </div>
+                                <div>
+                                    <h3 className="text-2xl font-bold flex items-center gap-2">
+                                        Em Construção
+                                        <span className="text-xs bg-white/20 px-2 py-1 rounded-full">v2.1</span>
+                                    </h3>
+                                    <p className="text-amber-100 text-sm mt-1">
+                                        Esta funcionalidade está sendo desenvolvida. Use os filtros na aba de <strong>Sincronização</strong> por enquanto.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Header */}
-                        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white">
+                        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white opacity-50">
                             <div className="flex items-center justify-between gap-3 mb-2">
                                 <div className="flex items-center gap-3">
                                     <Settings size={28} />
@@ -277,15 +391,11 @@ export const AdminDashboard: React.FC = () => {
                                 </div>
                                 <button
                                     onClick={() => setShowFiltersModal(true)}
-                                    className="px-5 py-2.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white font-bold rounded-xl transition-all flex items-center gap-2 border border-white/30"
+                                    disabled
+                                    className="px-5 py-2.5 bg-white/20 backdrop-blur-sm text-white font-bold rounded-xl flex items-center gap-2 border border-white/30 cursor-not-allowed"
                                 >
                                     <Filter size={18} />
-                                    Abrir Configurador Completo
-                                    {(syncFilters.tags.length + syncFilters.assignees.length + syncFilters.statuses.length + syncFilters.priorities.length) > 0 && (
-                                        <span className="bg-white text-indigo-600 px-2 py-0.5 rounded-full text-xs font-bold">
-                                            {syncFilters.tags.length + syncFilters.assignees.length + syncFilters.statuses.length + syncFilters.priorities.length}
-                                        </span>
-                                    )}
+                                    Em Breve
                                 </button>
                             </div>
                         </div>
@@ -655,65 +765,129 @@ export const AdminDashboard: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className={`bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5 ${isReadOnly ? 'opacity-70 pointer-events-none' : ''}`}>
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">API Token</label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <Key size={16} className="text-slate-400" />
+                            {/* Password Protection Screen */}
+                            {!isApiUnlocked ? (
+                                <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
+                                    <div className="text-center max-w-sm mx-auto">
+                                        <div className="p-4 bg-indigo-50 rounded-full w-fit mx-auto mb-4">
+                                            <Lock size={32} className="text-indigo-600" />
                                         </div>
-                                        <input
-                                            type={showApiKey ? "text" : "password"}
-                                            value={apiKey}
-                                            onChange={(e) => { setApiKey(e.target.value); markUnsaved(); }}
-                                            placeholder="pk_..."
-                                            className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                                        />
-                                        <button
-                                            onClick={() => setShowApiKey(!showApiKey)}
-                                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
-                                        >
-                                            {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                                        </button>
+                                        <h4 className="text-xl font-bold text-slate-800 mb-2">Área Protegida</h4>
+                                        <p className="text-sm text-slate-500 mb-6">
+                                            Digite sua senha de administrador para acessar as credenciais da API.
+                                        </p>
+                                        <div className="space-y-4">
+                                            <div className="relative">
+                                                <input
+                                                    type="password"
+                                                    value={apiPassword}
+                                                    onChange={(e) => { setApiPassword(e.target.value); setApiPasswordError(''); }}
+                                                    onKeyDown={(e) => e.key === 'Enter' && handleApiUnlock()}
+                                                    placeholder="Senha de administrador"
+                                                    className={`w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm text-center focus:ring-2 focus:ring-indigo-500 outline-none transition-all ${apiPasswordError ? 'border-rose-300 bg-rose-50' : 'border-slate-200'}`}
+                                                />
+                                            </div>
+                                            {apiPasswordError && (
+                                                <p className="text-xs text-rose-500 font-medium">{apiPasswordError}</p>
+                                            )}
+                                            <button
+                                                onClick={handleApiUnlock}
+                                                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+                                            >
+                                                <Unlock size={16} />
+                                                Desbloquear
+                                            </button>
+                                            <p className="text-xs text-slate-400 mt-4">
+                                                Senha padrão: <code className="bg-slate-100 px-1.5 py-0.5 rounded">admin123</code>
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
+                            ) : (
+                                <>
+                                    <div className={`bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5 ${isReadOnly ? 'opacity-70 pointer-events-none' : ''}`}>
+                                        <div className="flex items-center justify-between mb-4">
+                                            <span className="text-xs font-bold text-emerald-600 flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-full">
+                                                <Unlock size={12} />
+                                                Desbloqueado
+                                            </span>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={handleSetAdminPassword}
+                                                    className="text-xs text-slate-500 hover:text-indigo-600 font-medium flex items-center gap-1"
+                                                >
+                                                    <Key size={12} />
+                                                    Alterar Senha
+                                                </button>
+                                                <button
+                                                    onClick={() => setIsApiUnlocked(false)}
+                                                    className="text-xs text-slate-500 hover:text-rose-600 font-medium flex items-center gap-1"
+                                                >
+                                                    <Lock size={12} />
+                                                    Bloquear
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">API Token</label>
+                                            <div className="relative">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <Key size={16} className="text-slate-400" />
+                                                </div>
+                                                <input
+                                                    type={showApiKey ? "text" : "password"}
+                                                    value={apiKey}
+                                                    onChange={(e) => { setApiKey(e.target.value); markUnsaved(); }}
+                                                    placeholder="pk_..."
+                                                    className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                                />
+                                                <button
+                                                    onClick={() => setShowApiKey(!showApiKey)}
+                                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                                                >
+                                                    {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                                                </button>
+                                            </div>
+                                        </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Team ID</label>
-                                        <input
-                                            type="text"
-                                            value={teamId}
-                                            onChange={(e) => { setTeamId(e.target.value); markUnsaved(); }}
-                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                            placeholder="Ex: 9015..."
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">View ID</label>
-                                        <input
-                                            type="text"
-                                            value={viewId}
-                                            onChange={(e) => { setViewId(e.target.value); markUnsaved(); }}
-                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                            placeholder="Ex: 8c9k-..."
-                                        />
-                                    </div>
-                                </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Team ID</label>
+                                                <input
+                                                    type="text"
+                                                    value={teamId}
+                                                    onChange={(e) => { setTeamId(e.target.value); markUnsaved(); }}
+                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                    placeholder="Ex: 9015..."
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">View ID</label>
+                                                <input
+                                                    type="text"
+                                                    value={viewId}
+                                                    onChange={(e) => { setViewId(e.target.value); markUnsaved(); }}
+                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                    placeholder="Ex: 8c9k-..."
+                                                />
+                                            </div>
+                                        </div>
 
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-2">
-                                        CORS Proxy URL <Globe size={12} />
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={corsProxy}
-                                        onChange={(e) => { setCorsProxy(e.target.value); markUnsaved(); }}
-                                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                        placeholder="https://corsproxy.io/?"
-                                    />
-                                </div>
-                            </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-2">
+                                                CORS Proxy URL <Globe size={12} />
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={corsProxy}
+                                                onChange={(e) => { setCorsProxy(e.target.value); markUnsaved(); }}
+                                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                placeholder="https://corsproxy.io/?"
+                                            />
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     )
                 }
@@ -796,7 +970,7 @@ export const AdminDashboard: React.FC = () => {
                             </div>
 
                             {/* Actions Grid */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
                                 {/* Export Config - Indigo Theme */}
                                 <div className="group bg-white rounded-2xl p-6 border border-slate-200 hover:border-indigo-300 hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300">
@@ -808,7 +982,7 @@ export const AdminDashboard: React.FC = () => {
                                     </div>
                                     <h4 className="text-lg font-bold text-slate-800 mb-2 group-hover:text-indigo-700 transition-colors">Exportar Configurações</h4>
                                     <p className="text-sm text-slate-500 mb-6 leading-relaxed">
-                                        Baixe um arquivo JSON contendo todas as suas chaves de API, IDs e mapeamentos salvos. Ideal para backup ou migração.
+                                        Baixe um arquivo JSON contendo todas as suas chaves de API, IDs e mapeamentos.
                                     </p>
                                     <button
                                         onClick={handleExportConfig}
@@ -819,7 +993,43 @@ export const AdminDashboard: React.FC = () => {
                                     </button>
                                 </div>
 
-                                {/* Clear Cache - Slate/Indigo Theme (Neutral) */}
+                                {/* Emergency Extract - Amber Theme */}
+                                <div className="group bg-white rounded-2xl p-6 border border-slate-200 hover:border-amber-300 hover:shadow-xl hover:shadow-amber-500/10 transition-all duration-300">
+                                    <div className="flex justify-between items-start mb-6">
+                                        <div className="p-3 rounded-xl bg-amber-50 text-amber-600 group-hover:scale-110 transition-transform duration-300">
+                                            <Zap size={24} />
+                                        </div>
+                                        <span className="text-[10px] font-bold uppercase tracking-widest text-amber-500 bg-amber-50 px-2 py-1 rounded-md border border-amber-100">Emergência</span>
+                                    </div>
+                                    <h4 className="text-lg font-bold text-slate-800 mb-2 group-hover:text-amber-700 transition-colors">Extrair Dados de Referência</h4>
+                                    <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+                                        Salva tags, equipe e projetos de forma persistente no IndexedDB + Supabase.
+                                    </p>
+                                    <button
+                                        onClick={handleEmergencyExtract}
+                                        disabled={isExtracting || !filterMetadata}
+                                        className={`w-full py-3 bg-white border-2 border-slate-100 text-slate-600 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${isExtracting || !filterMetadata ? 'opacity-50 cursor-not-allowed' : 'hover:border-amber-600 hover:text-amber-600 group-hover:bg-amber-50'}`}
+                                    >
+                                        {isExtracting ? (
+                                            <>
+                                                <RotateCcw size={16} className="animate-spin" />
+                                                Extraindo...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <CloudUpload size={16} />
+                                                Extrair & Salvar
+                                            </>
+                                        )}
+                                    </button>
+                                    {extractResult && (
+                                        <div className="mt-3 text-xs text-amber-700 bg-amber-50 p-2 rounded-lg text-center">
+                                            ✅ {extractResult.tags} tags, {extractResult.members} membros, {extractResult.projects} projetos
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Clear Cache - Slate Theme */}
                                 <div className="group bg-white rounded-2xl p-6 border border-slate-200 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-500/10 transition-all duration-300">
                                     <div className="flex justify-between items-start mb-6">
                                         <div className="p-3 rounded-xl bg-slate-100 text-slate-600 group-hover:scale-110 transition-transform duration-300">
@@ -829,7 +1039,7 @@ export const AdminDashboard: React.FC = () => {
                                     </div>
                                     <h4 className="text-lg font-bold text-slate-800 mb-2 group-hover:text-slate-900 transition-colors">Limpar Cache Local</h4>
                                     <p className="text-sm text-slate-500 mb-6 leading-relaxed">
-                                        Remove dados temporários de sync e filtros antigos. Suas credenciais e visualizações não serão apagadas. Use se notar lentidão.
+                                        Remove dados temporários. Credenciais e dados de referência são mantidos.
                                     </p>
                                     <button
                                         onClick={handleClearCache}

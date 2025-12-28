@@ -9,6 +9,7 @@
 
 import { FilterConfig, FilterState, FilterGroup, FilterMetadata } from '../types/FilterConfig';
 import { loadMetadata as loadCacheMetadata, MetadataCache } from './advancedCacheService';
+import { getEquipTagNames, getTeamMemberNames, getProjectNames, referenceData } from './referenceDataService';
 
 // ============================================
 // CACHED METADATA ACCESS
@@ -16,27 +17,56 @@ import { loadMetadata as loadCacheMetadata, MetadataCache } from './advancedCach
 
 /**
  * Carrega metadata do cache (tags, statuses, projects, assignees)
+ * Usa referenceDataService como fallback quando cache está vazio
  * Pode ser usado em qualquer componente para acessar dados sem sync
  */
 export const getCachedMetadata = (): FilterMetadata | null => {
     const cached = loadCacheMetadata();
-    if (!cached) return null;
 
-    return {
-        tags: cached.tags || [],
-        statuses: cached.statuses || [],
-        projects: cached.projects || [],
-        assignees: cached.assignees || [],
-        priorities: cached.priorities || []
-    };
+    // Tentar cache primeiro
+    if (cached && (cached.tags?.length > 0 || cached.assignees?.length > 0)) {
+        return {
+            tags: cached.tags || [],
+            statuses: cached.statuses || [],
+            projects: cached.projects || [],
+            assignees: cached.assignees || [],
+            priorities: cached.priorities || []
+        };
+    }
+
+    // Fallback para dados persistentes (referenceDataService)
+    const persistentTags = getEquipTagNames();
+    const persistentMembers = getTeamMemberNames();
+    const persistentProjects = getProjectNames();
+
+    if (persistentTags.length > 0 || persistentMembers.length > 0) {
+        return {
+            tags: persistentTags,
+            statuses: cached?.statuses || [],
+            projects: persistentProjects,
+            assignees: persistentMembers,
+            priorities: cached?.priorities || []
+        };
+    }
+
+    return null;
 };
 
 /**
  * Carrega apenas as tags do cache
+ * Usa referenceDataService como fallback quando cache está vazio
  */
 export const getCachedTags = (): string[] => {
     const cached = loadCacheMetadata();
-    return cached?.tags || [];
+    const cacheTags = cached?.tags || [];
+
+    // Se cache tem tags, retornar do cache
+    if (cacheTags.length > 0) {
+        return cacheTags;
+    }
+
+    // Fallback para dados persistentes
+    return getEquipTagNames();
 };
 
 /**
@@ -49,26 +79,49 @@ export const getCachedStatuses = (): string[] => {
 
 /**
  * Carrega apenas os projetos do cache
+ * Usa referenceDataService como fallback quando cache está vazio
  */
 export const getCachedProjects = (): string[] => {
     const cached = loadCacheMetadata();
-    return cached?.projects || [];
+    const cacheProjects = cached?.projects || [];
+
+    // Se cache tem projetos, retornar do cache
+    if (cacheProjects.length > 0) {
+        return cacheProjects;
+    }
+
+    // Fallback para dados persistentes
+    return getProjectNames();
 };
 
 /**
  * Carrega apenas os assignees do cache
+ * Usa referenceDataService como fallback quando cache está vazio
  */
 export const getCachedAssignees = (): string[] => {
     const cached = loadCacheMetadata();
-    return cached?.assignees || [];
+    const cacheAssignees = cached?.assignees || [];
+
+    // Se cache tem assignees, retornar do cache
+    if (cacheAssignees.length > 0) {
+        return cacheAssignees;
+    }
+
+    // Fallback para dados persistentes
+    return getTeamMemberNames();
 };
 
 /**
- * Verifica se há metadata em cache
+ * Verifica se há metadata em cache ou persistente
  */
 export const hasCachedMetadata = (): boolean => {
     const cached = loadCacheMetadata();
-    return !!cached && (cached.tags?.length > 0 || cached.statuses?.length > 0);
+    if (cached && (cached.tags?.length > 0 || cached.statuses?.length > 0)) {
+        return true;
+    }
+
+    // Verificar também dados persistentes
+    return getEquipTagNames().length > 0 || getTeamMemberNames().length > 0;
 };
 
 // ============================================

@@ -402,9 +402,22 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
           });
 
           // Filtrar tarefas que têm atividade no período
-          const activeTasks = proj.tasks.filter(task =>
-            isTaskInPeriod(task, periodStart, periodEnd)
-          );
+          // E aplicar filtro de concluídas se necessário
+          const activeTasks = proj.tasks.filter(task => {
+            // Primeiro: verificar se está no período
+            if (!isTaskInPeriod(task, periodStart, periodEnd)) return false;
+
+            // Segundo: verificar se deve mostrar concluídas
+            if (!internalShowCompleted) {
+              const isCompleted = task.status?.toLowerCase().includes('conclu') ||
+                task.status?.toLowerCase().includes('complete') ||
+                task.status?.toLowerCase().includes('done') ||
+                task.status?.toLowerCase().includes('closed');
+              if (isCompleted) return false;
+            }
+
+            return true;
+          });
 
           // Se não há tarefas ativas, pular projeto
           if (activeTasks.length === 0) return null;
@@ -459,7 +472,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
         projects
       };
     }).filter(member => member.projects.length > 0); // Só membros com projetos ativos
-  }, [externalTeamMembers, groupedData, selectedMonth, allDays, isTaskInPeriod, distributeTaskHours]);
+  }, [externalTeamMembers, groupedData, selectedMonth, allDays, isTaskInPeriod, distributeTaskHours, internalShowCompleted]);
 
   // Converter dados para formato Excel View
   const excelViewData = useMemo(() => {

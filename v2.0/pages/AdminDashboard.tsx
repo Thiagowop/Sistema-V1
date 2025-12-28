@@ -411,6 +411,9 @@ export const AdminDashboard: React.FC = () => {
                                             value={apiKey}
                                             onChange={(e) => { setApiKey(e.target.value); markUnsaved(); }}
                                             placeholder="pk_..."
+                                            autoComplete="off"
+                                            data-lpignore="true"
+                                            data-form-type="other"
                                             className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                                         />
                                         <button

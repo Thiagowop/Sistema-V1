@@ -365,11 +365,11 @@ const isTaskCompleted = (status?: string | null): boolean => {
   if (!status) return false;
   const s = status.toLowerCase();
   return s.includes('conclu') ||
-         s.includes('complete') ||
-         s.includes('done') ||
-         s.includes('closed') ||
-         s.includes('finalizado') ||
-         s.includes('encerrado');
+    s.includes('complete') ||
+    s.includes('done') ||
+    s.includes('closed') ||
+    s.includes('finalizado') ||
+    s.includes('encerrado');
 };
 
 // --- LOCAL STORAGE HELPERS ---

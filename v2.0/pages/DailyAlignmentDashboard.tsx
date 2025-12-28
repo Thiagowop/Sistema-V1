@@ -531,8 +531,6 @@ export const DailyAlignmentDashboard: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [showManageModal, setShowManageModal] = useState(false);
   const [showTasks, setShowTasks] = useState(true);
-  const [showCompleted, setShowCompleted] = useState(false);
-  const [showSubtasks, setShowSubtasks] = useState(true);
   const [viewScale, setViewScale] = useState(1);
 
   // ESTADOS PERSISTENTES - Carregados do userPreferences
@@ -546,6 +544,17 @@ export const DailyAlignmentDashboard: React.FC = () => {
   const [dailySettings, setDailySettings] = useState<DailySettings>(() => loadDailySettings());
   const [savedSettings, setSavedSettings] = useState<DailySettings>(() => loadDailySettings());
   const hasUnsavedChanges = JSON.stringify(dailySettings) !== JSON.stringify(savedSettings);
+
+  // showCompleted e showSubtasks sincronizados com dailySettings (persistente)
+  const showCompleted = dailySettings.showCompleted;
+  const setShowCompleted = useCallback((value: boolean) => {
+    setDailySettings(prev => ({ ...prev, showCompleted: value }));
+  }, []);
+
+  const showSubtasks = dailySettings.showSubtasks;
+  const setShowSubtasks = useCallback((value: boolean) => {
+    setDailySettings(prev => ({ ...prev, showSubtasks: value }));
+  }, []);
 
   // NEW: State for advanced features (persistentes)
   const [boxOrder, setBoxOrderState] = useState<Record<string, string[]>>({});
@@ -1435,8 +1444,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
           setDailySettings(newSettings);
           // Sincronizar com estados locais de visualização
           setShowTasks(newSettings.showTasks);
-          setShowSubtasks(newSettings.showSubtasks);
-          setShowCompleted(newSettings.showCompleted);
+          // showCompleted e showSubtasks são derivados de dailySettings
           setViewScale(newSettings.viewScale);
         }}
         onSave={() => {
@@ -1449,8 +1457,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
           saveDailySettings(defaults);
           setSavedSettings(defaults);
           setShowTasks(defaults.showTasks);
-          setShowSubtasks(defaults.showSubtasks);
-          setShowCompleted(defaults.showCompleted);
+          // showCompleted e showSubtasks são derivados de dailySettings
           setViewScale(defaults.viewScale);
         }}
         availableTags={getCachedTags()}

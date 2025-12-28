@@ -86,6 +86,8 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
   const [expandedMembers, setExpandedMembers] = useState<string[]>([]);
   const [tooltipData, setTooltipData] = useState<TooltipData | null>(null);
   const [internalShowCompleted, setInternalShowCompleted] = useState<boolean>(showCompleted);
+  const [internalShowTasks, setInternalShowTasks] = useState<boolean>(true);
+  const [internalShowSubtasks, setInternalShowSubtasks] = useState<boolean>(true);
   const scrollSyncRef = useRef<boolean>(false);
 
   // Dropdown states
@@ -902,8 +904,37 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                     <ChevronRight className="w-4 h-4" />
                   </button>
 
-                  {/* Toggle Concluídas */}
-                  <div className="flex items-center gap-2 pl-4 border-l border-gray-300 dark:border-gray-600">
+                  {/* Toggles: Tarefas, Subtarefas, Concluídas */}
+                  <div className="flex items-center gap-4 pl-4 border-l border-gray-300 dark:border-gray-600">
+                    {/* Toggle: Tarefas */}
+                    <button
+                      onClick={() => setInternalShowTasks(!internalShowTasks)}
+                      className="flex items-center gap-2 cursor-pointer group"
+                      title="Mostrar/Ocultar Tarefas"
+                    >
+                      <div className={`transition-colors ${internalShowTasks ? 'text-sky-500' : 'text-slate-300 dark:text-gray-500'}`}>
+                        {internalShowTasks ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
+                      </div>
+                      <span className={`text-sm font-semibold transition-colors ${internalShowTasks ? 'text-slate-700 dark:text-gray-300' : 'text-slate-400 dark:text-gray-500'}`}>
+                        Tarefas
+                      </span>
+                    </button>
+
+                    {/* Toggle: Subtarefas */}
+                    <button
+                      onClick={() => setInternalShowSubtasks(!internalShowSubtasks)}
+                      className="flex items-center gap-2 cursor-pointer group"
+                      title="Mostrar/Ocultar Subtarefas"
+                    >
+                      <div className={`transition-colors ${internalShowSubtasks ? 'text-sky-500' : 'text-slate-300 dark:text-gray-500'}`}>
+                        {internalShowSubtasks ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
+                      </div>
+                      <span className={`text-sm font-semibold transition-colors ${internalShowSubtasks ? 'text-slate-700 dark:text-gray-300' : 'text-slate-400 dark:text-gray-500'}`}>
+                        Subtarefas
+                      </span>
+                    </button>
+
+                    {/* Toggle: Concluídas */}
                     <button
                       onClick={() => {
                         const newValue = !internalShowCompleted;
@@ -911,11 +942,14 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                         onCompletedChange?.(newValue);
                       }}
                       className="flex items-center gap-2 cursor-pointer group"
+                      title="Mostrar/Ocultar Concluídas"
                     >
-                      <div className={`transition-colors ${internalShowCompleted ? 'text-emerald-500' : 'text-slate-400 dark:text-gray-500'}`}>
-                        {internalShowCompleted ? <ToggleRight size={32} /> : <ToggleLeft size={32} />}
+                      <div className={`transition-colors ${internalShowCompleted ? 'text-sky-500' : 'text-slate-300 dark:text-gray-500'}`}>
+                        {internalShowCompleted ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
                       </div>
-                      <span className="text-sm font-semibold text-slate-700 dark:text-gray-300">Concluídas</span>
+                      <span className={`text-sm font-semibold transition-colors ${internalShowCompleted ? 'text-slate-700 dark:text-gray-300' : 'text-slate-400 dark:text-gray-500'}`}>
+                        Concluídas
+                      </span>
                     </button>
                   </div>
 
@@ -1053,7 +1087,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                                 </div>
                               </div>
 
-                              {isExpanded && (
+                              {isExpanded && internalShowTasks && (
                                 <>
                                   {project.tasks.map((task, taskIdx) => (
                                     <div key={task.id} className={`h-12 px-6 ${isDark ? 'bg-gray-850 hover:bg-gray-800' : 'bg-gray-50 hover:bg-gray-100'} transition-colors flex items-center ${taskIdx > 0 ? `border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}` : 'border-t border-gray-200 dark:border-gray-700'
@@ -1149,7 +1183,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                                   })}
                                 </div>
 
-                                {isExpanded && project.tasks.map((task, taskIdx) => (
+                                {isExpanded && internalShowTasks && project.tasks.map((task, taskIdx) => (
                                   <div key={task.id} className={`h-12 flex ${isDark ? 'bg-gray-850' : 'bg-gray-50'} ${taskIdx > 0 ? `border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}` : 'border-t border-gray-200 dark:border-gray-700'
                                     }`}>
                                     {days.map((day, dayIdx) => {

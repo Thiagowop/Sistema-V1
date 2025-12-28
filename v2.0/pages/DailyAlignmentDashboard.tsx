@@ -30,7 +30,9 @@ import {
   Save,
   CheckSquare,
   ListTree,
-  Box
+  Box,
+  ToggleLeft,
+  ToggleRight
 } from 'lucide-react';
 import { GroupedData, Task, Project } from '../types';
 import { useData } from '../contexts/DataContext';
@@ -530,7 +532,6 @@ export const DailyAlignmentDashboard: React.FC = () => {
   const [dashboardData, setDashboardData] = useState<ExtendedGroupedData[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [showManageModal, setShowManageModal] = useState(false);
-  const [showTasks, setShowTasks] = useState(true);
   const [viewScale, setViewScale] = useState(1);
 
   // ESTADOS PERSISTENTES - Carregados do userPreferences
@@ -545,15 +546,20 @@ export const DailyAlignmentDashboard: React.FC = () => {
   const [savedSettings, setSavedSettings] = useState<DailySettings>(() => loadDailySettings());
   const hasUnsavedChanges = JSON.stringify(dailySettings) !== JSON.stringify(savedSettings);
 
-  // showCompleted e showSubtasks sincronizados com dailySettings (persistente)
-  const showCompleted = dailySettings.showCompleted;
-  const setShowCompleted = useCallback((value: boolean) => {
-    setDailySettings(prev => ({ ...prev, showCompleted: value }));
+  // Todos os toggles sincronizados com dailySettings (persistente)
+  const showTasks = dailySettings.showTasks;
+  const setShowTasks = useCallback((value: boolean) => {
+    setDailySettings(prev => ({ ...prev, showTasks: value }));
   }, []);
 
   const showSubtasks = dailySettings.showSubtasks;
   const setShowSubtasks = useCallback((value: boolean) => {
     setDailySettings(prev => ({ ...prev, showSubtasks: value }));
+  }, []);
+
+  const showCompleted = dailySettings.showCompleted;
+  const setShowCompleted = useCallback((value: boolean) => {
+    setDailySettings(prev => ({ ...prev, showCompleted: value }));
   }, []);
 
   // NEW: State for advanced features (persistentes)
@@ -1161,24 +1167,47 @@ export const DailyAlignmentDashboard: React.FC = () => {
         </div>
 
         {/* Direita: Toggles Globais + Engrenagem */}
-        <div className="flex items-center gap-2">
-          {/* Toggle: Concluídas */}
+        <div className="flex items-center gap-4">
+          {/* Toggle: Tarefas */}
           <button
-            onClick={() => setShowCompleted(!showCompleted)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${showCompleted ? 'bg-emerald-100 border-emerald-300 text-emerald-700' : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'}`}
-            title="Mostrar Concluídas"
+            onClick={() => setShowTasks(!showTasks)}
+            className="flex items-center gap-2 cursor-pointer group"
+            title="Mostrar/Ocultar Tarefas"
           >
-            ✓ Concluídas
+            <div className={`transition-colors ${showTasks ? 'text-sky-500' : 'text-slate-300'}`}>
+              {showTasks ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
+            </div>
+            <span className={`text-sm font-semibold transition-colors ${showTasks ? 'text-slate-700' : 'text-slate-400'}`}>
+              Tarefas
+            </span>
           </button>
 
           {/* Toggle: Subtarefas */}
           <button
             onClick={() => setShowSubtasks(!showSubtasks)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${showSubtasks ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'}`}
-            title="Mostrar Subtarefas"
+            className="flex items-center gap-2 cursor-pointer group"
+            title="Mostrar/Ocultar Subtarefas"
           >
-            <ListTree size={14} className="inline mr-1" />
-            Sub
+            <div className={`transition-colors ${showSubtasks ? 'text-sky-500' : 'text-slate-300'}`}>
+              {showSubtasks ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
+            </div>
+            <span className={`text-sm font-semibold transition-colors ${showSubtasks ? 'text-slate-700' : 'text-slate-400'}`}>
+              Subtarefas
+            </span>
+          </button>
+
+          {/* Toggle: Concluídas */}
+          <button
+            onClick={() => setShowCompleted(!showCompleted)}
+            className="flex items-center gap-2 cursor-pointer group"
+            title="Mostrar/Ocultar Concluídas"
+          >
+            <div className={`transition-colors ${showCompleted ? 'text-sky-500' : 'text-slate-300'}`}>
+              {showCompleted ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
+            </div>
+            <span className={`text-sm font-semibold transition-colors ${showCompleted ? 'text-slate-700' : 'text-slate-400'}`}>
+              Concluídas
+            </span>
           </button>
 
           {/* Engrenagem */}
@@ -1259,7 +1288,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    {isExpanded && (
+                    {isExpanded && showTasks && (
                       <div className="p-4">
                         <table className="w-full">
                           <thead>
@@ -1373,7 +1402,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
                       </button>
                     </div>
 
-                    {isExpanded && (
+                    {isExpanded && showTasks && (
                       <div className="overflow-x-auto">
                         <table className="w-full text-left">
                           <thead>
@@ -1442,9 +1471,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
         settings={dailySettings}
         onSettingsChange={(newSettings) => {
           setDailySettings(newSettings);
-          // Sincronizar com estados locais de visualização
-          setShowTasks(newSettings.showTasks);
-          // showCompleted e showSubtasks são derivados de dailySettings
+          // showTasks, showCompleted e showSubtasks são derivados de dailySettings
           setViewScale(newSettings.viewScale);
         }}
         onSave={() => {
@@ -1456,8 +1483,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
           setDailySettings(defaults);
           saveDailySettings(defaults);
           setSavedSettings(defaults);
-          setShowTasks(defaults.showTasks);
-          // showCompleted e showSubtasks são derivados de dailySettings
+          // showTasks, showCompleted e showSubtasks são derivados de dailySettings
           setViewScale(defaults.viewScale);
         }}
         availableTags={getCachedTags()}

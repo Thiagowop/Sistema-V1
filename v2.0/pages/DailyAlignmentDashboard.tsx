@@ -363,11 +363,11 @@ const isTaskCompleted = (status?: string | null): boolean => {
   if (!status) return false;
   const s = status.toLowerCase();
   return s.includes('conclu') ||
-         s.includes('complete') ||
-         s.includes('done') ||
-         s.includes('closed') ||
-         s.includes('finalizado') ||
-         s.includes('encerrado');
+    s.includes('complete') ||
+    s.includes('done') ||
+    s.includes('closed') ||
+    s.includes('finalizado') ||
+    s.includes('encerrado');
 };
 
 // --- LOCAL STORAGE HELPERS ---
@@ -933,6 +933,9 @@ export const DailyAlignmentDashboard: React.FC = () => {
     return ids;
   }, [computedCustomBoxes, dailySettings.exclusiveBoxes]);
 
+  // activeGroup for combinedSortedItems (uses activeGroupData defined earlier)
+  const activeGroup = activeGroupData || dashboardData[0];
+
   // Combined sorted list of custom boxes and projects for unified rendering
   type CombinedItem =
     | { type: 'custombox'; id: string; data: typeof computedCustomBoxes[0] }
@@ -1361,8 +1364,6 @@ export const DailyAlignmentDashboard: React.FC = () => {
     );
   };
 
-
-  const activeGroup = activeGroupData || dashboardData[0];
 
   if (!activeGroup) return null;
 

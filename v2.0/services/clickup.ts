@@ -917,13 +917,8 @@ export function processApiTasks(filtered: ClickUpApiTask[], config: AppConfig): 
   };
 
   // Iterate all tasks and assign to tabs based on normalized assignees
-  // ONLY add tasks that are NOT fully completed (100%)
+  // NOTE: Completed tasks are now included - filtering is done in the dashboard via showCompleted toggle
   activeTasks.forEach(task => {
-    // Skip fully completed tasks - they should only appear in "Completed Projects" tab
-    if (isTaskFullyCompleted(task)) {
-      return; // Skip this task
-    }
-
     // "Assignee" string is already "Name / Name". Split it.
     const names = task.assignee.split(' / ');
     names.forEach(name => {

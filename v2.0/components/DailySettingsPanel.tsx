@@ -804,13 +804,12 @@ export const DailySettingsPanel: React.FC<DailySettingsPanelProps> = ({
                         <button
                             onClick={handleCloudSync}
                             disabled={isCloudSyncing}
-                            className={`w-full py-2.5 text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2 ${
-                                cloudSyncStatus === 'success'
+                            className={`w-full py-2.5 text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2 ${cloudSyncStatus === 'success'
                                     ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
                                     : cloudSyncStatus === 'error'
                                         ? 'bg-rose-100 text-rose-700 border border-rose-300'
                                         : 'bg-sky-100 text-sky-700 border border-sky-300 hover:bg-sky-200'
-                            }`}
+                                }`}
                         >
                             {isCloudSyncing ? (
                                 <Loader2 size={16} className="animate-spin" />
@@ -851,8 +850,9 @@ export const DailySettingsPanel: React.FC<DailySettingsPanelProps> = ({
                                 }`}
                         >
                             <Save size={16} />
-                        {hasUnsavedChanges ? 'Salvar' : 'Salvar e Fechar'}
-                    </button>
+                            {hasUnsavedChanges ? 'Salvar' : 'Salvar e Fechar'}
+                        </button>
+                    </div>
                 </div>
             </div>
         </>
@@ -860,3 +860,4 @@ export const DailySettingsPanel: React.FC<DailySettingsPanelProps> = ({
 };
 
 export default DailySettingsPanel;
+

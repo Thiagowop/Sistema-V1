@@ -1,7 +1,19 @@
 import { Task, AppConfig, GroupedData, StandupEntry } from '../types';
 import { FilterConfig, FilterMetadata } from '../types/FilterConfig';
 import { calculateWeeklyDistribution, getDynamicWeekRange } from './processor';
-import { MOCK_DATA } from './mockData';
+
+// ============================================
+// SYNC FILTER OPTIONS
+// ============================================
+export interface SyncFilterOptions {
+  tags?: string[];           // Filtrar por tags na API (server-side)
+  assignees?: string[];      // Filtrar client-side após busca
+  includeArchived?: boolean;
+  incrementalSince?: string; // ISO date para sync incremental
+  signal?: AbortSignal;      // Signal para cancelar sync
+  onProgress?: (current: number, total: number, message: string) => void;
+}
+// MOCK_DATA removed - not used in v2.0
 
 // ClickUp API Types
 export interface ClickUpApiTask {
@@ -207,14 +219,14 @@ export const fetchTaskById = async (taskId: string, config: AppConfig): Promise<
 
   const token = config.clickupApiToken.replace(/\s/g, '');
   const proxy = config.corsProxy?.trim();
-  
+
   // Extract just the task ID if it's in format "teamId/taskId"
   const cleanTaskId = taskId.includes('/') ? taskId.split('/').pop()! : taskId;
-  
+
   try {
     const targetUrl = `https://api.clickup.com/api/v2/task/${cleanTaskId}`;
     console.log(`🔍 Fetching task ${cleanTaskId}...`);
-    
+
     const data = await fetchWithFallback(targetUrl, token, proxy);
     return data as ClickUpApiTask;
   } catch (error) {
@@ -224,34 +236,64 @@ export const fetchTaskById = async (taskId: string, config: AppConfig): Promise<
 };
 
 // --- Raw Data Fetcher ---
-export const fetchRawClickUpData = async (config: AppConfig, incrementalSince?: string): Promise<ClickUpApiTask[]> => {
+export const fetchRawClickUpData = async (
+  config: AppConfig,
+  syncOptions?: SyncFilterOptions
+): Promise<ClickUpApiTask[]> => {
   if (!config.clickupApiToken) {
     throw new Error("Missing ClickUp API Token");
   }
 
   const token = config.clickupApiToken.replace(/\s/g, '');
   const proxy = config.corsProxy?.trim();
+  const options = syncOptions || {};
 
   // OPTION 1: Fetch from Team/Space (with tag filtering and duplicate detection)
   if (config.clickupTeamId && config.clickupTeamId.trim()) {
     console.log(`🌐 Fetching from Team/Space: ${config.clickupTeamId}`);
-    
-    if (incrementalSince) {
-      console.log(`🔄 Incremental sync - only tasks updated after ${incrementalSince}`);
+
+    if (options.incrementalSince) {
+      console.log(`🔄 Incremental sync - only tasks updated after ${options.incrementalSince}`);
     }
-    
-    const tagFilters = config.apiTagFilters || [];
-    if (tagFilters.length > 0) {
-      console.log(`🏷️  API Tag Filters: ${tagFilters.join(', ')}`);
+
+    // Merge tag filters: from config + from sync options
+    const tagFilters = [...(config.apiTagFilters || []), ...(options.tags || [])];
+    const uniqueTags = [...new Set(tagFilters)]; // Remove duplicates
+
+    if (uniqueTags.length > 0) {
+      console.log(`🏷️  API Tag Filters: ${uniqueTags.join(', ')}`);
     }
-    return await fetchTasksFromTeam(
-      config.clickupTeamId.trim(), 
-      token, 
-      proxy, 
-      tagFilters, 
-      !!config.includeArchived,
-      incrementalSince
+
+    const includeArchived = options.includeArchived ?? !!config.includeArchived;
+
+    let tasks = await fetchTasksFromTeam(
+      config.clickupTeamId.trim(),
+      token,
+      proxy,
+      uniqueTags,
+      includeArchived,
+      options.incrementalSince,
+      options.onProgress,
+      options.signal
     );
+
+    // Client-side assignee filter (API doesn't support assignee filter for team endpoint)
+    if (options.assignees && options.assignees.length > 0) {
+      const assigneeSet = new Set(options.assignees.map(a => a.toLowerCase()));
+      const beforeCount = tasks.length;
+
+      tasks = tasks.filter(task => {
+        if (!task.assignees || task.assignees.length === 0) return false;
+        return task.assignees.some(a =>
+          assigneeSet.has(a.username?.toLowerCase() || '') ||
+          assigneeSet.has(a.email?.toLowerCase() || '')
+        );
+      });
+
+      console.log(`👥 Assignee filter: ${beforeCount} → ${tasks.length} tasks (filtered to: ${options.assignees.join(', ')})`);
+    }
+
+    return tasks;
   }
 
   // OPTION 2: Fetch from individual Lists (fallback)
@@ -282,17 +324,27 @@ const fetchTasksFromTeam = async (
   proxyUrl?: string,
   tagFilters: string[] = [],
   includeArchived: boolean = false,
-  dateUpdatedAfter?: string
+  dateUpdatedAfter?: string,
+  onProgress?: (current: number, total: number, message: string) => void,
+  signal?: AbortSignal
 ): Promise<ClickUpApiTask[]> => {
   const allTasks: ClickUpApiTask[] = [];
   const seenIds = new Set<string>(); // Track unique task IDs
   let page = 0;
   let hasMore = true;
-  const MAX_PAGES = 50; // Safety limit
+  const MAX_PAGES = 300; // Safety limit (30000 tasks max) - ajustado para comportar 28k+ tarefas
   const useProxy = import.meta.env.DEV;
 
   while (hasMore && page < MAX_PAGES) {
-    console.log(`Fetching Team ${teamId} - Page ${page}${dateUpdatedAfter ? ' (incremental)' : ''}...`);
+    // Check if cancelled before each page fetch
+    if (signal?.aborted) {
+      console.log('⏹️ Sync cancelled by user');
+      throw new DOMException('Sync cancelled', 'AbortError');
+    }
+
+    const message = `Fetching Team ${teamId} - Page ${page}${dateUpdatedAfter ? ' (incremental)' : ''}...`;
+    console.log(message);
+    onProgress?.(page, MAX_PAGES, message);
 
     // Build URL with tag filters
     let targetUrl: string;
@@ -306,6 +358,9 @@ const fetchTasksFromTeam = async (
     if (dateUpdatedAfter) {
       const timestamp = new Date(dateUpdatedAfter).getTime();
       targetUrl += `&date_updated_gt=${timestamp}`;
+      console.log(`📅 [INCREMENTAL] Using date_updated_gt=${timestamp} (${new Date(timestamp).toLocaleString()})`);
+    } else {
+      console.log(`⚠️  [FULL SYNC] No dateUpdatedAfter - fetching ALL tasks`);
     }
 
     // Add tag filters
@@ -313,27 +368,57 @@ const fetchTasksFromTeam = async (
       targetUrl += `&tags[]=${encodeURIComponent(tag)}`;
     });
 
+    // Delay between pages to avoid rate limiting (429 Too Many Requests)
+    if (page > 0) {
+      await new Promise(resolve => setTimeout(resolve, 200)); // 200ms delay
+      console.log(`⏱️  Waiting 200ms to avoid rate limit...`);
+    }
+
     try {
       let data: any;
+      let retries = 0;
+      const MAX_RETRIES = 3;
 
-      if (useProxy) {
-        const response = await fetch(targetUrl, {
-          method: 'GET',
-          cache: 'no-store',
-          headers: {
-            'Authorization': token,
-            'Content-Type': 'application/json'
+      // Retry loop with exponential backoff for rate limiting
+      while (retries <= MAX_RETRIES) {
+        try {
+          if (useProxy) {
+            const response = await fetch(targetUrl, {
+              method: 'GET',
+              cache: 'no-store',
+              signal, // Pass abort signal to fetch
+              headers: {
+                'Authorization': token,
+                'Content-Type': 'application/json'
+              }
+            });
+
+            if (!response.ok) {
+              // Handle rate limiting (429)
+              if (response.status === 429 && retries < MAX_RETRIES) {
+                const waitTime = Math.pow(2, retries) * 1000; // Exponential backoff: 1s, 2s, 4s
+                console.warn(`⚠️  Rate limit (429) - waiting ${waitTime / 1000}s before retry ${retries + 1}/${MAX_RETRIES}...`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+                retries++;
+                continue; // Retry
+              }
+
+              const errorData = await response.json();
+              throw new Error(errorData.error || `Proxy error: ${response.status}`);
+            }
+
+            data = await response.json();
+            break; // Success!
+          } else {
+            data = await fetchWithFallback(targetUrl, token, proxyUrl);
+            break; // Success!
           }
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `Proxy error: ${response.status}`);
+        } catch (err: any) {
+          if (retries >= MAX_RETRIES) {
+            throw err; // Give up after max retries
+          }
+          retries++;
         }
-
-        data = await response.json();
-      } else {
-        data = await fetchWithFallback(targetUrl, token, proxyUrl);
       }
 
       const pageTasks = data.tasks || [];
@@ -354,7 +439,11 @@ const fetchTasksFromTeam = async (
         }
       }
 
-      console.log(`   Page ${page}: ${pageTasks.length} tasks, ${newTasksCount} new, ${pageTasks.length - newTasksCount} duplicates`);
+      const duplicatesCount = pageTasks.length - newTasksCount;
+      console.log(`   Page ${page}: ${pageTasks.length} tasks, ${newTasksCount} new, ${duplicatesCount} duplicates`);
+
+      // Notify progress with meaningful message
+      onProgress?.(page + 1, MAX_PAGES, `Page ${page + 1}: +${newTasksCount} tasks (${allTasks.length} total)`);
 
       // If no new tasks, we're done (API is repeating)
       if (newTasksCount === 0) {
@@ -370,10 +459,13 @@ const fetchTasksFromTeam = async (
   }
 
   if (page >= MAX_PAGES) {
-    console.warn(`⚠️ Reached maximum page limit (${MAX_PAGES})`);
+    console.warn(`⚠️ Reached maximum page limit (${MAX_PAGES}) - ${allTasks.length} tasks loaded`);
+    onProgress?.(MAX_PAGES, MAX_PAGES, `Limite de ${MAX_PAGES} páginas atingido`);
   }
 
-  console.log(`✅ Total unique tasks from Team: ${allTasks.length}`);
+  const finalMsg = `✅ Total unique tasks from Team: ${allTasks.length}`;
+  console.log(finalMsg);
+  onProgress?.(page, page, finalMsg);
   return allTasks;
 };
 
@@ -825,13 +917,8 @@ export function processApiTasks(filtered: ClickUpApiTask[], config: AppConfig): 
   };
 
   // Iterate all tasks and assign to tabs based on normalized assignees
-  // ONLY add tasks that are NOT fully completed (100%)
+  // NOTE: Completed tasks are now included - filtering is done in the dashboard via showCompleted toggle
   activeTasks.forEach(task => {
-    // Skip fully completed tasks - they should only appear in "Completed Projects" tab
-    if (isTaskFullyCompleted(task)) {
-      return; // Skip this task
-    }
-
     // "Assignee" string is already "Name / Name". Split it.
     const names = task.assignee.split(' / ');
     names.forEach(name => {
@@ -860,17 +947,17 @@ export function processApiTasks(filtered: ClickUpApiTask[], config: AppConfig): 
     groupedData.sort((a, b) => {
       const nameA = a.assignee.trim();
       const nameB = b.assignee.trim();
-      
+
       let orderA = orderMap.get(nameA);
       if (orderA === undefined) {
-          const keyA = Array.from(orderMap.keys()).find(k => nameA.includes(k) || k.includes(nameA));
-          orderA = keyA !== undefined ? orderMap.get(keyA) : 999;
+        const keyA = Array.from(orderMap.keys()).find(k => nameA.includes(k) || k.includes(nameA));
+        orderA = keyA !== undefined ? orderMap.get(keyA) : 999;
       }
 
       let orderB = orderMap.get(nameB);
       if (orderB === undefined) {
-          const keyB = Array.from(orderMap.keys()).find(k => nameB.includes(k) || k.includes(nameB));
-          orderB = keyB !== undefined ? orderMap.get(keyB) : 999;
+        const keyB = Array.from(orderMap.keys()).find(k => nameB.includes(k) || k.includes(nameB));
+        orderB = keyB !== undefined ? orderMap.get(keyB) : 999;
       }
 
       // Ensure valid numbers
@@ -1125,21 +1212,20 @@ export const fetchClickUpData = async (config: AppConfig): Promise<GroupedData[]
 
 
 // --- Mock Data Loader ---
-export const loadMockData = async (config: AppConfig): Promise<GroupedData[]> => {
+// MOCK DATA FUNCTION REMOVED - Not used in v2.0
+// V2.0 uses fetchRawClickUpData + processApiTasks instead
+/*
+export const loadMockData = (config: AppConfig = getDefaultConfig()): { grouped: GroupedData[], members: any[] } => {
   console.log("Loading Mock Data...", MOCK_DATA);
   if (!MOCK_DATA || MOCK_DATA.length === 0) {
     throw new Error("Mock Data is empty. Please paste the JSON in services/mockData.ts");
   }
 
-  // Handle both flat arrays [{},{}] and nested lists [[{},{}]]
+  console.log("[MOCK] Processing data...");
+
   let tasksToProcess: any[] = MOCK_DATA;
   if (Array.isArray(MOCK_DATA[0])) {
     tasksToProcess = MOCK_DATA.flat();
   }
 
-  console.log(`Processing ${tasksToProcess.length} mock tasks...`);
-
-  // Artificial delay to simulate processing
-  await new Promise(resolve => setTimeout(resolve, 800));
-  return processApiTasks(tasksToProcess as ClickUpApiTask[], config);
-};
+*/

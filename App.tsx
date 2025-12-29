@@ -1,624 +1,291 @@
-import React, { useState, useEffect } from 'react';
-import { GoogleOAuthProvider } from '@react-oauth/google';
-import {
-  Users,
-  Settings as SettingsIcon,
-  LayoutDashboard,
-  Database,
-  BarChart3,
-  Filter,
-  Archive,
-  ChevronLeft,
-  ChevronRight,
-  Menu,
-  X,
-  Calendar,
-  TrendingUp,
-  Shield,
-  LogOut
-} from 'lucide-react';
-import { GroupedData, AppConfig, StandupEntry } from './types';
-import { FilterState } from './types/FilterConfig';
-import { processCSV } from './services/processor';
-import { fetchClickUpData, loadMockData, ClickUpApiTask, applyClientSideFilters, fetchRawClickUpData, processApiTasks, fetchStandupSummaries, extractFilterMetadata } from './services/clickup';
-import { FilterService } from './services/filterService';
-import { advancedCache } from './services/advancedCacheService';
-import { DEFAULT_CONFIG } from './constants';
-import Dashboard from './components/Dashboard';
-import TestDashboard from './components/TestDashboard';
-import Settings from './components/Settings';
-import FileUpload from './components/FileUpload';
-import Filters from './components/Filters';
-import CompletedProjects from './components/CompletedProjects';
+/**
+ * @id APP-001
+ * @name App
+ * @description Daily Flow v2.0 with Responsive Sidebar
+ * @dependencies DataProvider, AuthProvider, LoginScreen
+ * @status active
+ * @version 2.2.0
+ */
+
+import React, { useState } from 'react';
+import { DataProvider } from './contexts/DataContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+// GlobalFilterContext removed - using isolated filters per view
 import { LoginScreen } from './components/LoginScreen';
-import TimesheetDashboard from './components/TimesheetDashboard';
+import { SyncDashboard } from './pages/SyncDashboard';
+import { DailyAlignmentDashboard } from './pages/DailyAlignmentDashboard';
+import { TimesheetWrapper } from './pages/TimesheetWrapper';
+import { QualityWrapper } from './pages/QualityWrapper';
+import { AdminDashboard } from './pages/AdminDashboard';
+import {
+    RefreshCw, Users, Clock, Shield, Settings,
+    LogOut, X, Menu
+} from 'lucide-react';
+import { AuthorizedUser } from './services/supabaseService';
 
-type ViewMode = 'import' | 'projects' | 'alignment' | 'management2' | 'settings' | 'admin' | 'timesheet';
-
-const App: React.FC = () => {
-  // Login com persistência em localStorage
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    const saved = localStorage.getItem('dailyFlow_isAuthenticated');
-    return saved === 'true';
-  });
-  const [data, setData] = useState<GroupedData[] | null>(null);
-  const [rawData, setRawData] = useState<ClickUpApiTask[] | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [standupEntries, setStandupEntries] = useState<StandupEntry[] | null>(null);
-  const [standupFetched, setStandupFetched] = useState(false);
-  const [standupLoading, setStandupLoading] = useState(false);
-  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
-  const [cachedTaskCount, setCachedTaskCount] = useState<number>(0);
-  const [config, setConfig] = useState<AppConfig>(() => {
-    const saved = localStorage.getItem('dailyPresenterConfig');
-    return saved ? JSON.parse(saved) : DEFAULT_CONFIG;
-  });
-  const [filterState, setFilterState] = useState<FilterState>(() => {
-    return FilterService.loadFilterState();
-  });
-
-  // Check if there's cached data to determine initial view
-  const [activeView, setActiveView] = useState<ViewMode>(() => {
-    try {
-      const cachedData = localStorage.getItem('dailyFlowCachedData');
-      if (cachedData) {
-        const cache = JSON.parse(cachedData);
-        if (cache.data && cache.data.length > 0) {
-          return 'projects';
+// Configuração inicial
+const getInitialConfig = () => {
+    const saved = localStorage.getItem('dailyFlow_config_v2');
+    if (saved) {
+        try {
+            return JSON.parse(saved);
+        } catch (e) {
+            console.warn('[APP-001] Failed to parse saved config');
         }
-      }
-    } catch (e) {
-      console.error('Error checking initial cache:', e);
     }
-    return 'import';
-  });
+    return {
+        clickupApiToken: import.meta.env.VITE_CLICKUP_API_TOKEN || '',
+        clickupTeamId: import.meta.env.VITE_CLICKUP_TEAM_ID || '',
+        clickupListId: import.meta.env.VITE_CLICKUP_LIST_ID || '',
+        proxyUrl: import.meta.env.VITE_PROXY_URL || '',
+        teamMembers: [],
+        nameMappings: {},
+        holidays: []
+    };
+};
 
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+type ActiveView = 'sync' | 'daily' | 'gestao' | 'quality' | 'admin';
 
-  // Funções de login com persistência
-  const handleLogin = () => {
-    setIsAuthenticated(true);
-    localStorage.setItem('dailyFlow_isAuthenticated', 'true');
-  };
+// Componente para itens do sidebar
+const SidebarItem = ({
+    icon: Icon,
+    label,
+    isActive,
+    onClick
+}: {
+    icon: any,
+    label: string,
+    isActive: boolean,
+    onClick: () => void
+}) => (
+    <button
+        onClick={onClick}
+        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 group relative ${isActive
+            ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
+            : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
+            }`}
+    >
+        <Icon size={18} className={isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'} />
+        <span className={`text-sm flex-1 text-left ${isActive ? 'font-bold' : 'font-medium'} md:hidden lg:block`}>{label}</span>
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem('dailyFlow_isAuthenticated');
-    setActiveView('import');
-  };
+        {/* Tooltip for tablet (collapsed) view */}
+        <div className="hidden md:block lg:hidden absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
+            {label}
+        </div>
+    </button>
+);
 
-  // Load cached data on mount (3-layer strategy)
-  useEffect(() => {
-    const loadCacheInLayers = async () => {
-      console.log('🔍 Loading cache in layers...');
+// Componente para seções
+const SectionHeader = ({ label }: { label: string }) => (
+    <div className="px-4 mt-6 mb-2 text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em] md:hidden lg:block">
+        {label}
+    </div>
+);
 
-      // LAYER 1: Metadata (instant - for filters)
-      const metadata = advancedCache.loadMetadata();
-      if (metadata) {
-        console.log('✅ Layer 1 loaded: Metadata');
-        setLastSyncTime(new Date(metadata.lastSync));
-        setCachedTaskCount(metadata.taskCount);
-      }
+// ============================================
+// APP CONTENT
+// ============================================
 
-      // LAYER 2: Processed Data (fast - show dashboard)
-      const processedData = advancedCache.loadProcessedData();
-      if (processedData && processedData.length > 0) {
-        console.log('✅ Layer 2 loaded: Processed data');
-        setData(processedData);
-        setActiveView('projects'); // Show dashboard immediately
-      }
+const AppContent: React.FC = () => {
+    const { auth, logoutUser } = useAuth();
+    const initialConfig = getInitialConfig();
+    const [activeView, setActiveView] = useState<ActiveView>('sync');
+    const [isSidebarOpen, setSidebarOpen] = useState(false);
 
-      // LAYER 3: Raw Data (slow - for reprocessing)
-      const rawData = await advancedCache.loadRawData();
-      if (rawData && rawData.length > 0) {
-        console.log('✅ Layer 3 loaded: Raw data');
-        setRawData(rawData);
-      }
+    // Loading state
+    if (auth.isLoading) {
+        return (
+            <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-10 h-10 border-3 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+                    <p className="text-slate-400 text-sm font-medium">Carregando...</p>
+                </div>
+            </div>
+        );
+    }
 
-      // LAYER 4: Recovery (se nenhum cache foi encontrado)
-      if (!metadata && !processedData && !rawData) {
-        console.log('🔧 Tentando recuperação de emergência...');
-        const recovered = await advancedCache.tryRecoverFromOldCache();
+    // Not authenticated
+    if (!auth.isAuthenticated || !auth.user) {
+        return (
+            <LoginScreen
+                onLogin={(user: AuthorizedUser) => {
+                    console.log('[APP-001] User logged in:', user.name);
+                }}
+            />
+        );
+    }
 
-        if (recovered.config && !config.clickupApiToken) {
-          console.log('✅ Configurações recuperadas, aplicando...');
-          setConfig(prev => ({ ...prev, ...recovered.config }));
-        }
-
-        if (recovered.data && recovered.data.length > 0) {
-          console.log('✅ Dados recuperados:', recovered.data.length, 'grupos');
-          setData(recovered.data);
-          setActiveView('projects');
-          setCachedTaskCount(recovered.data.reduce((sum, g) =>
-            sum + g.projects.reduce((pSum, p) => pSum + p.tasks.length, 0), 0
-          ));
-        }
-      }
-
-      // Show cache status
-      const status = await advancedCache.getCacheStatus();
-      console.log('📊 Cache status:', status);
+    const handleNavClick = (view: ActiveView) => {
+        setActiveView(view);
+        setSidebarOpen(false); // Fecha sidebar no mobile
     };
 
-    loadCacheInLayers().catch(console.error);
-  }, []);
+    return (
+        <DataProvider initialConfig={initialConfig}>
+            <div className="flex h-screen bg-slate-50 overflow-hidden w-full">
+                {/* Mobile Sidebar Overlay */}
+                {isSidebarOpen && (
+                    <div
+                        className="fixed inset-0 bg-black/50 z-30 md:hidden backdrop-blur-sm"
+                        onClick={() => setSidebarOpen(false)}
+                    />
+                )}
 
-  useEffect(() => {
-    localStorage.setItem('dailyPresenterConfig', JSON.stringify(config));
-  }, [config]);
+                {/* Sidebar */}
+                <aside
+                    className={`
+                        fixed md:relative z-40 h-full w-64 bg-[#050c1b] border-r border-slate-800/50 flex flex-col transition-all duration-300 ease-in-out shrink-0
+                        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0 md:w-20 lg:w-64'}
+                    `}
+                >
+                    {/* Logo / Branding */}
+                    <div className="h-20 flex items-center px-6 border-b border-slate-800/50 justify-between">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="flex flex-col min-w-0">
+                                <div className="flex items-baseline gap-1">
+                                    <span className="font-black text-xl text-white tracking-tight whitespace-nowrap">
+                                        MCSA
+                                    </span>
+                                    <span className="font-normal text-slate-400 text-sm md:hidden lg:inline-block">
+                                        Tecnologia
+                                    </span>
+                                </div>
+                                <span className="text-[10px] text-slate-500 font-medium leading-none md:hidden lg:block mt-0.5">
+                                    Gestão de Projetos
+                                </span>
+                            </div>
+                        </div>
+                        <button onClick={() => setSidebarOpen(false)} className="md:hidden text-slate-400">
+                            <X size={20} />
+                        </button>
+                    </div>
 
-  // Migration: Clear apiTagFilters from saved config if it contains 'projeto'
-  useEffect(() => {
-    const savedConfig = localStorage.getItem('dailyPresenterConfig');
-    if (savedConfig) {
-      try {
-        const parsed = JSON.parse(savedConfig);
-        if (parsed.apiTagFilters && Array.isArray(parsed.apiTagFilters) && parsed.apiTagFilters.length > 0) {
-          console.log('🔄 Migrating: Clearing API tag filters to fetch all tasks');
-          parsed.apiTagFilters = [];
-          localStorage.setItem('dailyPresenterConfig', JSON.stringify(parsed));
-          setConfig(prev => ({ ...prev, apiTagFilters: [] }));
-        }
-      } catch (e) {
-        console.error('Migration error:', e);
-      }
-    }
-  }, []);
+                    {/* Navegação Principal */}
+                    <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5 custom-scrollbar">
+                        <SectionHeader label="Dados" />
+                        <SidebarItem
+                            icon={RefreshCw}
+                            label="Atualizar Dados"
+                            isActive={activeView === 'sync'}
+                            onClick={() => handleNavClick('sync')}
+                        />
 
-  useEffect(() => {
-    FilterService.saveFilterState(filterState);
-  }, [filterState]);
+                        <SectionHeader label="Visualização" />
+                        <SidebarItem
+                            icon={Users}
+                            label="Alinhamento Diário"
+                            isActive={activeView === 'daily'}
+                            onClick={() => handleNavClick('daily')}
+                        />
+                        <SidebarItem
+                            icon={Clock}
+                            label="Gestão"
+                            isActive={activeView === 'gestao'}
+                            onClick={() => handleNavClick('gestao')}
+                        />
+                        <SidebarItem
+                            icon={Shield}
+                            label="Qualidade"
+                            isActive={activeView === 'quality'}
+                            onClick={() => handleNavClick('quality')}
+                        />
 
-  useEffect(() => {
-    if (rawData && rawData.length > 0) {
-      const filtered = applyClientSideFilters(rawData, filterState.currentFilters);
-      const processed = processApiTasks(filtered, config);
-      setData(processed);
-    }
-  }, [filterState, rawData, config]);
+                        {auth.user?.role === 'admin' && (
+                            <>
+                                <SectionHeader label="Sistema" />
+                                <SidebarItem
+                                    icon={Settings}
+                                    label="Admin"
+                                    isActive={activeView === 'admin'}
+                                    onClick={() => handleNavClick('admin')}
+                                />
+                            </>
+                        )}
+                    </nav>
 
-  // Close mobile menu when view changes
-  useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [activeView]);
+                    {/* Footer da Sidebar (User Info + Logout) */}
+                    <div className="p-4 border-t border-slate-800/50">
+                        {/* User Info (desktop only) */}
+                        <div className="mb-3 px-4 py-2 bg-slate-800/30 rounded-lg hidden lg:block">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold shrink-0">
+                                    {auth.user.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div className="flex flex-col min-w-0">
+                                    <p className="text-white text-xs font-bold truncate">{auth.user.name}</p>
+                                    <p className="text-slate-400 text-[10px] truncate">{auth.user.email}</p>
+                                </div>
+                            </div>
+                        </div>
 
-  const handleFileUpload = async (file: File) => {
-    setLoading(true);
-    try {
-      const processed = await processCSV(file, config);
-      setData(processed);
-      setRawData(null);
-      setStandupEntries(null);
-      setStandupFetched(false);
-      setStandupLoading(false);
-      setActiveView('projects');
-    } catch (err) {
-      console.error(err);
-      alert("Falha ao processar CSV. Verifique o formato.");
-    } finally {
-      setLoading(false);
-    }
-  };
+                        {/* Logout Button */}
+                        <button
+                            onClick={() => logoutUser()}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-slate-500 hover:bg-rose-500/10 hover:text-rose-500 transition-colors group"
+                        >
+                            <LogOut size={18} />
+                            <span className="font-bold text-xs uppercase tracking-wider md:hidden lg:block text-left">Sair do Sistema</span>
+                        </button>
+                    </div>
+                </aside>
 
-  const handleApiSync = async () => {
-    setLoading(true);
-    setStandupFetched(false);
-    setStandupEntries(null);
-    setStandupLoading(false);
+                {/* Main Content Area */}
+                <main className="flex-1 flex flex-col min-w-0 bg-slate-50 relative h-full overflow-hidden">
 
-    // Add timeout protection
-    const timeoutId = setTimeout(() => {
-      setLoading(false);
-      alert('Sincronização demorou muito. Tente novamente.');
-    }, 180000); // 180 seconds timeout (3 minutes for large datasets)
+                    {/* Mobile Header Toggle */}
+                    <div className="md:hidden bg-white border-b border-slate-200 p-4 flex items-center justify-between sticky top-0 z-20">
+                        <div className="flex items-center gap-2">
+                            <span className="font-black text-xl text-slate-800 tracking-tight">MCSA <span className="font-normal text-slate-500 text-base">Tecnologia</span></span>
+                        </div>
+                        <button
+                            onClick={() => setSidebarOpen(true)}
+                            className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg"
+                        >
+                            <Menu size={24} />
+                        </button>
+                    </div>
 
-    try {
-      // Check if we should do incremental sync
-      const metadata = advancedCache.loadMetadata();
-      const shouldUseIncremental = metadata && metadata.lastSync;
-
-      let rawTasks: ClickUpApiTask[];
-
-      if (shouldUseIncremental) {
-        console.log('🔄 Using INCREMENTAL sync (faster)');
-        const incrementalTasks = await fetchRawClickUpData(config, metadata.lastSync);
-
-        // Merge with cached data
-        rawTasks = await advancedCache.mergeIncrementalUpdate(incrementalTasks);
-
-        console.log(`✅ Incremental sync: ${incrementalTasks.length} updated, ${rawTasks.length} total`);
-      } else {
-        console.log('📥 Using FULL sync (first time)');
-        rawTasks = await fetchRawClickUpData(config);
-      }
-
-      clearTimeout(timeoutId);
-
-      // STEP 1: Extract and save metadata FIRST (instant filter availability)
-      const filterMetadata = extractFilterMetadata(rawTasks, config.nameMappings);
-      advancedCache.saveMetadata(filterMetadata, rawTasks.length);
-
-      // Update config with available tags, statuses, assignees
-      const updatedConfig = {
-        ...config,
-        availableTags: filterMetadata.tags,
-        availableStatuses: filterMetadata.statuses,
-        availableAssignees: filterMetadata.assignees
-      };
-      setConfig(updatedConfig);
-      localStorage.setItem('dailyPresenterConfig', JSON.stringify(updatedConfig));
-
-      setRawData(rawTasks);
-      const filtered = applyClientSideFilters(rawTasks, filterState.currentFilters);
-      const processed = processApiTasks(filtered, config);
-
-      if (processed.length === 0) {
-        alert("Nenhuma tarefa encontrada com os filtros atuais.");
-      } else {
-        setData(processed);
-        setActiveView('projects');
-
-        // STEP 2: Save processed data (compressed, fast dashboard load)
-        advancedCache.saveProcessedData(processed);
-
-        // STEP 3: Save raw data to IndexedDB (background, for reprocessing)
-        advancedCache.saveRawData(rawTasks).catch(err => {
-          console.warn('⚠️  Failed to save raw data to IndexedDB:', err);
-        });
-
-        // Update UI state
-        const syncTime = new Date();
-        setLastSyncTime(syncTime);
-        setCachedTaskCount(rawTasks.length);
-
-        console.log('✅ All 3 cache layers saved successfully');
-      }
-
-      if (config.clickupStandupViewId && config.clickupStandupViewId.trim()) {
-        setStandupEntries(null);
-        setStandupFetched(false);
-      } else {
-        setStandupEntries(null);
-        setStandupFetched(false);
-      }
-      setStandupLoading(false);
-    } catch (err: any) {
-      console.error(err);
-      alert(`Falha na sincronização: ${err.message}`);
-      setStandupEntries(null);
-      setStandupFetched(false);
-      setStandupLoading(false);
-    } finally {
-      clearTimeout(timeoutId);
-      setLoading(false);
-    }
-  };
-
-  const handleStandupSync = async () => {
-    if (!config.clickupStandupViewId || !config.clickupStandupViewId.trim()) {
-      alert('Configure o ID da view de standup em Admin > Integração ClickUp API antes de sincronizar.');
-      return;
-    }
-
-    setStandupLoading(true);
-    try {
-      const summaries = await fetchStandupSummaries(config, { limit: 30 });
-      setStandupEntries(summaries);
-      setStandupFetched(true);
-
-      try {
-        const cachedDataRaw = localStorage.getItem('dailyFlowCachedData');
-        if (cachedDataRaw) {
-          const cached = JSON.parse(cachedDataRaw);
-          localStorage.setItem('dailyFlowCachedData', JSON.stringify({
-            ...cached,
-            standupEntries: summaries
-          }));
-        }
-      } catch (cacheErr) {
-        console.warn('Falha ao salvar resumo diário no cache:', cacheErr);
-      }
-    } catch (err: any) {
-      console.error('Falha ao sincronizar resumo diário:', err);
-      alert(`Falha ao carregar resumo diário: ${err?.message || err}`);
-      setStandupFetched(false);
-    } finally {
-      setStandupLoading(false);
-    }
-  };
-
-  const handleMockLoad = async () => {
-    setLoading(true);
-    try {
-      const processed = await loadMockData(config);
-      setData(processed);
-      setRawData(null);
-      setStandupEntries(null);
-      setStandupFetched(false);
-      setStandupLoading(false);
-      setActiveView('projects');
-    } catch (err: any) {
-      console.error(err);
-      alert(`Falha ao carregar dados mock: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleConfigUpdate = (newConfig: AppConfig) => {
-    const standupChanged = newConfig.clickupStandupViewId !== config.clickupStandupViewId;
-    setConfig(newConfig);
-    if (standupChanged) {
-      setStandupEntries(null);
-      setStandupFetched(false);
-      setStandupLoading(false);
-    }
-  };
-
-  const hasApiConfig = !!(config.clickupApiToken && config.clickupListIds);
-  const hasCachedData = !!(cachedTaskCount > 0);
-
-  const navItems = [
-    {
-      section: 'Dados',
-      items: [
-        { view: 'import' as ViewMode, icon: Database, label: 'Importar / Sync', disabled: false },
-      ]
-    },
-    {
-      section: 'Visualização',
-      items: [
-        { view: 'projects' as ViewMode, icon: Calendar, label: 'Alinhamento Diário', disabled: !data },
-        { view: 'alignment' as ViewMode, icon: Users, label: 'Alinhamento', disabled: !data },
-        { view: 'timesheet' as ViewMode, icon: LayoutDashboard, label: 'Timesheet', disabled: !data },
-        { view: 'management2' as ViewMode, icon: BarChart3, label: 'Gestão', disabled: !data },
-      ]
-    },
-    {
-      section: 'Sistema',
-      items: [
-        { view: 'settings' as ViewMode, icon: SettingsIcon, label: 'Configurações', disabled: false },
-        { view: 'admin' as ViewMode, icon: Shield, label: 'Admin', disabled: false },
-      ]
-    }
-  ];
-
-  const NavButton: React.FC<{ view: ViewMode; icon: any; label: string; disabled?: boolean }> = ({ view, icon: Icon, label, disabled = false }) => (
-    <button
-      onClick={() => !disabled && setActiveView(view)}
-      disabled={disabled}
-      title={isSidebarCollapsed ? label : undefined}
-      className={`
-        w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200
-        ${isSidebarCollapsed ? 'justify-center' : ''}
-        ${activeView === view
-          ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-lg shadow-sky-500/25'
-          : disabled
-            ? 'opacity-40 cursor-not-allowed text-slate-400'
-            : 'text-slate-300 hover:bg-slate-800/50 hover:text-white'
-        }
-      `}
-    >
-      <Icon className={`w-5 h-5 flex-shrink-0 ${activeView === view ? 'text-white' : ''}`} />
-      {!isSidebarCollapsed && (
-        <span className="font-medium text-sm truncate">{label}</span>
-      )}
-    </button>
-  );
-
-  // Show login screen if not authenticated
-  if (!isAuthenticated) {
-    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-
-    // Wrap with GoogleOAuthProvider if configured
-    if (googleClientId) {
-      return (
-        <GoogleOAuthProvider clientId={googleClientId}>
-          <LoginScreen onLogin={handleLogin} />
-        </GoogleOAuthProvider>
-      );
-    }
-
-    return <LoginScreen onLogin={handleLogin} />;
-  }
-
-  return (
-    <div className="flex h-screen bg-slate-100 text-slate-800 font-sans overflow-hidden">
-      {/* Mobile Menu Overlay */}
-      {isMobileMenuOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden animate-fade-in"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside className={`
-        fixed lg:relative inset-y-0 left-0 z-50
-        ${isSidebarCollapsed ? 'w-20' : 'w-72'}
-        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 
-        text-white flex-shrink-0 flex flex-col shadow-2xl
-        transition-all duration-300 ease-in-out
-      `}>
-        {/* Logo */}
-        <div className={`p-4 border-b border-slate-800/50 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
-          {!isSidebarCollapsed && (
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-500/30">
-                <TrendingUp className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-white tracking-tight">MCSA Tecnologia</h1>
-                <p className="text-[10px] text-slate-400 font-medium">Gestão de Projetos</p>
-              </div>
+                    {/* Content Render */}
+                    <div className="flex-1 overflow-hidden h-full">
+                        {activeView === 'sync' && <SyncDashboard />}
+                        {activeView === 'daily' && <DailyAlignmentDashboard />}
+                        {activeView === 'gestao' && <TimesheetWrapper />}
+                        {activeView === 'quality' && <QualityWrapper />}
+                        {activeView === 'admin' && <AdminDashboard />}
+                    </div>
+                </main>
             </div>
-          )}
-          {isSidebarCollapsed && (
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-white" />
-            </div>
-          )}
 
-          <button
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="hidden lg:flex p-2 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
-          >
-            {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-          </button>
+            <style>{`
+                /* Custom scrollbar for sidebar */
+                .custom-scrollbar::-webkit-scrollbar {
+                    width: 4px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb {
+                    background: rgba(255, 255, 255, 0.1);
+                    border-radius: 10px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                    background: rgba(255, 255, 255, 0.2);
+                }
+            `}</style>
+        </DataProvider>
+    );
+};
 
-          {/* Mobile close button */}
-          <button
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="lg:hidden p-2 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
-          >
-            <X size={20} />
-          </button>
-        </div>
+// ============================================
+// ROOT APP COMPONENT
+// ============================================
 
-        {/* Navigation */}
-        <nav className="flex-1 p-3 space-y-6 overflow-y-auto">
-          {navItems.map((section, idx) => (
-            <div key={idx}>
-              {!isSidebarCollapsed && (
-                <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2 px-3">
-                  {section.section}
-                </div>
-              )}
-              <div className="space-y-1">
-                {section.items.map((item) => (
-                  <NavButton key={item.view} view={item.view} icon={item.icon} label={item.label} disabled={item.disabled} />
-                ))}
-              </div>
-            </div>
-          ))}
-        </nav>
-
-        {/* Footer */}
-        {!isSidebarCollapsed && (
-          <div className="p-4 border-t border-slate-800/50 space-y-2">
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:bg-red-500/10 hover:text-red-400 transition-all duration-200"
-            >
-              <LogOut className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium text-sm">Sair do Sistema</span>
-            </button>
-            <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-slate-800/50">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-green-600 flex items-center justify-center">
-                <LayoutDashboard className="w-4 h-4 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-white truncate">ClickUp Sync</p>
-                <p className="text-[10px] text-slate-400">v2.0.0</p>
-              </div>
-            </div>
-          </div>
-        )}
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 overflow-hidden relative flex flex-col min-w-0">
-        {/* Mobile Header */}
-        <header className="lg:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between sticky top-0 z-30">
-          <button
-            onClick={() => setIsMobileMenuOpen(true)}
-            className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
-          >
-            <Menu size={24} />
-          </button>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center">
-              <TrendingUp className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-bold text-slate-800">DailyFlow</span>
-          </div>
-          <div className="w-10" />
-        </header>
-
-        {/* Content Area */}
-        <div className="flex-1 overflow-hidden">
-          {activeView === 'import' && (
-            <div className="h-full flex items-center justify-center p-4 md:p-8 animate-fade-in overflow-y-auto">
-              <FileUpload
-                onApiSync={handleApiSync}
-                loading={loading}
-                hasApiConfig={hasApiConfig || hasCachedData}
-                lastSyncTime={lastSyncTime}
-                cachedTaskCount={cachedTaskCount}
-                onClearCache={() => {
-                  advancedCache.clearAll().then(() => {
-                    setLastSyncTime(null);
-                    setCachedTaskCount(0);
-                    setData(null);
-                    setRawData(null);
-                    alert('✅ Cache limpo com sucesso!');
-                  });
-                }}
-              />
-            </div>
-          )}
-
-          {(activeView === 'projects' || activeView === 'alignment') && data && (
-            <div className="h-full overflow-hidden flex flex-col">
-              <Dashboard
-                data={data}
-                config={config}
-                viewMode={activeView as 'projects' | 'alignment'}
-                rawData={rawData}
-                standupEntries={standupEntries ?? undefined}
-                standupFetched={standupFetched}
-                standupLoading={standupLoading}
-                onStandupSync={handleStandupSync}
-                onRefresh={activeView === 'projects' ? handleApiSync : undefined}
-              />
-            </div>
-          )}
-
-          {activeView === 'management2' && data && (
-            <div className="h-full overflow-hidden flex flex-col">
-              <TestDashboard
-                data={data}
-                config={config}
-                rawData={rawData}
-              />
-            </div>
-          )}
-
-          {activeView === 'timesheet' && data && (
-            <div className="h-full overflow-hidden">
-              <TimesheetDashboard
-                data={data}
-                config={config}
-              />
-            </div>
-          )}
-
-          {activeView === 'settings' && (
-            <div className="h-full overflow-y-auto p-4 md:p-8">
-              <Settings config={config} onSave={handleConfigUpdate} data={data} variant="user" />
-            </div>
-          )}
-
-          {activeView === 'admin' && (
-            <div className="h-full overflow-y-auto p-4 md:p-8">
-              <Settings
-                config={config}
-                onSave={handleConfigUpdate}
-                data={data}
-                variant="admin"
-                onFileUpload={handleFileUpload}
-                rawData={rawData}
-                filterState={filterState}
-                onFilterStateChange={setFilterState}
-              />
-            </div>
-          )}
-        </div>
-      </main>
-    </div>
-  );
+const App: React.FC = () => {
+    return (
+        <AuthProvider>
+            <AppContent />
+        </AuthProvider>
+    );
 };
 
 export default App;

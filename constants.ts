@@ -1,86 +1,57 @@
-import { AppConfig } from './types';
-import { FilterConfig } from './types/FilterConfig';
+/**
+ * @id CONST-001
+ * @name constants
+ * @description Configuration constants for v2.0 (NO MOCK DATA!)
+ */
 
-export const DEFAULT_CONFIG: AppConfig = {
-  teamMembers: [
-    'Rodrigo Brozinga',
-    'Lucas Soares',
-    'Lucas Paresqui',
-    'Thiago Vitorio',
-    'Alvaro',
-    'Rafael Viegas',
-    'Pedro'
-  ],
-  nameMappings: {
-    'Rodrigo Brozinga': 'Brozinga',
-    'Lucas Soares': 'Soares',
-    'Lucas Paresqui': 'Paresqui',
-    'Thiago Vitorio': 'Thiago',
-    'Alvaro Nunes': 'Alvaro',
-    'Rafael Viegas': 'Rafael',
-    'Viegas': 'Rafael',
-    'Pedro Calais': 'Pedro'
-  },
-  teamMemberOrder: [
-    'Brozinga',
-    'Soares',
-    'Paresqui',
-    'Thiago',
-    'Alvaro',
-    'Rafael',
-    'Pedro'
-  ],
-  holidays: [],
-  corsProxy: '',
-  clickupApiToken: import.meta.env.VITE_CLICKUP_API_TOKEN || '',
-  clickupListIds: import.meta.env.VITE_CLICKUP_LIST_IDS || '',
-  clickupTeamId: import.meta.env.VITE_CLICKUP_TEAM_ID || '',
-  clickupStandupViewId: import.meta.env.VITE_CLICKUP_STANDUP_VIEW_ID || '',
-  apiTagFilters: [], // Fetch ALL tasks (no API filtering) - filter on client side instead
-  includeArchived: false,
-  priorityOrder: ['URGENTE', 'ALTA', 'NORMAL', 'BAIXA'],
-  customGroups: [
-    {
-      id: 'projetos',
-      title: 'Projetos',
-      tags: [], // Empty = catch all tasks without other group tags
-      icon: '🎯',
-      color: 'blue',
-      order: 999, // Show last (default fallback)
-      enabled: true
-    }
-  ]
-};
+import { PriorityType } from './types';
+import { AlertTriangle, ArrowUpCircle, CheckCircle2, HelpCircle, AlertOctagon } from 'lucide-react';
 
-export const DEFAULT_FILTER_CONFIG: FilterConfig = {
-  requiredTags: [],  // Changed: Show ALL tasks by default (no tag filter)
-  excludedTags: [],
-  includedStatuses: [],
-  excludeClosed: false,
-  includedPriorities: [],
-  dateRange: null,
-  includedAssignees: [],
-  includeUnassigned: true,
-  showParentTasks: true,
-  showSubtasks: true,
-  showArchivedTasks: false,
-  includedProjects: []
-};
-
-export const formatHours = (hours: number): string => {
-  if (hours === 0) return '-';
-
-  const isNegative = hours < 0;
-  const absHours = Math.abs(hours);
-
-  const h = Math.floor(absHours);
-  const m = Math.round((absHours - h) * 60);
-
-  let result = '';
-  if (h > 0 && m > 0) result = `${h}h ${m}m`;
-  else if (h > 0) result = `${h}h`;
-  else if (m > 0) result = `${m}m`;
-  else result = '0';
-
-  return isNegative ? `-${result}` : result;
+// --- CONFIGURAÇÃO VISUAL DE PRIORIDADES ---
+export const PRIORITY_CONFIG = {
+    [PriorityType.URGENT]: {
+        color: '#ef4444',
+        label: '0 - Urgente',
+        icon: AlertOctagon,
+        bg: 'bg-red-50',
+        text: 'text-red-700',
+        border: 'border-red-200',
+        metricConfig: { bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-200', iconBg: 'bg-red-100', iconText: 'text-red-600' }
+    },
+    [PriorityType.HIGH]: {
+        color: '#f97316',
+        label: '1 - Alta',
+        icon: AlertTriangle,
+        bg: 'bg-orange-50',
+        text: 'text-orange-700',
+        border: 'border-orange-200',
+        metricConfig: { bg: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-200', iconBg: 'bg-orange-100', iconText: 'text-orange-600' }
+    },
+    [PriorityType.NORMAL]: {
+        color: '#3b82f6',
+        label: '2 - Normal',
+        icon: ArrowUpCircle,
+        bg: 'bg-blue-50',
+        text: 'text-blue-700',
+        border: 'border-blue-200',
+        metricConfig: { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-200', iconBg: 'bg-blue-100', iconText: 'text-blue-600' }
+    },
+    [PriorityType.LOW]: {
+        color: '#64748b',
+        label: '3 - Baixa',
+        icon: CheckCircle2,
+        bg: 'bg-slate-50',
+        text: 'text-slate-700',
+        border: 'border-slate-200',
+        metricConfig: { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200', iconBg: 'bg-slate-100', iconText: 'text-slate-500' }
+    },
+    [PriorityType.NONE]: {
+        color: '#a1a1aa',
+        label: '4 - S/ Prior.',
+        icon: HelpCircle,
+        bg: 'bg-gray-50',
+        text: 'text-gray-600',
+        border: 'border-gray-200',
+        metricConfig: { bg: 'bg-gray-50', text: 'text-gray-600', border: 'border-gray-200', iconBg: 'bg-gray-100', iconText: 'text-gray-500' }
+    },
 };

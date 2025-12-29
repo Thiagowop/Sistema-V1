@@ -1,7 +1,21 @@
+/**
+ * @id SERV-CACHE-001
+ * @name AdvancedCacheService
+ * @description Sistema de cache em 3 camadas com compressão LZ-String
+ * @dependencies lz-string, idb-keyval
+ * @status active
+ * @version 2.0.0
+ * 
+ * CAMADAS:
+ * - Layer 1: Metadata (localStorage) - Instantâneo
+ * - Layer 2: Processed Data (localStorage + LZ-String compression)
+ * - Layer 3: Raw Data (IndexedDB) - Dados grandes
+ */
+
 import { compress, decompress } from 'lz-string';
 import { set, get, del } from 'idb-keyval';
 import { GroupedData } from '../types';
-import { ClickUpApiTask } from './clickup';
+import type { ClickUpApiTask } from './clickup';
 import { FilterMetadata } from '../types/FilterConfig';
 
 const CACHE_VERSION = '3.0.0';
@@ -44,15 +58,15 @@ class AdvancedCacheService {
         projects: metadata.projects,
         priorities: metadata.priorities
       };
-      
+
       localStorage.setItem(METADATA_KEY, JSON.stringify(cache));
-      console.log('✅ Metadata saved:', {
+      console.log('✅ [SERV-CACHE-001] Metadata saved:', {
         tags: cache.tags.length,
         statuses: cache.statuses.length,
         assignees: cache.assignees.length
       });
     } catch (error) {
-      console.error('❌ Failed to save metadata:', error);
+      console.error('❌ [SERV-CACHE-001] Failed to save metadata:', error);
     }
   }
 
@@ -62,22 +76,16 @@ class AdvancedCacheService {
       if (!cached) return null;
 
       const metadata: MetadataCache = JSON.parse(cached);
-      
+
       // Validar versão
       if (metadata.version !== CACHE_VERSION) {
-        console.log('🔄 Metadata version mismatch, clearing...');
         this.clearMetadata();
         return null;
       }
 
-      console.log('✅ Metadata loaded:', {
-        tags: metadata.tags.length,
-        lastSync: metadata.lastSync
-      });
-      
       return metadata;
     } catch (error) {
-      console.error('❌ Failed to load metadata:', error);
+      console.error('❌ [SERV-CACHE-001] Failed to load metadata:', error);
       return null;
     }
   }
@@ -95,7 +103,7 @@ class AdvancedCacheService {
       const startTime = performance.now();
       const json = JSON.stringify(data);
       const compressed = compress(json);
-      
+
       const cache: ProcessedCache = {
         data: [], // Não salvar descomprimido
         compressed: true,
@@ -106,20 +114,20 @@ class AdvancedCacheService {
       // Salvar comprimido separadamente
       localStorage.setItem(PROCESSED_KEY, JSON.stringify(cache));
       localStorage.setItem(PROCESSED_KEY + '_data', compressed);
-      
+
       const endTime = performance.now();
       const originalSize = (json.length / 1024).toFixed(2);
       const compressedSize = (compressed.length / 1024).toFixed(2);
       const ratio = ((1 - compressed.length / json.length) * 100).toFixed(1);
-      
-      console.log('✅ Processed data saved:', {
+
+      console.log('✅ [SERV-CACHE-001] Processed data saved:', {
         original: `${originalSize}KB`,
         compressed: `${compressedSize}KB`,
         ratio: `${ratio}% reduction`,
         time: `${(endTime - startTime).toFixed(0)}ms`
       });
     } catch (error) {
-      console.error('❌ Failed to save processed data:', error);
+      console.error('❌ [SERV-CACHE-001] Failed to save processed data:', error);
       // Se falhar, limpar cache corrompido
       this.clearProcessedData();
     }
@@ -132,10 +140,10 @@ class AdvancedCacheService {
       if (!cacheInfo) return null;
 
       const cache: ProcessedCache = JSON.parse(cacheInfo);
-      
+
       // Validar versão
       if (cache.version !== CACHE_VERSION) {
-        console.log('🔄 Processed data version mismatch, clearing...');
+        console.log('🔄 [SERV-CACHE-001] Processed data version mismatch, clearing...');
         this.clearProcessedData();
         return null;
       }
@@ -146,22 +154,22 @@ class AdvancedCacheService {
 
       const decompressed = decompress(compressedData);
       if (!decompressed) {
-        console.error('❌ Failed to decompress data');
+        console.error('❌ [SERV-CACHE-001] Failed to decompress data');
         this.clearProcessedData();
         return null;
       }
 
       const data: GroupedData[] = JSON.parse(decompressed);
       const endTime = performance.now();
-      
-      console.log('✅ Processed data loaded:', {
+
+      console.log('✅ [SERV-CACHE-001] Processed data loaded:', {
         groups: data.length,
         time: `${(endTime - startTime).toFixed(0)}ms`
       });
-      
+
       return data;
     } catch (error) {
-      console.error('❌ Failed to load processed data:', error);
+      console.error('❌ [SERV-CACHE-001] Failed to load processed data:', error);
       this.clearProcessedData();
       return null;
     }
@@ -187,18 +195,17 @@ class AdvancedCacheService {
       };
 
       await set(RAW_DATA_IDB_KEY, dataToStore);
-      
+
       const endTime = performance.now();
       const sizeEstimate = (JSON.stringify(tasks).length / 1024 / 1024).toFixed(2);
-      
-      console.log('✅ Raw data saved to IndexedDB:', {
+
+      console.log('✅ [SERV-CACHE-001] Raw data saved to IndexedDB:', {
         tasks: tasks.length,
         size: `~${sizeEstimate}MB`,
         time: `${(endTime - startTime).toFixed(0)}ms`
       });
     } catch (error) {
-      console.error('❌ Failed to save raw data to IndexedDB:', error);
-      // IndexedDB pode falhar, mas não é crítico
+      console.error('❌ [SERV-CACHE-001] Failed to save raw data to IndexedDB:', error);
     }
   }
 
@@ -206,36 +213,36 @@ class AdvancedCacheService {
     try {
       const startTime = performance.now();
       const cached = await get(RAW_DATA_IDB_KEY);
-      
+
       if (!cached) {
-        console.log('ℹ️  No raw data in IndexedDB');
+        console.log('ℹ️  [SERV-CACHE-001] No raw data in IndexedDB');
         return null;
       }
 
       // Validar estrutura
       if (!cached.tasks || !Array.isArray(cached.tasks)) {
-        console.error('❌ Invalid raw data structure');
+        console.error('❌ [SERV-CACHE-001] Invalid raw data structure');
         await this.clearRawData();
         return null;
       }
 
       // Validar versão
       if (cached.version !== CACHE_VERSION) {
-        console.log('🔄 Raw data version mismatch, clearing...');
+        console.log('🔄 [SERV-CACHE-001] Raw data version mismatch, clearing...');
         await this.clearRawData();
         return null;
       }
 
       const endTime = performance.now();
-      console.log('✅ Raw data loaded from IndexedDB:', {
+      console.log('✅ [SERV-CACHE-001] Raw data loaded from IndexedDB:', {
         tasks: cached.tasks.length,
         time: `${(endTime - startTime).toFixed(0)}ms`,
         age: this.getAgeString(cached.timestamp)
       });
-      
+
       return cached.tasks;
     } catch (error) {
-      console.error('❌ Failed to load raw data from IndexedDB:', error);
+      console.error('❌ [SERV-CACHE-001] Failed to load raw data from IndexedDB:', error);
       return null;
     }
   }
@@ -243,26 +250,31 @@ class AdvancedCacheService {
   async clearRawData(): Promise<void> {
     try {
       await del(RAW_DATA_IDB_KEY);
-      console.log('🗑️  Raw data cleared from IndexedDB');
+      console.log('🗑️  [SERV-CACHE-001] Raw data cleared from IndexedDB');
     } catch (error) {
-      console.error('❌ Failed to clear raw data:', error);
+      console.error('❌ [SERV-CACHE-001] Failed to clear raw data:', error);
     }
   }
 
   /**
-   * Limpar todos os caches
+   * Limpar todos os caches de TAREFAS
+   * IMPORTANTE: NÃO limpa dados de referência (referenceDataService)
+   * Dados de referência (equip tags, team members, projects) são persistentes
+   * e devem ser limpos manualmente via referenceDataService.clearAllData(true)
    */
   async clearAll(): Promise<void> {
-    console.log('🗑️  Clearing all caches...');
+    console.log('🗑️  [SERV-CACHE-001] Clearing all TASK caches...');
+    console.log('ℹ️  [SERV-CACHE-001] Reference data is preserved (equip tags, team members, etc)');
+
     this.clearMetadata();
     this.clearProcessedData();
     await this.clearRawData();
-    
+
     // Limpar caches antigos também
     localStorage.removeItem('dailyFlowCachedData');
     localStorage.removeItem('dailyFlowCacheMeta');
-    
-    console.log('✅ All caches cleared');
+
+    console.log('✅ [SERV-CACHE-001] Task caches cleared (reference data preserved)');
   }
 
   /**
@@ -284,20 +296,20 @@ class AdvancedCacheService {
   }
 
   /**
-   * Merge incremental - Atualiza apenas tarefas modificadas
-   * Compara por ID e date_updated
+   * Merge incremental - Atualiza tarefas retornadas pela API
+   * IMPORTANTE: Se a API retornou com date_updated_gt, a tarefa JÁ foi modificada - sempre atualizar
    */
   async mergeIncrementalUpdate(newTasks: ClickUpApiTask[]): Promise<ClickUpApiTask[]> {
     try {
       const cached = await this.loadRawData();
-      
+
       if (!cached || cached.length === 0) {
-        console.log('📥 No cache found, using full sync');
+        console.log('📥 [SERV-CACHE-001] No cache found, using new tasks directly');
         return newTasks;
       }
 
       const startTime = performance.now();
-      
+
       // Criar mapa de tarefas cacheadas por ID
       const cachedMap = new Map<string, ClickUpApiTask>();
       cached.forEach(task => {
@@ -307,44 +319,38 @@ class AdvancedCacheService {
       // Estatísticas
       let added = 0;
       let updated = 0;
-      let unchanged = 0;
 
-      // Atualizar ou adicionar novas tarefas
+      // IMPORTANTE: Toda tarefa retornada pela API incremental foi modificada
+      // O filtro date_updated_gt do ClickUp já garantiu isso - NÃO precisamos verificar de novo
       newTasks.forEach(newTask => {
-        const cachedTask = cachedMap.get(newTask.id);
-        
-        if (!cachedTask) {
-          // Tarefa nova
-          cachedMap.set(newTask.id, newTask);
-          added++;
+        const wasInCache = cachedMap.has(newTask.id);
+
+        // SEMPRE substituir - a API já filtrou tarefas modificadas
+        cachedMap.set(newTask.id, newTask);
+
+        if (wasInCache) {
+          updated++;
+          console.log(`🔄 [SERV-CACHE-001] Updated task: "${newTask.name}" (ID: ${newTask.id})`);
         } else {
-          // Verificar se foi modificada (comparar date_updated ou outros campos)
-          const isModified = this.hasTaskChanged(cachedTask, newTask);
-          
-          if (isModified) {
-            cachedMap.set(newTask.id, newTask);
-            updated++;
-          } else {
-            unchanged++;
-          }
+          added++;
+          console.log(`➕ [SERV-CACHE-001] Added new task: "${newTask.name}" (ID: ${newTask.id})`);
         }
       });
 
       const mergedTasks = Array.from(cachedMap.values());
       const endTime = performance.now();
 
-      console.log('🔄 Incremental merge completed:', {
-        total: mergedTasks.length,
+      console.log('🔄 [SERV-CACHE-001] Incremental merge completed:', {
+        fromAPI: newTasks.length,
         added,
         updated,
-        unchanged,
-        time: `${(endTime - startTime).toFixed(0)}ms`,
-        cacheHitRatio: `${((unchanged / mergedTasks.length) * 100).toFixed(1)}%`
+        totalInCache: mergedTasks.length,
+        time: `${(endTime - startTime).toFixed(0)}ms`
       });
 
       return mergedTasks;
     } catch (error) {
-      console.error('❌ Merge failed, using full sync:', error);
+      console.error('❌ [SERV-CACHE-001] Merge failed, using new tasks:', error);
       return newTasks;
     }
   }
@@ -353,20 +359,20 @@ class AdvancedCacheService {
    * Verifica se uma tarefa mudou comparando campos chave
    */
   private hasTaskChanged(oldTask: ClickUpApiTask, newTask: ClickUpApiTask): boolean {
-    // Campos que indicam mudança
     const compareFields = [
       'name',
       'status',
       'time_estimate',
       'time_spent',
       'due_date',
-      'date_closed'
+      'date_closed',
+      'date_updated'  // Important for detecting any change
     ];
 
     for (const field of compareFields) {
       const oldValue = JSON.stringify((oldTask as any)[field]);
       const newValue = JSON.stringify((newTask as any)[field]);
-      
+
       if (oldValue !== newValue) {
         return true;
       }
@@ -381,6 +387,14 @@ class AdvancedCacheService {
     const oldAssignees = (oldTask.assignees || []).map(a => a.email).sort().join(',');
     const newAssignees = (newTask.assignees || []).map(a => a.email).sort().join(',');
     if (oldAssignees !== newAssignees) return true;
+
+    // CRITICAL: Comparar subtasks (missing in original implementation!)
+    const oldSubtasks = JSON.stringify(oldTask.subtasks || []);
+    const newSubtasks = JSON.stringify(newTask.subtasks || []);
+    if (oldSubtasks !== newSubtasks) {
+      console.log(`🔄 [SERV-CACHE-001] Task "${oldTask.name}" has subtask changes`);
+      return true;
+    }
 
     return false;
   }
@@ -402,29 +416,23 @@ class AdvancedCacheService {
 
   /**
    * RECUPERAÇÃO DE EMERGÊNCIA
-   * Tenta recuperar dados do localStorage antigo (versões anteriores)
    */
   async tryRecoverFromOldCache(): Promise<{ data: GroupedData[] | null, config: any | null }> {
-    console.log('🔧 Tentando recuperar cache antigo...');
-    
+    console.log('🔧 [SERV-CACHE-001] Tentando recuperar cache antigo...');
+
     let recoveredData: GroupedData[] | null = null;
     let recoveredConfig: any | null = null;
 
-    // Tentar carregar configurações
     try {
       const configStr = localStorage.getItem('dailyPresenterConfig');
       if (configStr) {
         recoveredConfig = JSON.parse(configStr);
-        console.log('✅ Configurações recuperadas:', {
-          hasToken: !!recoveredConfig.clickupApiToken,
-          hasListIds: !!recoveredConfig.clickupListIds
-        });
+        console.log('✅ [SERV-CACHE-001] Configurações recuperadas');
       }
     } catch (e) {
-      console.error('❌ Erro ao recuperar config:', e);
+      console.error('❌ [SERV-CACHE-001] Erro ao recuperar config:', e);
     }
 
-    // Tentar carregar dados do cache antigo (sem versão)
     try {
       const oldKeys = [
         'dailyFlowCachedData',
@@ -436,26 +444,108 @@ class AdvancedCacheService {
         const cached = localStorage.getItem(key);
         if (cached) {
           const parsed = JSON.parse(cached);
-          
-          // Tentar diferentes estruturas
+
           if (Array.isArray(parsed)) {
             recoveredData = parsed;
-            console.log(`✅ Dados recuperados de ${key}:`, parsed.length, 'grupos');
+            console.log(`✅ [SERV-CACHE-001] Dados recuperados de ${key}`);
             break;
           } else if (parsed.data && Array.isArray(parsed.data)) {
             recoveredData = parsed.data;
-            console.log(`✅ Dados recuperados de ${key}:`, parsed.data.length, 'grupos');
+            console.log(`✅ [SERV-CACHE-001] Dados recuperados de ${key}`);
             break;
           }
         }
       }
     } catch (e) {
-      console.error('❌ Erro ao recuperar dados antigos:', e);
+      console.error('❌ [SERV-CACHE-001] Erro ao recuperar dados antigos:', e);
     }
 
     return { data: recoveredData, config: recoveredConfig };
+  }
+
+  /**
+   * Get cache statistics for all layers
+   */
+  async getCacheStats(): Promise<{
+    layer1Size: number;
+    layer2Size: number;
+    layer3HasData: boolean;
+    layer3TaskCount: number;
+    lastSync: string | null;
+  }> {
+    let layer1Size = 0;
+    let layer2Size = 0;
+    let layer3HasData = false;
+    let layer3TaskCount = 0;
+    let lastSync: string | null = null;
+
+    // Layer 1
+    const metaStr = localStorage.getItem(METADATA_KEY);
+    if (metaStr) {
+      layer1Size = metaStr.length * 2; // UTF-16
+      try {
+        const meta = JSON.parse(metaStr);
+        lastSync = meta.lastSync || null;
+      } catch { }
+    }
+
+    // Layer 2
+    const processedStr = localStorage.getItem(PROCESSED_KEY);
+    if (processedStr) {
+      layer2Size = processedStr.length * 2;
+    }
+
+    // Layer 3
+    try {
+      const raw = await get<ClickUpApiTask[]>(RAW_DATA_IDB_KEY);
+      if (raw && Array.isArray(raw)) {
+        layer3HasData = true;
+        layer3TaskCount = raw.length;
+      }
+    } catch { }
+
+    return { layer1Size, layer2Size, layer3HasData, layer3TaskCount, lastSync };
+  }
+
+  /**
+   * Clear a specific cache layer
+   */
+  async clearLayer(layer: 1 | 2 | 3): Promise<void> {
+    switch (layer) {
+      case 1:
+        localStorage.removeItem(METADATA_KEY);
+        console.log('[SERV-CACHE-001] Layer 1 (metadata) cleared');
+        break;
+      case 2:
+        localStorage.removeItem(PROCESSED_KEY);
+        console.log('[SERV-CACHE-001] Layer 2 (processed) cleared');
+        break;
+      case 3:
+        await del(RAW_DATA_IDB_KEY);
+        console.log('[SERV-CACHE-001] Layer 3 (raw data) cleared');
+        break;
+    }
   }
 }
 
 // Export singleton
 export const advancedCache = new AdvancedCacheService();
+
+// ============================================
+// CONVENIENCE EXPORTS
+// ============================================
+
+export const getCacheStats = () => advancedCache.getCacheStats();
+export const clearLayerCache = (layer: 1 | 2 | 3) => advancedCache.clearLayer(layer);
+
+// Cache operations
+export const saveRawData = (data: ClickUpApiTask[]) => advancedCache.saveRawData(data);
+export const loadRawData = () => advancedCache.loadRawData();
+export const saveMetadata = (meta: { filterMetadata: FilterMetadata; lastSync: string; taskCount: number; version: string }) =>
+  advancedCache.saveMetadata(meta.filterMetadata, meta.taskCount);
+export const loadMetadata = () => advancedCache.loadMetadata();
+export const saveProcessedData = (data: GroupedData[]) => advancedCache.saveProcessedData(data);
+export const loadProcessedData = () => advancedCache.loadProcessedData();
+export const clearAllCache = () => advancedCache.clearAll();
+export const mergeIncrementalData = async (existing: ClickUpApiTask[], updated: ClickUpApiTask[]): Promise<ClickUpApiTask[]> =>
+  await advancedCache.mergeIncrementalUpdate(updated);

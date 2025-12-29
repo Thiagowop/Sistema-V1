@@ -1,15 +1,49 @@
-export interface ClickUpRow {
-  'Task Name': string;
-  'Parent Name'?: string;
-  'Status': string;
-  'Assignee': string;
-  'Start Date'?: string;
-  'Due Date'?: string;
-  'Time Estimate'?: string;
-  'Time Logged'?: string;
-  'List'?: string; // Project Name
-  [key: string]: any;
+/**
+ * @id TYPE-CORE-001
+ * @name CoreTypes
+ * @description Tipos principais do Daily Flow v2.0
+ * @status active
+ * @version 2.0.0
+ */
+
+import React from 'react';
+
+// ============================================
+// ENUMS
+// ============================================
+
+export enum PriorityType {
+  URGENT = '0',
+  HIGH = '1',
+  NORMAL = '2',
+  LOW = '3',
+  NONE = '4',
 }
+
+// ============================================
+// TAB TYPES
+// ============================================
+
+export type TabKey = 
+  | 'overview' 
+  | 'team' 
+  | 'ai_analysis' 
+  | 'legacy' 
+  | 'governance' 
+  | 'timesheet' 
+  | 'attendance' 
+  | 'visual_management' 
+  | 'general' 
+  | 'strategic' 
+  | 'tactical' 
+  | 'operational' 
+  | 'allocation' 
+  | 'priorities' 
+  | 'team_health';
+
+// ============================================
+// CORE TASK TYPES (Compatible with v1.0)
+// ============================================
 
 export interface Task {
   id: string;
@@ -22,11 +56,11 @@ export interface Task {
   dateClosed: Date | null;
   priority?: string;
   priorityLevel?: number;
-  timeEstimate: number; // in hours
-  timeLogged: number; // in hours
-  remaining: number; // in hours
-  additionalTime: number; // New: Logged - Estimate (if positive)
-  remainingFormula: number; // New: Estimate - Logged (can be negative)
+  timeEstimate: number;
+  timeLogged: number;
+  remaining: number;
+  additionalTime: number;
+  remainingFormula: number;
   projectName: string;
   orderIndex?: number;
   isSubtask: boolean;
@@ -34,42 +68,59 @@ export interface Task {
   isOverdue: boolean;
   hasNegativeBudget: boolean;
   description?: string;
-  tags?: string[]; // Tags from ClickUp
-  // Visual Distribution for the Week Grid
-  weeklyDistribution: Record<string, string>; // date "DD/MM" -> formatted hours string
+  tags?: string[];
+  weeklyDistribution: Record<string, string>;
+}
+
+export interface Project {
+  name: string;
+  tasks: Task[];
+  stats?: {
+    planned: number;
+    logged: number;
+  };
 }
 
 export interface GroupedData {
   assignee: string;
   projects: {
     name: string;
-    tasks: Task[]; // Parent tasks (containing subtasks)
+    tasks: Task[];
     stats: {
       planned: number;
       logged: number;
     }
   }[];
-  weekDates: string[]; // List of "DD/MM" strings for the header
+  weekDates: string[];
 }
+
+// ============================================
+// APP CONFIGURATION (Compatible with v1.0)
+// ============================================
 
 export interface AppConfig {
   teamMembers: string[];
-  teamMemberOrder?: string[]; // Custom display order for team members
+  teamMemberOrder?: string[];
   nameMappings: Record<string, string>;
-  holidays: string[]; // DD/MM format
+  holidays: string[];
   clickupApiToken?: string;
-  clickupListIds?: string; // Comma separated IDs
-  clickupTeamId?: string; // Team/Space ID for fetching all tasks
-  apiTagFilters?: string[]; // Tags to filter at API level (e.g. ['projeto'])
-  corsProxy?: string; // Proxy URL to bypass CORS in browser
+  clickupListIds?: string;
+  clickupTeamId?: string;
+  clickupStandupViewId?: string;
+  clickupViewId?: string;
+  apiTagFilters?: string[];
+  corsProxy?: string;
   includeArchived?: boolean;
-  priorityOrder?: string[]; // Highest to lowest, index defines numeric level
-  clickupStandupViewId?: string; // View ID for daily standup summary
-  taskGroups?: { name: string; tags: string[]; color?: string }[]; // Grupos de tarefas (ex: [{name: "Rotina", tags: ["rotina"], color: "amber"}])
-  availableTags?: string[]; // Tags disponíveis do ClickUp (preenchido na sincronização)
-  availableStatuses?: string[]; // Status disponíveis (preenchido na sincronização)
-  availableAssignees?: string[]; // Responsáveis disponíveis (preenchido na sincronização)
+  priorityOrder?: string[];
+  taskGroups?: { name: string; tags: string[]; color?: string }[];
+  availableTags?: string[];
+  availableStatuses?: string[];
+  availableAssignees?: string[];
 }
+
+// ============================================
+// STANDUP TYPES
+// ============================================
 
 export interface StandupSection {
   heading: string;
@@ -78,8 +129,8 @@ export interface StandupSection {
 
 export interface StandupEntry {
   id: string;
-  dateIso: string; // ISO timestamp of the standup
-  dateKey: string; // YYYY-MM-DD for quick filtering
+  dateIso: string;
+  dateKey: string;
   title: string;
   content: string;
   author?: string;
@@ -92,15 +143,70 @@ export interface StandupEntry {
   sections: StandupSection[];
 }
 
-export enum MessageRole {
-  USER = 'user',
-  MODEL = 'model',
-  SYSTEM = 'system'
+// ============================================
+// TEAM & DASHBOARD TYPES
+// ============================================
+
+export interface TeamMemberData {
+  name: string;
+  weeklyCapacity: number;
+  
+  // Estimates (Planejado)
+  urgent: number;
+  urgentTasks: number;
+  high: number;
+  highTasks: number;
+  normal: number;
+  normalTasks: number;
+  low: number;
+  lowTasks: number;
+  none: number;
+  noneTasks: number;
+
+  // Logged (Realizado)
+  urgentLogged: number;
+  highLogged: number;
+  normalLogged: number;
+  lowLogged: number;
+  noneLogged: number;
+
+  totalHours: number;
 }
 
-export interface ChatMessage {
+export interface KPIMetric {
   id: string;
-  role: MessageRole;
-  text: string;
-  isError?: boolean;
+  label: string;
+  value: number;
+  hours: number;
+  color: string;
+  textColor: string;
+  bgColor: string;
+  borderColor: string;
+  icon: React.ElementType;
 }
+
+// ============================================
+// SYNC STATUS TYPES
+// ============================================
+
+export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error';
+
+export interface SyncResult {
+  success: boolean;
+  taskCount: number;
+  newTasks: number;
+  updatedTasks: number;
+  timestamp: string;
+  error?: string;
+}
+
+// ============================================
+// RE-EXPORT FILTER TYPES
+// ============================================
+
+export type { 
+  FilterConfig, 
+  FilterGroup, 
+  FilterState, 
+  FilterMetadata 
+} from './types/FilterConfig';

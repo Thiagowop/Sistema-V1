@@ -62,6 +62,7 @@ import { SyncControlsBar } from '../components/SyncControlsBar';
 import { LocalFilters, createDefaultLocalFilters, applyLocalFilters } from '../components/filters/LocalFilterBar';
 import { DailySettingsPanel, DailySettings, createDefaultDailySettings, loadDailySettings, saveDailySettings } from '../components/DailySettingsPanel';
 import { userPreferences, initializePreferences, syncPreferencesToCloud } from '../services/userPreferencesService';
+import { globalSettings, saveGlobalBoxOrder, saveGlobalProjectNames } from '../services/globalSettingsService';
 
 // --- TYPES ESTENDIDOS ---
 interface ExtendedProject extends Omit<Project, 'stats'> {
@@ -699,16 +700,25 @@ export const DailyAlignmentDashboard: React.FC = () => {
 
   const setBoxOrder = useCallback((order: Record<string, string[]>) => {
     setBoxOrderState(order);
-    // Salvar cada membro individualmente
+    // Salvar localmente (para resposta rápida)
     Object.entries(order).forEach(([memberId, memberOrder]) => {
       userPreferences.setBoxOrder(memberId, memberOrder);
+    });
+    // Salvar no Supabase (GLOBAL - todos veem igual)
+    saveGlobalBoxOrder(order, 'admin').then(success => {
+      if (success) console.log('[DailyAlignmentDashboard] ☁️ boxOrder salvo no Supabase (GLOBAL)');
     });
   }, []);
 
   const setProjectNames = useCallback((names: Record<string, string>) => {
     setProjectNamesState(names);
+    // Salvar localmente
     Object.entries(names).forEach(([original, custom]) => {
       userPreferences.setProjectName(original, custom);
+    });
+    // Salvar no Supabase (GLOBAL - todos veem igual)
+    saveGlobalProjectNames(names, 'admin').then(success => {
+      if (success) console.log('[DailyAlignmentDashboard] ☁️ projectNames salvo no Supabase (GLOBAL)');
     });
   }, []);
 
@@ -777,13 +787,30 @@ export const DailyAlignmentDashboard: React.FC = () => {
   useEffect(() => {
     const loadPreferences = async () => {
       try {
-        // Inicializar o serviço de preferências
+        // 1. Inicializar serviços
         await initializePreferences();
 
-        // Carregar preferências do Daily
+        // 2. Carregar configurações GLOBAIS primeiro (Supabase)
+        console.log('[DailyAlignmentDashboard] ☁️ Carregando configurações globais...');
+        const globalConfig = await globalSettings.initialize();
+
+        // 3. Carregar boxOrder e projectNames do GLOBAL (todos veem igual)
+        const globalBoxOrder = globalConfig.boxOrder || {};
+        const globalProjectNames = globalConfig.projectNames || {};
+
+        if (Object.keys(globalBoxOrder).length > 0) {
+          setBoxOrderState(globalBoxOrder);
+          console.log('[DailyAlignmentDashboard] ✅ boxOrder carregado do Supabase (GLOBAL)');
+        }
+
+        if (Object.keys(globalProjectNames).length > 0) {
+          setProjectNamesState(globalProjectNames);
+          console.log('[DailyAlignmentDashboard] ✅ projectNames carregado do Supabase (GLOBAL)');
+        }
+
+        // 4. Carregar preferências do usuário (estados de UI locais)
         const dailyPrefs = userPreferences.getDaily();
 
-        // Restaurar estados salvos
         if (dailyPrefs.activeMemberId) {
           setActiveMemberIdState(dailyPrefs.activeMemberId);
         }
@@ -796,11 +823,12 @@ export const DailyAlignmentDashboard: React.FC = () => {
           setExpandedTaskIdsState(new Set(dailyPrefs.expandedTaskIds));
         }
 
-        if (dailyPrefs.boxOrder) {
+        // Fallback: se não tiver global, usar local
+        if (Object.keys(globalBoxOrder).length === 0 && dailyPrefs.boxOrder) {
           setBoxOrderState(dailyPrefs.boxOrder);
         }
 
-        if (dailyPrefs.projectNames) {
+        if (Object.keys(globalProjectNames).length === 0 && dailyPrefs.projectNames) {
           setProjectNamesState(dailyPrefs.projectNames);
         }
 

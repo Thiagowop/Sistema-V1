@@ -19,7 +19,7 @@ import { QualityWrapper } from './pages/QualityWrapper';
 import { AdminDashboard } from './pages/AdminDashboard';
 import {
     RefreshCw, Users, Clock, Shield, Settings,
-    LogOut, X, Menu, Database, CheckCircle, AlertCircle
+    LogOut, X, Menu, Database, CheckCircle, AlertCircle, CalendarDays, BarChart2
 } from 'lucide-react';
 import { AuthorizedUser } from './services/supabaseService';
 import { useData } from './contexts/DataContext';
@@ -115,7 +115,7 @@ const ViewerDataPanel: React.FC = () => {
         if (!hasCacheData && sharedCacheStatus?.hasData) {
             handleLoadFromCloud();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const formatDate = (dateStr: string | null) => {
@@ -361,13 +361,13 @@ const AppContent: React.FC = () => {
                             onClick={() => handleNavClick('daily')}
                         />
                         <SidebarItem
-                            icon={Clock}
-                            label="Gestão"
+                            icon={CalendarDays}
+                            label="TimeSheet"
                             isActive={activeView === 'gestao'}
                             onClick={() => handleNavClick('gestao')}
                         />
                         <SidebarItem
-                            icon={Shield}
+                            icon={BarChart2}
                             label="Qualidade"
                             isActive={activeView === 'quality'}
                             onClick={() => handleNavClick('quality')}
@@ -377,7 +377,7 @@ const AppContent: React.FC = () => {
                             <>
                                 <SectionHeader label="Sistema" />
                                 <SidebarItem
-                                    icon={Settings}
+                                    icon={Shield}
                                     label="Admin"
                                     isActive={activeView === 'admin'}
                                     onClick={() => handleNavClick('admin')}

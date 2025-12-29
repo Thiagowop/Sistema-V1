@@ -219,16 +219,28 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
       // 1. Inicializar Reference Data PRIMEIRO (dados persistentes)
       console.log('[CTX-DATA-001] 📦 Loading reference data (persistent)...');
       await referenceData.initialize();
+
+      // 2. Tentar carregar reference data do Supabase (GLOBAL)
+      console.log('[CTX-DATA-001] ☁️ Loading reference data from Supabase...');
+      await referenceData.loadFromSupabase();
       setIsReferenceDataReady(true);
 
-      // 2. Carregar cache de tarefas
+      // 3. Carregar cache de tarefas LOCAL
       console.log('[CTX-DATA-001] 📦 Loading task cache...');
-      const hasCache = await loadFromCache();
+      const hasLocalCache = await loadFromCache();
 
-      if (hasCache) {
-        console.log('[CTX-DATA-001] ✅ App ready with cached data!');
+      if (hasLocalCache) {
+        console.log('[CTX-DATA-001] ✅ App ready with local cached data!');
       } else {
-        console.log('[CTX-DATA-001] ℹ️ No cache found - waiting for sync');
+        // 4. Se não tem cache local, carregar do SUPABASE (shared cache)
+        console.log('[CTX-DATA-001] ☁️ No local cache - loading from Supabase shared cache...');
+        const hasSharedCache = await loadFromSharedCacheHandler();
+
+        if (hasSharedCache) {
+          console.log('[CTX-DATA-001] ✅ App ready with shared cache data!');
+        } else {
+          console.log('[CTX-DATA-001] ℹ️ No cache found - waiting for sync');
+        }
       }
 
       setIsInitialized(true);

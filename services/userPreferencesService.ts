@@ -402,9 +402,27 @@ class UserPreferencesService {
     const supabase = getSupabase();
     if (!supabase) return null;
 
+    // Tentar carregar por user_id primeiro (melhor para multi-device)
+    // Fallback para device_id se não houver user_id
+    const userId = this.getCurrentUserId();
     const deviceId = getDeviceId();
 
     try {
+      // Primeiro tentar por user_id (preferências do usuário)
+      if (userId) {
+        const { data: userData, error: userError } = await supabase
+          .from(SUPABASE_TABLE)
+          .select('preferences')
+          .eq('user_id', userId)
+          .single();
+
+        if (!userError && userData?.preferences) {
+          console.log('[SERV-PREF-001] ✅ Preferências carregadas por user_id');
+          return userData.preferences as UserPreferences;
+        }
+      }
+
+      // Fallback: tentar por device_id
       const { data, error } = await supabase
         .from(SUPABASE_TABLE)
         .select('preferences')
@@ -430,17 +448,23 @@ class UserPreferencesService {
     const supabase = getSupabase();
     if (!supabase) return false;
 
+    const userId = this.getCurrentUserId();
     const deviceId = getDeviceId();
+
+    // Usar user_id se disponível, senão device_id
+    const identifier = userId ? { user_id: userId } : { device_id: deviceId };
+    const conflictColumn = userId ? 'user_id' : 'device_id';
 
     try {
       const { error } = await supabase
         .from(SUPABASE_TABLE)
         .upsert({
-          device_id: deviceId,
+          ...identifier,
+          device_id: deviceId, // Sempre salvar device_id também
           preferences: this.preferences,
           updated_at: new Date().toISOString()
         }, {
-          onConflict: 'device_id'
+          onConflict: conflictColumn
         });
 
       if (error) {
@@ -448,12 +472,26 @@ class UserPreferencesService {
         return false;
       }
 
-      console.log('[SERV-PREF-001] ☁️ Preferências salvas no Supabase');
+      console.log('[SERV-PREF-001] ☁️ Preferências salvas no Supabase' + (userId ? ' (por user_id)' : ' (por device_id)'));
       return true;
     } catch (e) {
       console.error('[SERV-PREF-001] Erro ao salvar Supabase:', e);
       return false;
     }
+  }
+
+  // Helper para obter user_id do localStorage
+  private getCurrentUserId(): string | null {
+    try {
+      const session = localStorage.getItem('dailyFlow_userSession_v2');
+      if (session) {
+        const user = JSON.parse(session);
+        return user.id || user.email || null;
+      }
+    } catch {
+      // Ignorar erros
+    }
+    return null;
   }
 
   // ----------------------------------------

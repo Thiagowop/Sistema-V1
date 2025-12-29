@@ -320,7 +320,7 @@ export const QualityDashboard: React.FC<QualityDashboardProps> = ({ data }) => {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie data={pieData} cx="50%" cy="50%" innerRadius={35} outerRadius={45} startAngle={90} endAngle={-270} dataKey="value" stroke="none">
-                      {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} cornerRadius={index === 0 ? 10 : 0} />)}
+                      {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}
                     </Pie>
                   </PieChart>
                 </ResponsiveContainer>

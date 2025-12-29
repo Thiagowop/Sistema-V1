@@ -34,6 +34,7 @@ export interface ClickUpApiTask {
   orderindex?: number | string;
   orderIndex?: number | string;
   position?: number | string;
+  subtasks?: ClickUpApiTask[]; // Subtasks array for incremental sync comparison
 }
 
 const FALLBACK_PROXIES = [

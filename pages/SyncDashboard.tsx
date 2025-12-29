@@ -36,6 +36,7 @@ import {
     StopCircle
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
+import { useAuth } from '../contexts/AuthContext';
 import { createDefaultSyncFilters } from '../services/filterService';
 
 const AUTOSYNC_KEY = 'dailyFlow_autoSync_v2';
@@ -126,8 +127,11 @@ export const SyncDashboard: React.FC = () => {
         isInitialized,
         hasCacheData,
         syncFilters,
-        setSyncFilters
+        setSyncFilters,
+        saveToSharedCache
     } = useData();
+
+    const { auth } = useAuth();
 
     // Session logic for auto-sync
     const getSessionAutoSyncFlag = () => sessionStorage.getItem('hasAttemptedAutoSync') === 'true';
@@ -184,6 +188,28 @@ export const SyncDashboard: React.FC = () => {
             addLog(`! RECOMENDAÇÃO: ${diagnosis.solution}`);
         }
     }, [syncState.status, syncState.progress, syncState.taskCount, syncState.error]);
+
+    // Auto-save to shared cache after successful sync (for team access)
+    useEffect(() => {
+        const saveToCloud = async () => {
+            if (syncState.status === 'success' && syncState.taskCount > 0 && auth.user) {
+                addLog('☁️ Salvando dados no cache compartilhado...');
+                try {
+                    const success = await saveToSharedCache(auth.user.name);
+                    if (success) {
+                        addLog('✓ Dados salvos no cache compartilhado para a equipe');
+                    } else {
+                        addLog('⚠️ Falha ao salvar no cache compartilhado');
+                    }
+                } catch (error: any) {
+                    addLog(`⚠️ Erro ao salvar no cache: ${error.message}`);
+                }
+            }
+        };
+
+        saveToCloud();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [syncState.status, syncState.taskCount]);
 
     const handleSync = async (incremental: boolean = false) => {
         setLogs([]); // Clear logs on new attempt

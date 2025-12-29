@@ -95,6 +95,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
   const [isMonthDropdownOpen, setIsMonthDropdownOpen] = useState(false);
   const [isYearDropdownOpen, setIsYearDropdownOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [cardViewMode, setCardViewMode] = useState<'compact' | 'cards'>('compact');
 
   useEffect(() => {
     const dark = document.documentElement.classList.contains('dark');
@@ -946,7 +947,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                     ? (isDark ? 'bg-gray-700 text-white shadow-sm' : 'bg-white text-gray-900 shadow-sm')
                     : (isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
                     }`}
-                  title="Timeline (Cards)"
+                  title="Timeline"
                 >
                   <LayoutGrid className="w-4 h-4" />
                 </button>
@@ -961,6 +962,32 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                   <List className="w-4 h-4" />
                 </button>
               </div>
+
+              {/* Cards/Compact Toggle (only when timeline is active) */}
+              {activeTab === 'timeline' && (
+                <div className={`flex p-0.5 rounded-md ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                  <button
+                    onClick={() => setCardViewMode('compact')}
+                    className={`px-2 py-1 rounded text-xs font-medium transition-all ${cardViewMode === 'compact'
+                      ? (isDark ? 'bg-gray-700 text-white' : 'bg-white text-gray-900 shadow-sm')
+                      : (isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
+                      }`}
+                    title="Visão Compacta"
+                  >
+                    Simples
+                  </button>
+                  <button
+                    onClick={() => setCardViewMode('cards')}
+                    className={`px-2 py-1 rounded text-xs font-medium transition-all ${cardViewMode === 'cards'
+                      ? (isDark ? 'bg-gray-700 text-white' : 'bg-white text-gray-900 shadow-sm')
+                      : (isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
+                      }`}
+                    title="Visão Detalhada"
+                  >
+                    Detalhada
+                  </button>
+                </div>
+              )}
 
               {/* Settings Gear */}
               <div className="relative">
@@ -1111,10 +1138,11 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                         )}
                         {shouldShowProjects && member.projects.map((project, projIdx) => {
                           const isExpanded = expandedProjects.includes(project.id);
+                          const rowHeight = cardViewMode === 'cards' ? 'h-20' : 'h-16';
                           return (
                             <div key={project.id} className={`${selectedMemberFilter !== 'all' && projIdx > 0 ? `border-t-2 ${isDark ? 'border-gray-700' : 'border-gray-200'}` : (projIdx > 0 || selectedMemberFilter === 'all' ? `border-t-2 ${isDark ? 'border-gray-700' : 'border-gray-200'}` : '')}`}>
                               <div onClick={() => toggleProject(project.id)}
-                                className={`h-16 px-4 cursor-pointer ${isDark ? 'hover:bg-gray-700 bg-gray-800' : 'hover:bg-gray-50 bg-white'} transition-colors border-l-4 ${isDark ? 'border-gray-500' : 'border-gray-400'} flex items-center`}>
+                                className={`${rowHeight} px-4 cursor-pointer ${isDark ? 'hover:bg-gray-700 bg-gray-800' : 'hover:bg-gray-50 bg-white'} transition-colors border-l-4 ${isDark ? 'border-gray-500' : 'border-gray-400'} flex items-center`}>
                                 <div className="flex items-center gap-2 min-w-0 flex-1">
                                   {isExpanded ? <ChevronDown className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} /> : <ChevronRight className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />}
                                   <span
@@ -1128,17 +1156,20 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
 
                               {isExpanded && internalShowTasks && (
                                 <>
-                                  {project.tasks.map((task, taskIdx) => (
-                                    <div key={task.id} className={`h-12 px-6 ${isDark ? 'bg-gray-850 hover:bg-gray-800' : 'bg-gray-50 hover:bg-gray-100'} transition-colors flex items-center ${taskIdx > 0 ? `border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}` : 'border-t border-gray-200 dark:border-gray-700'
-                                      }`}>
-                                      <span
-                                        className={`text-xs truncate ${isDark ? 'text-gray-400' : 'text-gray-600'}`}
-                                        title={task.name}
-                                      >
-                                        {task.name}
-                                      </span>
-                                    </div>
-                                  ))}
+                                  {project.tasks.map((task, taskIdx) => {
+                                    const taskRowHeight = cardViewMode === 'cards' ? 'h-16' : 'h-12';
+                                    return (
+                                      <div key={task.id} className={`${taskRowHeight} px-6 ${isDark ? 'bg-gray-850 hover:bg-gray-800' : 'bg-gray-50 hover:bg-gray-100'} transition-colors flex items-center ${taskIdx > 0 ? `border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}` : 'border-t border-gray-200 dark:border-gray-700'
+                                        }`}>
+                                        <span
+                                          className={`text-xs truncate ${isDark ? 'text-gray-400' : 'text-gray-600'}`}
+                                          title={task.name}
+                                        >
+                                          {task.name}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
                                 </>
                               )}
                             </div>
@@ -1171,14 +1202,17 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
               >
                 <div className="inline-block min-w-full pb-20">
                   <div className={`h-16 flex border-b ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-gray-50'} sticky top-0 z-20`}>
-                    {days.map((day, idx) => (
-                      <div key={idx} className={`w-28 min-w-28 flex-shrink-0 flex flex-col items-center justify-center border-r ${isDark ? 'border-gray-700' : 'border-gray-100'} ${day.isToday ? (isDark ? 'bg-blue-500/10 border-blue-600 ring-2 ring-blue-500' : 'bg-blue-100 border-blue-400 ring-2 ring-blue-400') :
-                        day.isWeekend ? (isDark ? 'bg-gray-800' : 'bg-gray-100') : (isDark ? 'bg-gray-900' : 'bg-white')
-                        }`}>
-                        <span className={`text-xs font-medium ${day.isToday ? (isDark ? 'text-blue-200' : 'text-blue-700') : (isDark ? 'text-gray-400' : 'text-gray-500')} uppercase`}>{day.weekday}</span>
-                        <span className={`text-lg font-semibold ${day.isToday ? (isDark ? 'text-blue-100' : 'text-blue-900') : (isDark ? 'text-gray-200' : 'text-gray-900')} mt-0.5`}>{day.day}</span>
-                      </div>
-                    ))}
+                    {days.map((day, idx) => {
+                      const cellWidth = cardViewMode === 'cards' ? 'w-36 min-w-36' : 'w-28 min-w-28';
+                      return (
+                        <div key={idx} className={`${cellWidth} flex-shrink-0 flex flex-col items-center justify-center border-r ${isDark ? 'border-gray-700' : 'border-gray-100'} ${day.isToday ? (isDark ? 'bg-blue-500/10 border-blue-600 ring-2 ring-blue-500' : 'bg-blue-100 border-blue-400 ring-2 ring-blue-400') :
+                          day.isWeekend ? (isDark ? 'bg-gray-800' : 'bg-gray-100') : (isDark ? 'bg-gray-900' : 'bg-white')
+                          }`}>
+                          <span className={`text-xs font-medium ${day.isToday ? (isDark ? 'text-blue-200' : 'text-blue-700') : (isDark ? 'text-gray-400' : 'text-gray-500')} uppercase`}>{day.weekday}</span>
+                          <span className={`text-lg font-semibold ${day.isToday ? (isDark ? 'text-blue-100' : 'text-blue-900') : (isDark ? 'text-gray-200' : 'text-gray-900')} mt-0.5`}>{day.day}</span>
+                        </div>
+                      );
+                    })}
                   </div>
 
                   <div>
@@ -1191,62 +1225,119 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                           {selectedMemberFilter === 'all' && (
                             <div className={`h-10 flex border-y ${memberIdx > 0 ? 'mt-8' : ''} ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-100 border-slate-200'}`}>
                               {days.map((day, idx) => (
-                                <div key={idx} className={`w-28 min-w-28 flex-shrink-0 border-r ${isDark ? 'border-slate-700' : 'border-slate-200'}`}></div>
+                                <div key={idx} className={`${cardViewMode === 'cards' ? 'w-36 min-w-36' : 'w-28 min-w-28'} flex-shrink-0 border-r ${isDark ? 'border-slate-700' : 'border-slate-200'}`}></div>
                               ))}
                             </div>
                           )}
                           {shouldShowProjects && member.projects.map((project, projIdx) => {
                             const isExpanded = expandedProjects.includes(project.id);
+                            const rowHeight = cardViewMode === 'cards' ? 'h-20' : 'h-16';
                             return (
                               <div key={project.id} className={`${selectedMemberFilter !== 'all' && projIdx > 0 ? `border-t-2 ${isDark ? 'border-gray-700' : 'border-gray-200'}` : (projIdx > 0 || selectedMemberFilter === 'all' ? `border-t-2 ${isDark ? 'border-gray-700' : 'border-gray-200'}` : '')}`}>
-                                <div className={`h-16 flex ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+                                <div className={`${rowHeight} flex ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
                                   {days.map((day, dayIdx) => {
                                     const dayIndexInAll = allDays.findIndex(d => d.day === day.day && d.month === day.month);
                                     const hours = sumTaskHours(project.tasks, dayIndexInAll);
+                                    const deviation = hours.actual - hours.planned;
+                                    const hasDeviation = deviation !== 0 && hours.actual > 0;
+                                    const cellWidth = cardViewMode === 'cards' ? 'w-36 min-w-36' : 'w-28 min-w-28';
+
                                     return (
                                       <div
                                         key={dayIdx}
-                                        className={`w-28 min-w-28 flex-shrink-0 border-r ${isDark ? 'border-gray-700' : 'border-gray-100'} p-2.5 flex items-center justify-center ${day.isToday ? (isDark ? 'bg-blue-500/10 border-l-2 border-r-2 border-blue-600' : 'bg-blue-50 border-l-2 border-r-2 border-blue-300') :
+                                        className={`${cellWidth} flex-shrink-0 border-r ${isDark ? 'border-gray-700' : 'border-gray-100'} p-1.5 flex items-center justify-center ${day.isToday ? (isDark ? 'bg-blue-500/10 border-l-2 border-r-2 border-blue-600' : 'bg-blue-50 border-l-2 border-r-2 border-blue-300') :
                                           day.isWeekend ? (isDark ? 'bg-gray-850' : 'bg-gray-50') : ''
                                           }`}
-                                        onMouseEnter={(e) => !isExpanded && !day.isWeekend && hours.actual > 0 && showTooltip(e, project.name, hours.planned, hours.actual)}
+                                        onMouseEnter={(e) => cardViewMode === 'compact' && !day.isWeekend && hours.actual > 0 && showTooltip(e, project.name, hours.planned, hours.actual)}
                                         onMouseLeave={hideTooltip}
                                       >
-                                        {!isExpanded && !day.isWeekend && hours.actual > 0 && (
-                                          <div className={`w-full h-full rounded border ${getStatusColor(hours.planned, hours.actual)} flex items-center justify-center cursor-default`}>
-                                            <span className="text-sm font-semibold whitespace-nowrap">{formatHours(hours.actual)}</span>
-                                          </div>
+                                        {!day.isWeekend && hours.actual > 0 && (
+                                          cardViewMode === 'cards' ? (
+                                            // CARD DETALHADO
+                                            <div className={`w-full h-full rounded-lg border-2 p-1.5 ${getStatusColor(hours.planned, hours.actual).replace('border-', 'border-l-4 border-l-')}`}>
+                                              <div className="flex justify-between items-center text-[9px]">
+                                                <span className={`uppercase font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Planejado</span>
+                                                <span className={`font-mono font-bold ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>{formatHours(hours.planned)}</span>
+                                              </div>
+                                              <div className="flex justify-between items-center text-[9px] mt-0.5">
+                                                <span className={`uppercase font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Gasto</span>
+                                                <span className={`font-mono font-bold ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>{formatHours(hours.actual)}</span>
+                                              </div>
+                                              {hasDeviation && (
+                                                <div className={`flex justify-between items-center text-[9px] mt-0.5 pt-0.5 border-t ${isDark ? 'border-gray-600' : 'border-gray-200'}`}>
+                                                  <span className={`uppercase font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Desvio</span>
+                                                  <span className={`font-mono font-bold ${deviation > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                                                    {deviation > 0 ? '+' : ''}{formatHours(deviation)}
+                                                  </span>
+                                                </div>
+                                              )}
+                                            </div>
+                                          ) : (
+                                            // COMPACTO (atual)
+                                            <div className={`w-full h-full rounded border ${getStatusColor(hours.planned, hours.actual)} flex items-center justify-center cursor-default`}>
+                                              <span className="text-sm font-semibold whitespace-nowrap">{formatHours(hours.actual)}</span>
+                                            </div>
+                                          )
                                         )}
                                       </div>
                                     );
                                   })}
                                 </div>
 
-                                {isExpanded && internalShowTasks && project.tasks.map((task, taskIdx) => (
-                                  <div key={task.id} className={`h-12 flex ${isDark ? 'bg-gray-850' : 'bg-gray-50'} ${taskIdx > 0 ? `border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}` : 'border-t border-gray-200 dark:border-gray-700'
-                                    }`}>
-                                    {days.map((day, dayIdx) => {
-                                      const dayIndexInAll = allDays.findIndex(d => d.day === day.day && d.month === day.month);
-                                      const hours = task.hours[dayIndexInAll];
-                                      return (
-                                        <div
-                                          key={dayIdx}
-                                          className={`w-28 min-w-28 flex-shrink-0 border-r ${isDark ? 'border-gray-700' : 'border-gray-100'} p-2 flex items-center justify-center ${day.isToday ? (isDark ? 'bg-blue-500/10 border-l-2 border-r-2 border-blue-600' : 'bg-blue-50 border-l-2 border-r-2 border-blue-300') :
-                                            day.isWeekend ? (isDark ? 'bg-gray-800' : 'bg-white') : ''
-                                            }`}
-                                          onMouseEnter={(e) => !day.isWeekend && hours?.actual > 0 && showTooltip(e, task.name, hours.planned, hours.actual)}
-                                          onMouseLeave={hideTooltip}
-                                        >
-                                          {!day.isWeekend && hours?.actual > 0 && (
-                                            <div className={`w-full h-full rounded border ${getStatusColor(hours.planned, hours.actual)} flex items-center justify-center cursor-default`}>
-                                              <span className="text-xs font-semibold whitespace-nowrap">{formatHours(hours.actual)}</span>
-                                            </div>
-                                          )}
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                ))}
+                                {isExpanded && internalShowTasks && project.tasks.map((task, taskIdx) => {
+                                  const taskRowHeight = cardViewMode === 'cards' ? 'h-16' : 'h-12';
+                                  return (
+                                    <div key={task.id} className={`${taskRowHeight} flex ${isDark ? 'bg-gray-850' : 'bg-gray-50'} ${taskIdx > 0 ? `border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}` : 'border-t border-gray-200 dark:border-gray-700'
+                                      }`}>
+                                      {days.map((day, dayIdx) => {
+                                        const dayIndexInAll = allDays.findIndex(d => d.day === day.day && d.month === day.month);
+                                        const hours = task.hours[dayIndexInAll];
+                                        const taskCellWidth = cardViewMode === 'cards' ? 'w-36 min-w-36' : 'w-28 min-w-28';
+                                        const taskDeviation = hours ? hours.actual - hours.planned : 0;
+                                        const taskHasDeviation = taskDeviation !== 0 && hours?.actual > 0;
+                                        return (
+                                          <div
+                                            key={dayIdx}
+                                            className={`${taskCellWidth} flex-shrink-0 border-r ${isDark ? 'border-gray-700' : 'border-gray-100'} p-1 flex items-center justify-center ${day.isToday ? (isDark ? 'bg-blue-500/10 border-l-2 border-r-2 border-blue-600' : 'bg-blue-50 border-l-2 border-r-2 border-blue-300') :
+                                              day.isWeekend ? (isDark ? 'bg-gray-800' : 'bg-white') : ''
+                                              }`}
+                                            onMouseEnter={(e) => cardViewMode === 'compact' && !day.isWeekend && hours?.actual > 0 && showTooltip(e, task.name, hours.planned, hours.actual)}
+                                            onMouseLeave={hideTooltip}
+                                          >
+                                            {!day.isWeekend && hours?.actual > 0 && (
+                                              cardViewMode === 'cards' ? (
+                                                // CARD DETALHADO PARA TAREFA
+                                                <div className={`w-full h-full rounded border p-1 ${getStatusColor(hours.planned, hours.actual)}`}>
+                                                  <div className="flex justify-between items-center text-[8px]">
+                                                    <span className={`uppercase font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Plan</span>
+                                                    <span className={`font-mono font-semibold ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>{formatHours(hours.planned)}</span>
+                                                  </div>
+                                                  <div className="flex justify-between items-center text-[8px]">
+                                                    <span className={`uppercase font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Real</span>
+                                                    <span className={`font-mono font-semibold ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>{formatHours(hours.actual)}</span>
+                                                  </div>
+                                                  {taskHasDeviation && (
+                                                    <div className="flex justify-between items-center text-[8px]">
+                                                      <span className={`uppercase font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Desv</span>
+                                                      <span className={`font-mono font-semibold ${taskDeviation > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                                                        {taskDeviation > 0 ? '+' : ''}{formatHours(taskDeviation)}
+                                                      </span>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              ) : (
+                                                // COMPACTO
+                                                <div className={`w-full h-full rounded border ${getStatusColor(hours.planned, hours.actual)} flex items-center justify-center cursor-default`}>
+                                                  <span className="text-xs font-semibold whitespace-nowrap">{formatHours(hours.actual)}</span>
+                                                </div>
+                                              )
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  );
+                                })}
                               </div>
                             );
                           })}

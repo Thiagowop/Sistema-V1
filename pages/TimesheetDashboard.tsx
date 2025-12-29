@@ -643,11 +643,16 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
     if (!actual) return isDark ? 'bg-gray-800 text-gray-500 border-gray-700' : 'bg-gray-50 text-gray-400 border-gray-200';
     // Sem planejamento → amarelo (atenção: horas sem estimate)
     if (!planned || planned === 0) return isDark ? 'bg-amber-900 text-amber-300 border-amber-700' : 'bg-amber-50 text-amber-700 border-amber-200';
-    // Calcular desvio percentual
-    const percent = (Math.abs(actual - planned) / planned) * 100;
-    // Legenda: ±10% verde, ±20% amarelo, >20% vermelho
-    if (percent <= 10) return isDark ? 'bg-emerald-900 text-emerald-300 border-emerald-700' : 'bg-emerald-50 text-emerald-700 border-emerald-200';
-    if (percent <= 20) return isDark ? 'bg-amber-900 text-amber-300 border-amber-700' : 'bg-amber-50 text-amber-700 border-amber-200';
+
+    // Gastou MENOS ou igual ao planejado → sempre verde (dentro do orçamento)
+    if (actual <= planned) {
+      return isDark ? 'bg-emerald-900 text-emerald-300 border-emerald-700' : 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    }
+
+    // Gastou MAIS que o planejado → alerta baseado em quanto estourou
+    const overPercent = ((actual - planned) / planned) * 100;
+    // ≤10% acima = amarelo leve, >10% = vermelho
+    if (overPercent <= 10) return isDark ? 'bg-amber-900 text-amber-300 border-amber-700' : 'bg-amber-50 text-amber-700 border-amber-200';
     return isDark ? 'bg-rose-900 text-rose-300 border-rose-700' : 'bg-rose-50 text-rose-700 border-rose-200';
   };
 
@@ -1204,12 +1209,12 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                                         className={`w-28 min-w-28 flex-shrink-0 border-r ${isDark ? 'border-gray-700' : 'border-gray-100'} p-2.5 flex items-center justify-center ${day.isToday ? (isDark ? 'bg-blue-500/10 border-l-2 border-r-2 border-blue-600' : 'bg-blue-50 border-l-2 border-r-2 border-blue-300') :
                                           day.isWeekend ? (isDark ? 'bg-gray-850' : 'bg-gray-50') : ''
                                           }`}
-                                        onMouseEnter={(e) => !isExpanded && !day.isWeekend && hours.actual > 0 && showTooltip(e, project.name, hours.planned, hours.actual)}
+                                        onMouseEnter={(e) => !isExpanded && !day.isWeekend && hours.planned > 0 && showTooltip(e, project.name, hours.planned, hours.actual)}
                                         onMouseLeave={hideTooltip}
                                       >
-                                        {!isExpanded && !day.isWeekend && hours.actual > 0 && (
+                                        {!isExpanded && !day.isWeekend && hours.planned > 0 && (
                                           <div className={`w-full h-full rounded border ${getStatusColor(hours.planned, hours.actual)} flex items-center justify-center cursor-default`}>
-                                            <span className="text-sm font-semibold whitespace-nowrap">{formatHours(hours.actual)}</span>
+                                            <span className="text-sm font-semibold whitespace-nowrap">{formatHours(hours.planned)}</span>
                                           </div>
                                         )}
                                       </div>
@@ -1229,12 +1234,12 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                                           className={`w-28 min-w-28 flex-shrink-0 border-r ${isDark ? 'border-gray-700' : 'border-gray-100'} p-2 flex items-center justify-center ${day.isToday ? (isDark ? 'bg-blue-500/10 border-l-2 border-r-2 border-blue-600' : 'bg-blue-50 border-l-2 border-r-2 border-blue-300') :
                                             day.isWeekend ? (isDark ? 'bg-gray-800' : 'bg-white') : ''
                                             }`}
-                                          onMouseEnter={(e) => !day.isWeekend && hours?.actual > 0 && showTooltip(e, task.name, hours.planned, hours.actual)}
+                                          onMouseEnter={(e) => !day.isWeekend && hours?.planned > 0 && showTooltip(e, task.name, hours.planned, hours.actual)}
                                           onMouseLeave={hideTooltip}
                                         >
-                                          {!day.isWeekend && hours?.actual > 0 && (
+                                          {!day.isWeekend && hours?.planned > 0 && (
                                             <div className={`w-full h-full rounded border ${getStatusColor(hours.planned, hours.actual)} flex items-center justify-center cursor-default`}>
-                                              <span className="text-xs font-semibold whitespace-nowrap">{formatHours(hours.actual)}</span>
+                                              <span className="text-xs font-semibold whitespace-nowrap">{formatHours(hours.planned)}</span>
                                             </div>
                                           )}
                                         </div>

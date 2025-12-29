@@ -2,19 +2,19 @@
  * @id SERV-SHARED-001
  * @name SharedCacheService
  * @description Serviço de cache compartilhado no Supabase para acesso da equipe
- * @dependencies supabaseService
+ * @dependencies supabaseService, lz-string
  * @status active
- * @version 1.0.0
+ * @version 1.1.0
  *
  * PROPÓSITO:
  * Este serviço gerencia o cache compartilhado de dados sincronizados.
- * - Admin faz sync → dados são salvos no Supabase
+ * - Admin faz sync → dados são salvos no Supabase (comprimidos)
  * - Team/Viewers carregam dados do Supabase (sem precisar fazer sync)
  *
  * TABELA SUPABASE:
  * shared_tasks_cache (
  *   id UUID PRIMARY KEY,
- *   cache_key TEXT NOT NULL,
+ *   cache_key TEXT NOT NULL UNIQUE,
  *   data JSONB NOT NULL,
  *   metadata JSONB,
  *   created_by TEXT,
@@ -24,6 +24,7 @@
  */
 
 import { getSupabase } from './supabaseService';
+import LZString from 'lz-string';
 import type { ClickUpApiTask } from './clickup';
 import type { GroupedData } from '../types';
 import type { FilterMetadata } from '../types/FilterConfig';
@@ -33,9 +34,18 @@ import type { FilterMetadata } from '../types/FilterConfig';
 // ============================================
 
 const SHARED_CACHE_TABLE = 'shared_tasks_cache';
-const CACHE_KEY_RAW_TASKS = 'raw_tasks';
-const CACHE_KEY_PROCESSED_DATA = 'processed_data';
+const CACHE_KEY_RAW_TASKS = 'raw_tasks_compressed';
+const CACHE_KEY_PROCESSED_DATA = 'processed_data_compressed';
 const CACHE_KEY_METADATA = 'filter_metadata';
+
+// Campos essenciais das tarefas para reduzir tamanho
+const ESSENTIAL_TASK_FIELDS = [
+  'id', 'name', 'status', 'priority', 'assignees', 'tags',
+  'due_date', 'start_date', 'time_spent', 'time_estimate',
+  'parent', 'list', 'folder', 'space', 'custom_fields',
+  'date_created', 'date_updated', 'date_done', 'date_closed',
+  'creator', 'url', 'description'
+] as const;
 
 // ============================================
 // TIPOS
@@ -46,6 +56,9 @@ export interface SharedCacheMetadata {
   taskCount: number;
   syncedBy: string;
   version: string;
+  compressed?: boolean;
+  originalSize?: number;
+  compressedSize?: number;
 }
 
 export interface SharedCacheEntry<T = unknown> {
@@ -59,18 +72,65 @@ export interface SharedCacheEntry<T = unknown> {
 }
 
 // ============================================
+// FUNÇÕES DE COMPRESSÃO
+// ============================================
+
+/**
+ * Extrai apenas os campos essenciais de cada tarefa
+ */
+function extractEssentialFields(task: ClickUpApiTask): Partial<ClickUpApiTask> {
+  const essential: Record<string, unknown> = {};
+
+  for (const field of ESSENTIAL_TASK_FIELDS) {
+    if (task[field] !== undefined) {
+      essential[field] = task[field];
+    }
+  }
+
+  return essential as Partial<ClickUpApiTask>;
+}
+
+/**
+ * Comprime dados usando LZ-String
+ */
+function compressData<T>(data: T): { compressed: string; originalSize: number; compressedSize: number } {
+  const jsonStr = JSON.stringify(data);
+  const originalSize = jsonStr.length;
+  const compressed = LZString.compressToUTF16(jsonStr);
+  const compressedSize = compressed.length;
+
+  console.log(`[SERV-SHARED-001] 📦 Compressão: ${(originalSize / 1024).toFixed(1)}KB → ${(compressedSize / 1024).toFixed(1)}KB (${((1 - compressedSize / originalSize) * 100).toFixed(1)}% redução)`);
+
+  return { compressed, originalSize, compressedSize };
+}
+
+/**
+ * Descomprime dados
+ */
+function decompressData<T>(compressed: string): T | null {
+  try {
+    const jsonStr = LZString.decompressFromUTF16(compressed);
+    if (!jsonStr) return null;
+    return JSON.parse(jsonStr) as T;
+  } catch (e) {
+    console.error('[SERV-SHARED-001] Erro ao descomprimir dados:', e);
+    return null;
+  }
+}
+
+// ============================================
 // CLASSE PRINCIPAL
 // ============================================
 
 class SharedCacheService {
-  private cacheVersion = '1.0.0';
+  private cacheVersion = '1.1.0';
 
   // ----------------------------------------
   // SAVE METHODS (Admin only)
   // ----------------------------------------
 
   /**
-   * Salva todas as tarefas raw no cache compartilhado
+   * Salva todas as tarefas raw no cache compartilhado (comprimido)
    * Chamado pelo admin após sync bem-sucedido
    */
   async saveRawTasks(
@@ -83,21 +143,32 @@ class SharedCacheService {
       return false;
     }
 
-    const metadata: SharedCacheMetadata = {
-      lastSync: new Date().toISOString(),
-      taskCount: tasks.length,
-      syncedBy,
-      version: this.cacheVersion
-    };
-
     try {
-      console.log(`[SERV-SHARED-001] 💾 Salvando ${tasks.length} tasks no cache compartilhado...`);
+      console.log(`[SERV-SHARED-001] 💾 Preparando ${tasks.length} tasks para salvar...`);
+
+      // Extrair apenas campos essenciais para reduzir tamanho
+      const essentialTasks = tasks.map(extractEssentialFields);
+
+      // Comprimir dados
+      const { compressed, originalSize, compressedSize } = compressData(essentialTasks);
+
+      const metadata: SharedCacheMetadata = {
+        lastSync: new Date().toISOString(),
+        taskCount: tasks.length,
+        syncedBy,
+        version: this.cacheVersion,
+        compressed: true,
+        originalSize,
+        compressedSize
+      };
+
+      console.log(`[SERV-SHARED-001] 💾 Salvando dados comprimidos (${(compressedSize / 1024).toFixed(1)}KB)...`);
 
       const { error } = await supabase
         .from(SHARED_CACHE_TABLE)
         .upsert({
           cache_key: CACHE_KEY_RAW_TASKS,
-          data: tasks,
+          data: { compressed }, // Armazena string comprimida
           metadata,
           created_by: syncedBy,
           updated_at: new Date().toISOString()
@@ -119,7 +190,7 @@ class SharedCacheService {
   }
 
   /**
-   * Salva dados processados (GroupedData) no cache compartilhado
+   * Salva dados processados (GroupedData) no cache compartilhado (comprimido)
    */
   async saveProcessedData(
     data: GroupedData[],
@@ -129,21 +200,27 @@ class SharedCacheService {
     const supabase = getSupabase();
     if (!supabase) return false;
 
-    const metadata: SharedCacheMetadata = {
-      lastSync: new Date().toISOString(),
-      taskCount,
-      syncedBy,
-      version: this.cacheVersion
-    };
-
     try {
-      console.log(`[SERV-SHARED-001] 💾 Salvando dados processados no cache compartilhado...`);
+      console.log(`[SERV-SHARED-001] 💾 Preparando dados processados para salvar...`);
+
+      // Comprimir dados
+      const { compressed, originalSize, compressedSize } = compressData(data);
+
+      const metadata: SharedCacheMetadata = {
+        lastSync: new Date().toISOString(),
+        taskCount,
+        syncedBy,
+        version: this.cacheVersion,
+        compressed: true,
+        originalSize,
+        compressedSize
+      };
 
       const { error } = await supabase
         .from(SHARED_CACHE_TABLE)
         .upsert({
           cache_key: CACHE_KEY_PROCESSED_DATA,
-          data,
+          data: { compressed },
           metadata,
           created_by: syncedBy,
           updated_at: new Date().toISOString()
@@ -165,7 +242,7 @@ class SharedCacheService {
   }
 
   /**
-   * Salva metadata de filtros no cache compartilhado
+   * Salva metadata de filtros no cache compartilhado (sem compressão - é pequeno)
    */
   async saveFilterMetadata(
     filterMetadata: FilterMetadata,
@@ -210,6 +287,7 @@ class SharedCacheService {
 
   /**
    * Salva tudo de uma vez (raw, processed, metadata)
+   * Executa sequencialmente para evitar sobrecarga
    */
   async saveAll(
     rawTasks: ClickUpApiTask[],
@@ -219,21 +297,32 @@ class SharedCacheService {
   ): Promise<boolean> {
     console.log('[SERV-SHARED-001] 📦 Salvando todos os dados no cache compartilhado...');
 
-    const results = await Promise.all([
-      this.saveRawTasks(rawTasks, syncedBy),
-      this.saveProcessedData(processedData, syncedBy, rawTasks.length),
-      this.saveFilterMetadata(filterMetadata, syncedBy, rawTasks.length)
-    ]);
+    // Salvar sequencialmente para evitar timeout
+    const results: boolean[] = [];
+
+    // 1. Salvar metadata primeiro (mais rápido)
+    const metaResult = await this.saveFilterMetadata(filterMetadata, syncedBy, rawTasks.length);
+    results.push(metaResult);
+
+    // 2. Salvar processed data (médio)
+    const processedResult = await this.saveProcessedData(processedData, syncedBy, rawTasks.length);
+    results.push(processedResult);
+
+    // 3. Salvar raw tasks por último (maior)
+    const rawResult = await this.saveRawTasks(rawTasks, syncedBy);
+    results.push(rawResult);
 
     const allSuccess = results.every(r => r);
+    const successCount = results.filter(r => r).length;
 
     if (allSuccess) {
       console.log('[SERV-SHARED-001] ✅ Todos os dados salvos com sucesso!');
     } else {
-      console.warn('[SERV-SHARED-001] ⚠️ Alguns dados não foram salvos');
+      console.warn(`[SERV-SHARED-001] ⚠️ ${successCount}/3 dados salvos`);
     }
 
-    return allSuccess;
+    // Retorna true se pelo menos processed data foi salvo (suficiente para visualização)
+    return processedResult;
   }
 
   // ----------------------------------------
@@ -241,7 +330,7 @@ class SharedCacheService {
   // ----------------------------------------
 
   /**
-   * Carrega tarefas raw do cache compartilhado
+   * Carrega tarefas raw do cache compartilhado (descomprime)
    */
   async loadRawTasks(): Promise<{
     tasks: ClickUpApiTask[] | null;
@@ -274,11 +363,21 @@ class SharedCacheService {
         return { tasks: null, metadata: null };
       }
 
-      const tasks = data.data as ClickUpApiTask[];
       const metadata = data.metadata as SharedCacheMetadata;
+      let tasks: ClickUpApiTask[] | null = null;
 
-      console.log(`[SERV-SHARED-001] ✅ ${tasks.length} tasks carregadas do cache compartilhado`);
-      console.log(`[SERV-SHARED-001] ℹ️ Último sync: ${metadata.lastSync} por ${metadata.syncedBy}`);
+      // Verificar se está comprimido
+      if (metadata.compressed && data.data?.compressed) {
+        console.log('[SERV-SHARED-001] 📦 Descomprimindo dados...');
+        tasks = decompressData<ClickUpApiTask[]>(data.data.compressed);
+      } else {
+        tasks = data.data as ClickUpApiTask[];
+      }
+
+      if (tasks) {
+        console.log(`[SERV-SHARED-001] ✅ ${tasks.length} tasks carregadas do cache compartilhado`);
+        console.log(`[SERV-SHARED-001] ℹ️ Último sync: ${metadata.lastSync} por ${metadata.syncedBy}`);
+      }
 
       return { tasks, metadata };
     } catch (e: any) {
@@ -288,7 +387,7 @@ class SharedCacheService {
   }
 
   /**
-   * Carrega dados processados do cache compartilhado
+   * Carrega dados processados do cache compartilhado (descomprime)
    */
   async loadProcessedData(): Promise<{
     data: GroupedData[] | null;
@@ -320,10 +419,20 @@ class SharedCacheService {
         return { data: null, metadata: null };
       }
 
-      const processedData = data.data as GroupedData[];
       const metadata = data.metadata as SharedCacheMetadata;
+      let processedData: GroupedData[] | null = null;
 
-      console.log(`[SERV-SHARED-001] ✅ ${processedData.length} grupos carregados do cache compartilhado`);
+      // Verificar se está comprimido
+      if (metadata.compressed && data.data?.compressed) {
+        console.log('[SERV-SHARED-001] 📦 Descomprimindo dados...');
+        processedData = decompressData<GroupedData[]>(data.data.compressed);
+      } else {
+        processedData = data.data as GroupedData[];
+      }
+
+      if (processedData) {
+        console.log(`[SERV-SHARED-001] ✅ ${processedData.length} grupos carregados do cache compartilhado`);
+      }
 
       return { data: processedData, metadata };
     } catch (e: any) {
@@ -384,13 +493,14 @@ class SharedCacheService {
   }> {
     console.log('[SERV-SHARED-001] 📦 Carregando todos os dados do cache compartilhado...');
 
-    const [rawResult, processedResult, metaResult] = await Promise.all([
-      this.loadRawTasks(),
-      this.loadProcessedData(),
-      this.loadFilterMetadata()
-    ]);
+    // Carregar sequencialmente para evitar sobrecarga de memória
+    const processedResult = await this.loadProcessedData();
+    const metaResult = await this.loadFilterMetadata();
 
-    const hasData = rawResult.tasks !== null || processedResult.data !== null;
+    // Raw tasks é opcional - só carregar se necessário
+    // const rawResult = await this.loadRawTasks();
+
+    const hasData = processedResult.data !== null;
 
     if (hasData) {
       console.log('[SERV-SHARED-001] ✅ Dados carregados do cache compartilhado');
@@ -399,10 +509,10 @@ class SharedCacheService {
     }
 
     return {
-      rawTasks: rawResult.tasks,
+      rawTasks: null, // Não carrega raw por padrão para economizar memória
       processedData: processedResult.data,
       filterMetadata: metaResult.filterMetadata,
-      cacheMetadata: rawResult.metadata || processedResult.metadata || metaResult.metadata
+      cacheMetadata: processedResult.metadata || metaResult.metadata
     };
   }
 
@@ -425,14 +535,32 @@ class SharedCacheService {
     }
 
     try {
+      // Verificar processed_data primeiro (é o que importa para visualização)
       const { data, error } = await supabase
         .from(SHARED_CACHE_TABLE)
         .select('metadata')
-        .eq('cache_key', CACHE_KEY_RAW_TASKS)
+        .eq('cache_key', CACHE_KEY_PROCESSED_DATA)
         .single();
 
       if (error || !data) {
-        return { hasData: false, lastSync: null, syncedBy: null, taskCount: 0 };
+        // Fallback para raw_tasks
+        const { data: rawData } = await supabase
+          .from(SHARED_CACHE_TABLE)
+          .select('metadata')
+          .eq('cache_key', CACHE_KEY_RAW_TASKS)
+          .single();
+
+        if (!rawData) {
+          return { hasData: false, lastSync: null, syncedBy: null, taskCount: 0 };
+        }
+
+        const metadata = rawData.metadata as SharedCacheMetadata;
+        return {
+          hasData: true,
+          lastSync: metadata.lastSync,
+          syncedBy: metadata.syncedBy,
+          taskCount: metadata.taskCount
+        };
       }
 
       const metadata = data.metadata as SharedCacheMetadata;

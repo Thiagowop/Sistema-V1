@@ -281,8 +281,8 @@ const SortableMemberTab: React.FC<SortableMemberTabProps> = ({ id, isActive, nam
         {...listeners}
         onClick={onClick}
         className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap border cursor-pointer active:cursor-grabbing ${isActive
-            ? 'bg-slate-800 border-slate-800 text-white shadow-lg scale-105'
-            : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
+          ? 'bg-slate-800 border-slate-800 text-white shadow-lg scale-105'
+          : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
           }`}
       >
         {name}
@@ -717,9 +717,14 @@ export const DailyAlignmentDashboard: React.FC = () => {
     userPreferences.updateDaily({ isPresentationMode: mode });
   }, []);
 
-  // Drag-drop sensors
+  // Drag-drop sensors with 500ms delay to allow easy clicking
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        delay: 500,       // Must hold for 500ms before drag starts
+        tolerance: 5,     // Allow 5px of movement during delay
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })

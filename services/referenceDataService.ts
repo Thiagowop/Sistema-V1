@@ -23,7 +23,7 @@
  */
 
 import { set, get, del, keys } from 'idb-keyval';
-import { getSupabase, getDeviceId } from './supabaseService';
+import { getSupabase } from './supabaseService';
 
 // ============================================
 // CONSTANTES
@@ -368,9 +368,9 @@ class ReferenceDataService {
   }
 
   /**
-   * Sincroniza com Supabase (backup remoto)
+   * Sincroniza com Supabase (GLOBAL - todos veem igual)
    */
-  async syncToSupabase(key?: ReferenceDataKey): Promise<boolean> {
+  async syncToSupabase(key?: ReferenceDataKey, syncedBy?: string): Promise<boolean> {
     const supabase = getSupabase();
     if (!supabase) {
       console.warn('[SERV-REF-001] Supabase not available');
@@ -378,7 +378,6 @@ class ReferenceDataService {
     }
 
     const keysToSync = key ? [key] : Array.from(this.cache.keys());
-    const deviceId = getDeviceId();
 
     try {
       for (const k of keysToSync) {
@@ -388,12 +387,12 @@ class ReferenceDataService {
         const { error } = await supabase
           .from(SUPABASE_TABLE)
           .upsert({
-            device_id: deviceId,
-            data_key: k,
+            data_key: k,  // GLOBAL - sem device_id
             data: store,
+            created_by: syncedBy || 'system',
             updated_at: new Date().toISOString()
           }, {
-            onConflict: 'device_id,data_key'
+            onConflict: 'data_key'  // Único por chave (global)
           });
 
         if (error) {
@@ -405,7 +404,7 @@ class ReferenceDataService {
         this.cache.set(k, store);
       }
 
-      console.log('[SERV-REF-001] ☁️ Synced to Supabase');
+      console.log('[SERV-REF-001] ☁️ Dados de referência sincronizados (GLOBAL)');
       return true;
     } catch (error) {
       console.error('[SERV-REF-001] Supabase sync failed:', error);
@@ -414,19 +413,16 @@ class ReferenceDataService {
   }
 
   /**
-   * Carrega do Supabase (restaurar de outro dispositivo)
+   * Carrega do Supabase (GLOBAL - mesmos dados para todos)
    */
   async loadFromSupabase(key?: ReferenceDataKey): Promise<boolean> {
     const supabase = getSupabase();
     if (!supabase) return false;
 
-    const deviceId = getDeviceId();
-
     try {
       let query = supabase
         .from(SUPABASE_TABLE)
-        .select('*')
-        .eq('device_id', deviceId);
+        .select('*');  // GLOBAL - sem filtro de device_id
 
       if (key) {
         query = query.eq('data_key', key);
@@ -439,16 +435,19 @@ class ReferenceDataService {
         return false;
       }
 
+      let loadedCount = 0;
       for (const row of data || []) {
         const store = row.data as ReferenceDataStore;
         if (store && store.version === REF_VERSION) {
           this.cache.set(row.data_key as ReferenceDataKey, store);
           await this.saveToStorage(row.data_key as ReferenceDataKey, store);
+          loadedCount++;
+          console.log(`[SERV-REF-001] ✅ Loaded ${row.data_key}: ${store.items?.length || 0} items`);
         }
       }
 
-      console.log('[SERV-REF-001] ☁️ Loaded from Supabase');
-      return true;
+      console.log(`[SERV-REF-001] ☁️ Carregados ${loadedCount} conjuntos de dados GLOBAIS`);
+      return loadedCount > 0;
     } catch (error) {
       console.error('[SERV-REF-001] Supabase load failed:', error);
       return false;

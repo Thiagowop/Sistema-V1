@@ -14,6 +14,7 @@ import { ClickUpApiTask, fetchRawClickUpData, processApiTasks, extractFilterMeta
 import { saveRawData, loadRawData, saveMetadata, loadMetadata, saveProcessedData, loadProcessedData, clearAllCache, mergeIncrementalData } from '../services/advancedCacheService';
 import { SyncFilters, loadSyncFilters, saveSyncFilters, createDefaultSyncFilters } from '../services/filterService';
 import { referenceData, getEquipTags, getTeamMembers, getProjects, EquipTag, TeamMember, ReferenceItem } from '../services/referenceDataService';
+import { saveToSharedCache, loadFromSharedCache, getSharedCacheStatus } from '../services/sharedCacheService';
 
 // ============================================
 // TYPES
@@ -68,6 +69,16 @@ export interface DataContextValue {
   refreshReferenceData: () => Promise<void>;
   syncReferenceToSupabase: () => Promise<boolean>;
 
+  // Shared Cache (Supabase - for team access)
+  loadFromSharedCache: () => Promise<boolean>;
+  saveToSharedCache: (syncedBy: string) => Promise<boolean>;
+  sharedCacheStatus: {
+    hasData: boolean;
+    lastSync: string | null;
+    syncedBy: string | null;
+    taskCount: number;
+  } | null;
+
   // Helpers
   getTaskById: (id: string) => Task | null;
   getTasksByAssignee: (assignee: string) => Task[];
@@ -112,6 +123,14 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
   // Reference Data State (dados persistentes)
   const [isReferenceDataReady, setIsReferenceDataReady] = useState(false);
   const [refDataVersion, setRefDataVersion] = useState(0); // Para forçar re-render
+
+  // Shared Cache Status (Supabase)
+  const [sharedCacheStatus, setSharedCacheStatus] = useState<{
+    hasData: boolean;
+    lastSync: string | null;
+    syncedBy: string | null;
+    taskCount: number;
+  } | null>(null);
 
   // Abort controller for cancellable sync
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -591,6 +610,124 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
   }, [config]);
 
   // ============================================
+  // SHARED CACHE (Supabase - for team access)
+  // ============================================
+
+  /**
+   * Load data from Supabase shared cache (for team/viewers who can't sync)
+   */
+  const loadFromSharedCacheHandler = useCallback(async (): Promise<boolean> => {
+    console.log('[CTX-DATA-001] 📥 Loading from shared cache (Supabase)...');
+
+    try {
+      const result = await loadFromSharedCache();
+
+      if (!result.rawTasks && !result.processedData) {
+        console.log('[CTX-DATA-001] ℹ️ No data in shared cache');
+        return false;
+      }
+
+      // Load raw tasks if available
+      if (result.rawTasks && result.rawTasks.length > 0) {
+        setRawTasks(result.rawTasks);
+        console.log(`[CTX-DATA-001] ✅ Loaded ${result.rawTasks.length} raw tasks from shared cache`);
+      }
+
+      // Load processed data if available
+      if (result.processedData && result.processedData.length > 0) {
+        setGroupedData(result.processedData);
+        console.log(`[CTX-DATA-001] ✅ Loaded ${result.processedData.length} groups from shared cache`);
+      }
+
+      // Load filter metadata if available
+      if (result.filterMetadata) {
+        setMetadata(result.filterMetadata);
+      }
+
+      // Update sync state with cache metadata
+      if (result.cacheMetadata) {
+        setSyncState(prev => ({
+          ...prev,
+          status: 'success',
+          lastSync: result.cacheMetadata!.lastSync,
+          taskCount: result.cacheMetadata!.taskCount,
+          error: null
+        }));
+
+        setSharedCacheStatus({
+          hasData: true,
+          lastSync: result.cacheMetadata.lastSync,
+          syncedBy: result.cacheMetadata.syncedBy,
+          taskCount: result.cacheMetadata.taskCount
+        });
+      }
+
+      setHasCacheData(true);
+      console.log('[CTX-DATA-001] ✅ Data loaded from shared cache successfully');
+      return true;
+
+    } catch (error: any) {
+      console.error('[CTX-DATA-001] ❌ Error loading from shared cache:', error);
+      return false;
+    }
+  }, []);
+
+  /**
+   * Save current data to Supabase shared cache (admin only, called after sync)
+   */
+  const saveToSharedCacheHandler = useCallback(async (syncedBy: string): Promise<boolean> => {
+    console.log('[CTX-DATA-001] 💾 Saving to shared cache (Supabase)...');
+
+    try {
+      if (rawTasks.length === 0) {
+        console.warn('[CTX-DATA-001] ⚠️ No raw tasks to save');
+        return false;
+      }
+
+      const success = await saveToSharedCache(
+        rawTasks,
+        groupedData,
+        metadata || { tags: [], statuses: [], assignees: [], projects: [], priorities: [] },
+        syncedBy
+      );
+
+      if (success) {
+        console.log('[CTX-DATA-001] ✅ Data saved to shared cache');
+
+        // Update shared cache status
+        setSharedCacheStatus({
+          hasData: true,
+          lastSync: new Date().toISOString(),
+          syncedBy,
+          taskCount: rawTasks.length
+        });
+      }
+
+      return success;
+    } catch (error: any) {
+      console.error('[CTX-DATA-001] ❌ Error saving to shared cache:', error);
+      return false;
+    }
+  }, [rawTasks, groupedData, metadata]);
+
+  /**
+   * Check shared cache status on mount
+   */
+  useEffect(() => {
+    const checkSharedCacheStatus = async () => {
+      try {
+        const status = await getSharedCacheStatus();
+        setSharedCacheStatus(status);
+        console.log('[CTX-DATA-001] 📊 Shared cache status:', status);
+      } catch (error) {
+        console.error('[CTX-DATA-001] Error checking shared cache status:', error);
+      }
+    };
+
+    checkSharedCacheStatus();
+  }, []);
+
+  // ============================================
   // HELPERS
   // ============================================
 
@@ -670,6 +807,11 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, initialCon
     referenceData: referenceDataValue,
     refreshReferenceData,
     syncReferenceToSupabase,
+
+    // Shared Cache (Supabase - for team access)
+    loadFromSharedCache: loadFromSharedCacheHandler,
+    saveToSharedCache: saveToSharedCacheHandler,
+    sharedCacheStatus,
 
     // Helpers
     getTaskById,

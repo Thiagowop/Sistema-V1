@@ -19,9 +19,10 @@ import { QualityWrapper } from './pages/QualityWrapper';
 import { AdminDashboard } from './pages/AdminDashboard';
 import {
     RefreshCw, Users, Clock, Shield, Settings,
-    LogOut, X, Menu
+    LogOut, X, Menu, Database, CheckCircle, AlertCircle
 } from 'lucide-react';
 import { AuthorizedUser } from './services/supabaseService';
+import { useData } from './contexts/DataContext';
 
 // Configuração inicial
 const getInitialConfig = () => {
@@ -83,13 +84,186 @@ const SectionHeader = ({ label }: { label: string }) => (
 );
 
 // ============================================
+// VIEWER DATA PANEL (for non-admin users)
+// ============================================
+
+const ViewerDataPanel: React.FC = () => {
+    const {
+        loadFromSharedCache,
+        sharedCacheStatus,
+        hasCacheData,
+        syncState
+    } = useData();
+    const [isLoading, setIsLoading] = React.useState(false);
+    const [loadResult, setLoadResult] = React.useState<'success' | 'error' | null>(null);
+
+    const handleLoadFromCloud = async () => {
+        setIsLoading(true);
+        setLoadResult(null);
+        try {
+            const success = await loadFromSharedCache();
+            setLoadResult(success ? 'success' : 'error');
+        } catch {
+            setLoadResult('error');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Auto-load on mount if no cache data
+    React.useEffect(() => {
+        if (!hasCacheData && sharedCacheStatus?.hasData) {
+            handleLoadFromCloud();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const formatDate = (dateStr: string | null) => {
+        if (!dateStr) return 'Nunca';
+        const date = new Date(dateStr);
+        return date.toLocaleString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
+
+    return (
+        <div className="h-full overflow-auto p-6 bg-slate-50">
+            <div className="max-w-2xl mx-auto">
+                {/* Header */}
+                <div className="mb-8">
+                    <h1 className="text-2xl font-bold text-slate-800 mb-2">Dados do Sistema</h1>
+                    <p className="text-slate-500">
+                        Carregue os dados sincronizados pelo administrador para visualizar os dashboards.
+                    </p>
+                </div>
+
+                {/* Cloud Data Card */}
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="p-6">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
+                                <Database size={24} className="text-blue-600" />
+                            </div>
+                            <div>
+                                <h2 className="font-bold text-lg text-slate-800">Cache Compartilhado</h2>
+                                <p className="text-sm text-slate-500">Dados sincronizados pela equipe</p>
+                            </div>
+                        </div>
+
+                        {/* Status Grid */}
+                        <div className="grid grid-cols-2 gap-4 mb-6">
+                            <div className="bg-slate-50 rounded-lg p-4">
+                                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Status</p>
+                                <p className="font-bold text-slate-800">
+                                    {sharedCacheStatus?.hasData ? (
+                                        <span className="text-green-600 flex items-center gap-1">
+                                            <CheckCircle size={16} /> Disponivel
+                                        </span>
+                                    ) : (
+                                        <span className="text-amber-600 flex items-center gap-1">
+                                            <AlertCircle size={16} /> Sem dados
+                                        </span>
+                                    )}
+                                </p>
+                            </div>
+                            <div className="bg-slate-50 rounded-lg p-4">
+                                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Tarefas</p>
+                                <p className="font-bold text-slate-800">{sharedCacheStatus?.taskCount || 0}</p>
+                            </div>
+                            <div className="bg-slate-50 rounded-lg p-4">
+                                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Ultima Sync</p>
+                                <p className="font-bold text-slate-800 text-sm">
+                                    {formatDate(sharedCacheStatus?.lastSync || syncState.lastSync)}
+                                </p>
+                            </div>
+                            <div className="bg-slate-50 rounded-lg p-4">
+                                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Sincronizado por</p>
+                                <p className="font-bold text-slate-800 text-sm truncate">
+                                    {sharedCacheStatus?.syncedBy || '-'}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Load Button */}
+                        <button
+                            onClick={handleLoadFromCloud}
+                            disabled={isLoading || !sharedCacheStatus?.hasData}
+                            className={`w-full py-3 px-4 rounded-lg font-bold text-white transition-all flex items-center justify-center gap-2
+                                ${sharedCacheStatus?.hasData
+                                    ? 'bg-blue-600 hover:bg-blue-700 active:scale-[0.98]'
+                                    : 'bg-slate-300 cursor-not-allowed'
+                                }
+                                ${isLoading ? 'opacity-75' : ''}
+                            `}
+                        >
+                            {isLoading ? (
+                                <>
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    Carregando...
+                                </>
+                            ) : (
+                                <>
+                                    <Database size={18} />
+                                    {hasCacheData ? 'Recarregar Dados' : 'Carregar Dados'}
+                                </>
+                            )}
+                        </button>
+
+                        {/* Result Message */}
+                        {loadResult === 'success' && (
+                            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 text-green-700">
+                                <CheckCircle size={18} />
+                                <span className="text-sm font-medium">Dados carregados com sucesso!</span>
+                            </div>
+                        )}
+                        {loadResult === 'error' && (
+                            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
+                                <AlertCircle size={18} />
+                                <span className="text-sm font-medium">Erro ao carregar dados. Tente novamente.</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Info Footer */}
+                    <div className="px-6 py-4 bg-slate-50 border-t border-slate-100">
+                        <p className="text-xs text-slate-500">
+                            Os dados sao sincronizados pelo administrador do sistema. Apos carregar, voce pode navegar pelos dashboards normalmente.
+                        </p>
+                    </div>
+                </div>
+
+                {/* Current Local Cache Info */}
+                {hasCacheData && (
+                    <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+                        <div className="flex items-center gap-3">
+                            <CheckCircle size={20} className="text-green-600" />
+                            <div>
+                                <p className="font-bold text-green-800">Dados carregados</p>
+                                <p className="text-sm text-green-600">
+                                    Voce pode navegar pelos dashboards utilizando o menu lateral.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// ============================================
 // APP CONTENT
 // ============================================
 
 const AppContent: React.FC = () => {
-    const { auth, logoutUser } = useAuth();
+    const { auth, logoutUser, canSync, isAdmin } = useAuth();
     const initialConfig = getInitialConfig();
-    const [activeView, setActiveView] = useState<ActiveView>('sync');
+    // Non-admins default to 'daily' view (or 'sync' which shows ViewerDataPanel for them)
+    const [activeView, setActiveView] = useState<ActiveView>(isAdmin ? 'sync' : 'daily');
     const [isSidebarOpen, setSidebarOpen] = useState(false);
 
     // Loading state
@@ -163,12 +337,21 @@ const AppContent: React.FC = () => {
                     {/* Navegação Principal */}
                     <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5 custom-scrollbar">
                         <SectionHeader label="Dados" />
-                        <SidebarItem
-                            icon={RefreshCw}
-                            label="Atualizar Dados"
-                            isActive={activeView === 'sync'}
-                            onClick={() => handleNavClick('sync')}
-                        />
+                        {canSync ? (
+                            <SidebarItem
+                                icon={RefreshCw}
+                                label="Atualizar Dados"
+                                isActive={activeView === 'sync'}
+                                onClick={() => handleNavClick('sync')}
+                            />
+                        ) : (
+                            <SidebarItem
+                                icon={Database}
+                                label="Carregar Dados"
+                                isActive={activeView === 'sync'}
+                                onClick={() => handleNavClick('sync')}
+                            />
+                        )}
 
                         <SectionHeader label="Visualização" />
                         <SidebarItem
@@ -247,7 +430,7 @@ const AppContent: React.FC = () => {
 
                     {/* Content Render */}
                     <div className="flex-1 overflow-hidden h-full">
-                        {activeView === 'sync' && <SyncDashboard />}
+                        {activeView === 'sync' && (canSync ? <SyncDashboard /> : <ViewerDataPanel />)}
                         {activeView === 'daily' && <DailyAlignmentDashboard />}
                         {activeView === 'gestao' && <TimesheetWrapper />}
                         {activeView === 'quality' && <QualityWrapper />}

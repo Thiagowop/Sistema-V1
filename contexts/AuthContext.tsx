@@ -42,6 +42,12 @@ export interface AuthContextValue {
   logout: () => void;
   validateToken: (token: string) => Promise<boolean>;
   updateCredentials: (token: string, teamId: string) => void;
+
+  // Role Helpers
+  isAdmin: boolean;
+  isViewer: boolean;
+  canSync: boolean;
+  canAccessAdmin: boolean;
 }
 
 const defaultAuthState: AuthState = {
@@ -407,6 +413,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, [auth.token, auth.teamId]);
 
   // ============================================
+  // ROLE HELPERS
+  // ============================================
+
+  const isAdmin = auth.user?.role === 'admin';
+  const isViewer = auth.user?.role === 'viewer';
+  const canSync = isAdmin; // Only admins can sync
+  const canAccessAdmin = isAdmin; // Only admins can access admin page
+
+  // ============================================
   // CONTEXT VALUE
   // ============================================
 
@@ -419,7 +434,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     logout,
     validateToken,
-    updateCredentials
+    updateCredentials,
+    // Role Helpers
+    isAdmin,
+    isViewer,
+    canSync,
+    canAccessAdmin
   };
 
   return (

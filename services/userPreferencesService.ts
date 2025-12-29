@@ -402,27 +402,26 @@ class UserPreferencesService {
     const supabase = getSupabase();
     if (!supabase) return null;
 
-    // Tentar carregar por user_id primeiro (melhor para multi-device)
-    // Fallback para device_id se não houver user_id
     const userId = this.getCurrentUserId();
     const deviceId = getDeviceId();
 
     try {
-      // Primeiro tentar por user_id (preferências do usuário)
+      // 1. Primeiro tentar por user_id (permite sync entre dispositivos)
       if (userId) {
         const { data: userData, error: userError } = await supabase
           .from(SUPABASE_TABLE)
-          .select('preferences')
+          .select('preferences, device_id')
           .eq('user_id', userId)
           .single();
 
         if (!userError && userData?.preferences) {
-          console.log('[SERV-PREF-001] ✅ Preferências carregadas por user_id');
+          const isOtherDevice = userData.device_id !== deviceId;
+          console.log(`[SERV-PREF-001] ✅ Preferências carregadas por user_id${isOtherDevice ? ' (de outro dispositivo)' : ''}`);
           return userData.preferences as UserPreferences;
         }
       }
 
-      // Fallback: tentar por device_id
+      // 2. Fallback: tentar por device_id
       const { data, error } = await supabase
         .from(SUPABASE_TABLE)
         .select('preferences')
@@ -435,6 +434,7 @@ class UserPreferencesService {
         return null;
       }
 
+      console.log('[SERV-PREF-001] ✅ Preferências carregadas por device_id');
       return data?.preferences as UserPreferences;
     } catch (e) {
       console.error('[SERV-PREF-001] Erro ao carregar Supabase:', e);
@@ -451,20 +451,18 @@ class UserPreferencesService {
     const userId = this.getCurrentUserId();
     const deviceId = getDeviceId();
 
-    // Usar user_id se disponível, senão device_id
-    const identifier = userId ? { user_id: userId } : { device_id: deviceId };
-    const conflictColumn = userId ? 'user_id' : 'device_id';
-
     try {
+      // Sempre usar device_id como chave de conflito (tem UNIQUE constraint)
+      // user_id é salvo para permitir sync entre dispositivos
       const { error } = await supabase
         .from(SUPABASE_TABLE)
         .upsert({
-          ...identifier,
-          device_id: deviceId, // Sempre salvar device_id também
+          device_id: deviceId,
+          user_id: userId, // Pode ser null
           preferences: this.preferences,
           updated_at: new Date().toISOString()
         }, {
-          onConflict: conflictColumn
+          onConflict: 'device_id'
         });
 
       if (error) {
@@ -472,7 +470,7 @@ class UserPreferencesService {
         return false;
       }
 
-      console.log('[SERV-PREF-001] ☁️ Preferências salvas no Supabase' + (userId ? ' (por user_id)' : ' (por device_id)'));
+      console.log('[SERV-PREF-001] ☁️ Preferências salvas no Supabase' + (userId ? ` (user: ${userId})` : ' (device only)'));
       return true;
     } catch (e) {
       console.error('[SERV-PREF-001] Erro ao salvar Supabase:', e);

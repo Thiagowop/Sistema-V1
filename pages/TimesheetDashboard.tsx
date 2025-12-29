@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, Calendar, Eye, EyeOff, Moon, Sun, LayoutGrid, User, Check, AlertCircle, ToggleLeft, ToggleRight, FileSpreadsheet, BarChart3, Table2, Download } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Calendar, Eye, EyeOff, Moon, Sun, LayoutGrid, User, Check, AlertCircle, ToggleLeft, ToggleRight, FileSpreadsheet, BarChart3, Table2, Download, Settings, X, List, Info } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { GroupedData, Task as RealTask } from '../types';
 import TimesheetExcelView from '../components/TimesheetExcelView';
@@ -94,6 +94,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
   const [isTeamDropdownOpen, setIsTeamDropdownOpen] = useState(false);
   const [isMonthDropdownOpen, setIsMonthDropdownOpen] = useState(false);
   const [isYearDropdownOpen, setIsYearDropdownOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
     const dark = document.documentElement.classList.contains('dark');
@@ -476,6 +477,13 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
     }).filter(member => member.projects.length > 0); // Só membros com projetos ativos
   }, [externalTeamMembers, groupedData, selectedMonth, allDays, isTaskInPeriod, distributeTaskHours, internalShowCompleted]);
 
+  // Auto-select first team member when data loads (no 'all' option)
+  useEffect(() => {
+    if (teamMembers.length > 0 && (selectedMemberFilter === 'all' || !teamMembers.find(m => m.id === selectedMemberFilter))) {
+      setSelectedMemberFilter(teamMembers[0].id);
+    }
+  }, [teamMembers, selectedMemberFilter]);
+
   // Converter dados para formato Excel View
   const excelViewData = useMemo(() => {
     // Converter dias para formato Excel (comum a ambos os casos)
@@ -815,219 +823,117 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
   return (
     <div className={`min-h-screen ${isDark ? 'bg-gray-900' : 'bg-gray-50'} p-6 transition-colors`}>
       <div className="max-w-full mx-auto">
-        <div className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border rounded-lg p-5 mb-4`}>
-          <div className="flex justify-between items-center">
+        {/* SIMPLIFIED HEADER */}
+        <div className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border rounded-lg px-4 py-3 mb-4`}>
+          <div className="flex items-center justify-between">
+            {/* Left: Title */}
             <div className="flex items-center gap-3">
-              <div>
-                <h1 className={`text-2xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Timesheet</h1>
-                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'} mt-1`}>
-                  Gestão de horas da equipe
-                  {hasData && !hasMembersInPeriod && (
-                    <span className="ml-2 text-amber-500">• Nenhum projeto com atividade em {monthNames[selectedMonthNum - 1]}/{selectedYear}</span>
-                  )}
-                  {!hasData && (
-                    <span className="ml-2 text-amber-500">• Faça um sync para carregar dados</span>
-                  )}
-                </p>
-              </div>
-
-              {/* Settings Icons - Moved from control bar */}
-              <div className="flex items-center gap-2">
-                <button ref={themeButtonRef} onClick={toggleTheme} className={`p-2 rounded-lg ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} transition-colors`}>
-                  {isDark ? <Sun className="w-4 h-4 text-yellow-400" /> : <Moon className="w-4 h-4 text-gray-600" />}
-                </button>
-                <button onClick={() => setShowWeekends(!showWeekends)}
-                  className={`p-2 rounded-lg ${showWeekends ? (isDark ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-700') : (isDark ? 'bg-blue-900 text-blue-200' : 'bg-blue-50 text-blue-700')
-                    }`}
-                  title={showWeekends ? 'Ocultar Finais de Semana' : 'Mostrar Finais de Semana'}
-                >
-                  {showWeekends ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
+              <h1 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Timesheet</h1>
+              {hasData && !hasMembersInPeriod && (
+                <span className="text-xs text-amber-500 font-medium">• Sem atividade em {monthNames[selectedMonthNum - 1]}</span>
+              )}
+              {!hasData && (
+                <span className="text-xs text-amber-500 font-medium">• Faça sync</span>
+              )}
             </div>
 
-            <div className="flex items-center gap-3">
-              {/* Integrated Control Bar: Team & Month */}
-              <div className={`flex items-center rounded-lg border shadow-sm ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+            {/* Center: Controls - Team, Month Navigation, Filters */}
+            <div className="flex items-center gap-2">
+              {/* Team Selector Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => { setIsTeamDropdownOpen(!isTeamDropdownOpen); setIsMonthDropdownOpen(false); setIsYearDropdownOpen(false); setIsSettingsOpen(false); }}
+                  className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg border ${isDark ? 'border-gray-600 hover:bg-gray-700 text-gray-200' : 'border-gray-200 hover:bg-gray-50 text-gray-700'} transition-colors`}
+                >
+                  <span>{teamMembers.find(m => m.id === selectedMemberFilter)?.name || 'Selecione...'}</span>
+                  <ChevronDown className="w-3 h-3 opacity-50" />
+                </button>
 
-                {/* Team Selector Dropdown */}
+                {isTeamDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={() => setIsTeamDropdownOpen(false)}></div>
+                    <div className={`absolute top-full left-0 mt-1 w-48 rounded-lg border shadow-lg z-40 py-1 max-h-64 overflow-y-auto ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                      {teamMembers.map(member => (
+                        <button
+                          key={member.id}
+                          onClick={() => { handleMemberFilterClick(member.id); setIsTeamDropdownOpen(false); }}
+                          className={`w-full px-3 py-2 text-left text-sm flex items-center justify-between ${isDark ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700'}`}
+                        >
+                          <span>{member.name}</span>
+                          {selectedMemberFilter === member.id && <Check className="w-3 h-3 text-indigo-500" />}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Month Navigation */}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => handleMonthNavigate('prev')}
+                  disabled={months.findIndex(m => m.value === selectedMonth) <= 0}
+                  className={`p-1.5 rounded-lg ${isDark ? 'text-gray-400 hover:text-white hover:bg-gray-700 disabled:opacity-30' : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-30'}`}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+
                 <div className="relative">
                   <button
-                    onClick={() => { setIsTeamDropdownOpen(!isTeamDropdownOpen); setIsMonthDropdownOpen(false); }}
-                    className={`flex items-center gap-2 px-3 py-2 text-sm font-medium border-r ${isDark ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-50'} transition-colors rounded-l-lg`}
+                    onClick={() => { setIsMonthDropdownOpen(!isMonthDropdownOpen); setIsTeamDropdownOpen(false); setIsYearDropdownOpen(false); setIsSettingsOpen(false); }}
+                    className={`flex items-center gap-1 px-2 py-1.5 text-sm font-medium ${isDark ? 'text-gray-200' : 'text-gray-700'}`}
                   >
-                    <User className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
-                    <span className={isDark ? 'text-gray-200' : 'text-gray-700'}>
-                      {selectedMemberFilter === 'all' ? 'Todos da Equipe' : teamMembers.find(m => m.id === selectedMemberFilter)?.name}
-                    </span>
+                    <span>{monthNames[selectedMonthNum - 1]} {selectedYear}</span>
                     <ChevronDown className="w-3 h-3 opacity-50" />
                   </button>
 
-                  {isTeamDropdownOpen && (
+                  {isMonthDropdownOpen && (
                     <>
-                      <div className="fixed inset-0 z-30" onClick={() => setIsTeamDropdownOpen(false)}></div>
-                      <div className={`absolute top-full left-0 mt-2 w-56 rounded-lg border shadow-lg z-40 py-1 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-                        <button
-                          onClick={() => { handleMemberFilterClick('all'); setIsTeamDropdownOpen(false); }}
-                          className={`w-full px-4 py-2 text-left text-sm flex items-center justify-between ${isDark ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700'}`}
-                        >
-                          <span className="font-medium">Todos da Equipe</span>
-                          {selectedMemberFilter === 'all' && <Check className="w-3 h-3 text-indigo-500" />}
-                        </button>
-                        <div className={`h-px my-1 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}></div>
-                        {teamMembers.map(member => (
-                          <button
-                            key={member.id}
-                            onClick={() => { handleMemberFilterClick(member.id); setIsTeamDropdownOpen(false); }}
-                            className={`w-full px-4 py-2 text-left text-sm flex items-center justify-between ${isDark ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700'}`}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span>{member.name}</span>
-                            </div>
-                            {selectedMemberFilter === member.id && <Check className="w-3 h-3 text-indigo-500" />}
+                      <div className="fixed inset-0 z-30" onClick={() => setIsMonthDropdownOpen(false)}></div>
+                      <div className={`absolute top-full left-1/2 -translate-x-1/2 mt-1 w-64 rounded-lg border shadow-lg z-40 p-3 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                        {/* Year selector */}
+                        <div className="flex items-center justify-between mb-3">
+                          <button onClick={() => changeYear(selectedYear - 1)} className={`p-1 rounded ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}>
+                            <ChevronLeft className="w-4 h-4" />
                           </button>
-                        ))}
+                          <span className={`font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{selectedYear}</span>
+                          <button onClick={() => changeYear(selectedYear + 1)} className={`p-1 rounded ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}>
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </div>
+                        {/* Month grid */}
+                        <div className="grid grid-cols-4 gap-1">
+                          {monthNames.map((name, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => { changeMonth(idx + 1); setIsMonthDropdownOpen(false); }}
+                              className={`px-2 py-1.5 text-xs rounded-lg transition-colors ${selectedMonthNum === idx + 1
+                                ? 'bg-indigo-600 text-white font-bold'
+                                : isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-700'
+                                }`}
+                            >
+                              {name.substring(0, 3)}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </>
                   )}
                 </div>
 
-                {/* Month/Year Selector Control - IMPROVED */}
-                <div className="flex items-center gap-1 relative">
-                  {/* Botão Anterior */}
-                  <button
-                    onClick={() => handleMonthNavigate('prev')}
-                    disabled={months.findIndex(m => m.value === selectedMonth) <= 0}
-                    className={`p-2 ${isDark ? 'text-gray-400 hover:text-white disabled:opacity-30' : 'text-gray-400 hover:text-gray-900 disabled:opacity-30'}`}
-                    title="Mês anterior"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-
-                  {/* Seletor de Mês */}
-                  <div className="relative">
-                    <button
-                      onClick={() => { setIsMonthDropdownOpen(!isMonthDropdownOpen); setIsTeamDropdownOpen(false); setIsYearDropdownOpen(false); }}
-                      className={`flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg border ${isDark ? 'text-gray-200 hover:bg-gray-700 border-gray-600' : 'text-gray-700 hover:bg-gray-100 border-gray-300'}`}
-                    >
-                      <span>{monthNames[selectedMonthNum - 1]}</span>
-                      <ChevronDown className="w-3 h-3" />
-                    </button>
-
-                    {isMonthDropdownOpen && (
-                      <>
-                        <div className="fixed inset-0 z-30" onClick={() => setIsMonthDropdownOpen(false)}></div>
-                        <div className={`absolute top-full left-0 mt-1 w-36 rounded-lg border shadow-lg z-40 py-1 max-h-64 overflow-y-auto ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-                          {monthNames.map((name, idx) => (
-                            <button
-                              key={idx}
-                              onClick={() => changeMonth(idx + 1)}
-                              className={`w-full px-3 py-2 text-left text-sm flex items-center justify-between ${isDark ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700'} ${selectedMonthNum === idx + 1 ? (isDark ? 'bg-indigo-600/20 text-indigo-300' : 'bg-indigo-50 text-indigo-700') : ''}`}
-                            >
-                              <span>{name}</span>
-                              {selectedMonthNum === idx + 1 && <Check className="w-3 h-3" />}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Seletor de Ano */}
-                  <div className="relative">
-                    <button
-                      onClick={() => { setIsYearDropdownOpen(!isYearDropdownOpen); setIsTeamDropdownOpen(false); setIsMonthDropdownOpen(false); }}
-                      className={`flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg border ${isDark ? 'text-gray-200 hover:bg-gray-700 border-gray-600' : 'text-gray-700 hover:bg-gray-100 border-gray-300'}`}
-                    >
-                      <span>{selectedYear}</span>
-                      <ChevronDown className="w-3 h-3" />
-                    </button>
-
-                    {isYearDropdownOpen && (
-                      <>
-                        <div className="fixed inset-0 z-30" onClick={() => setIsYearDropdownOpen(false)}></div>
-                        <div className={`absolute top-full left-0 mt-1 w-24 rounded-lg border shadow-lg z-40 py-1 max-h-64 overflow-y-auto ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-                          {availableYears.map(year => (
-                            <button
-                              key={year}
-                              onClick={() => changeYear(year)}
-                              className={`w-full px-3 py-2 text-left text-sm flex items-center justify-between ${isDark ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700'} ${selectedYear === year ? (isDark ? 'bg-indigo-600/20 text-indigo-300' : 'bg-indigo-50 text-indigo-700') : ''}`}
-                            >
-                              <span>{year}</span>
-                              {selectedYear === year && <Check className="w-3 h-3" />}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Botão Próximo */}
-                  <button
-                    onClick={() => handleMonthNavigate('next')}
-                    disabled={months.findIndex(m => m.value === selectedMonth) >= months.length - 1}
-                    className={`p-2 ${isDark ? 'text-gray-400 hover:text-white disabled:opacity-30' : 'text-gray-400 hover:text-gray-900 disabled:opacity-30'}`}
-                    title="Próximo mês"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-
-                  {/* Toggles: Tarefas, Subtarefas, Concluídas */}
-                  <div className="flex items-center gap-4 pl-4 border-l border-gray-300 dark:border-gray-600">
-                    {/* Toggle: Tarefas */}
-                    <button
-                      onClick={() => setInternalShowTasks(!internalShowTasks)}
-                      className="flex items-center gap-2 cursor-pointer group"
-                      title="Mostrar/Ocultar Tarefas"
-                    >
-                      <div className={`transition-colors ${internalShowTasks ? 'text-sky-500' : 'text-slate-300 dark:text-gray-500'}`}>
-                        {internalShowTasks ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
-                      </div>
-                      <span className={`text-sm font-semibold transition-colors ${internalShowTasks ? 'text-slate-700 dark:text-gray-300' : 'text-slate-400 dark:text-gray-500'}`}>
-                        Tarefas
-                      </span>
-                    </button>
-
-                    {/* Toggle: Subtarefas */}
-                    <button
-                      onClick={() => setInternalShowSubtasks(!internalShowSubtasks)}
-                      className="flex items-center gap-2 cursor-pointer group"
-                      title="Mostrar/Ocultar Subtarefas"
-                    >
-                      <div className={`transition-colors ${internalShowSubtasks ? 'text-sky-500' : 'text-slate-300 dark:text-gray-500'}`}>
-                        {internalShowSubtasks ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
-                      </div>
-                      <span className={`text-sm font-semibold transition-colors ${internalShowSubtasks ? 'text-slate-700 dark:text-gray-300' : 'text-slate-400 dark:text-gray-500'}`}>
-                        Subtarefas
-                      </span>
-                    </button>
-
-                    {/* Toggle: Concluídas */}
-                    <button
-                      onClick={() => {
-                        const newValue = !internalShowCompleted;
-                        setInternalShowCompleted(newValue);
-                        onCompletedChange?.(newValue);
-                      }}
-                      className="flex items-center gap-2 cursor-pointer group"
-                      title="Mostrar/Ocultar Concluídas"
-                    >
-                      <div className={`transition-colors ${internalShowCompleted ? 'text-sky-500' : 'text-slate-300 dark:text-gray-500'}`}>
-                        {internalShowCompleted ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
-                      </div>
-                      <span className={`text-sm font-semibold transition-colors ${internalShowCompleted ? 'text-slate-700 dark:text-gray-300' : 'text-slate-400 dark:text-gray-500'}`}>
-                        Concluídas
-                      </span>
-                    </button>
-                  </div>
-
-
-                </div>
+                <button
+                  onClick={() => handleMonthNavigate('next')}
+                  disabled={months.findIndex(m => m.value === selectedMonth) >= months.length - 1}
+                  className={`p-1.5 rounded-lg ${isDark ? 'text-gray-400 hover:text-white hover:bg-gray-700 disabled:opacity-30' : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-30'}`}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
+            </div>
 
-              <div className={`h-6 w-px ${isDark ? 'bg-gray-600' : 'bg-gray-300'}`}></div>
-
-              {/* View Switcher Icons - 3 visualizações */}
+            {/* Right: View Toggle + Settings Gear */}
+            <div className="flex items-center gap-2">
+              {/* View Switcher */}
               <div className={`flex p-1 rounded-lg border ${isDark ? 'border-gray-600 bg-gray-900' : 'border-gray-200 bg-gray-100'}`}>
                 <button
                   onClick={() => setActiveTab('timeline')}
@@ -1035,52 +941,110 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                     ? (isDark ? 'bg-gray-700 text-white shadow-sm' : 'bg-white text-gray-900 shadow-sm')
                     : (isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
                     }`}
-                  title="Timeline"
+                  title="Timeline (Cards)"
                 >
                   <LayoutGrid className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setActiveTab('excel')}
-                  className={`p-1.5 rounded-md transition-all ml-1 ${activeTab === 'excel'
+                  className={`p-1.5 rounded-md transition-all ${activeTab === 'excel'
                     ? (isDark ? 'bg-gray-700 text-white shadow-sm' : 'bg-white text-gray-900 shadow-sm')
                     : (isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
                     }`}
-                  title="Excel / Analítico"
+                  title="Lista Detalhada"
                 >
-                  <Table2 className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setActiveTab('calendar')}
-                  className={`p-1.5 rounded-md transition-all ml-1 ${activeTab === 'calendar'
-                    ? (isDark ? 'bg-gray-700 text-white shadow-sm' : 'bg-white text-gray-900 shadow-sm')
-                    : (isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
-                    }`}
-                  title="Calendário"
-                >
-                  <Calendar className="w-4 h-4" />
+                  <List className="w-4 h-4" />
                 </button>
               </div>
 
+              {/* Settings Gear */}
+              <div className="relative">
+                <button
+                  onClick={() => { setIsSettingsOpen(!isSettingsOpen); setIsTeamDropdownOpen(false); setIsMonthDropdownOpen(false); setIsYearDropdownOpen(false); }}
+                  className={`p-2 rounded-lg transition-colors ${isSettingsOpen
+                    ? (isDark ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-900')
+                    : (isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500')
+                    }`}
+                  title="Configurações de Visualização"
+                >
+                  <Settings className="w-4 h-4" />
+                </button>
 
-            </div>
-          </div>
+                {/* Settings Popup */}
+                {isSettingsOpen && (
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={() => setIsSettingsOpen(false)}></div>
+                    <div className={`absolute top-full right-0 mt-2 w-72 rounded-xl border shadow-xl z-40 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                      {/* Header */}
+                      <div className={`flex items-center justify-between px-4 py-3 border-b ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
+                        <span className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Configuração de Visualização</span>
+                        <button onClick={() => setIsSettingsOpen(false)} className={`p-1 rounded-lg ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}>
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
 
-          <div className={`mt-6 pt-4 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'} flex items-center gap-6 text-xs`}>
-            <span className={`font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Legenda:</span>
+                      {/* Toggles */}
+                      <div className="p-4 space-y-3">
+                        {/* Show Completed */}
+                        <button
+                          onClick={() => {
+                            const newValue = !internalShowCompleted;
+                            setInternalShowCompleted(newValue);
+                            onCompletedChange?.(newValue);
+                          }}
+                          className="w-full flex items-center justify-between"
+                        >
+                          <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Mostrar Tarefas Concluídas</span>
+                          <div className={`transition-colors ${internalShowCompleted ? 'text-indigo-500' : isDark ? 'text-gray-500' : 'text-gray-300'}`}>
+                            {internalShowCompleted ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
+                          </div>
+                        </button>
 
-            <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full bg-emerald-500`}></div>
-              <span className={isDark ? 'text-gray-300' : 'text-gray-600'}>Dentro da meta (±10%)</span>
-            </div>
+                        {/* Show Weekends */}
+                        <button
+                          onClick={() => setShowWeekends(!showWeekends)}
+                          className="w-full flex items-center justify-between"
+                        >
+                          <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Mostrar Finais de Semana</span>
+                          <div className={`transition-colors ${showWeekends ? 'text-indigo-500' : isDark ? 'text-gray-500' : 'text-gray-300'}`}>
+                            {showWeekends ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
+                          </div>
+                        </button>
 
-            <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full bg-amber-500`}></div>
-              <span className={isDark ? 'text-gray-300' : 'text-gray-600'}>Atenção (±20%)</span>
-            </div>
+                        {/* Theme Toggle */}
+                        <button
+                          onClick={toggleTheme}
+                          className="w-full flex items-center justify-between"
+                        >
+                          <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Modo Escuro</span>
+                          <div className={`transition-colors ${isDark ? 'text-indigo-500' : 'text-gray-300'}`}>
+                            {isDark ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
+                          </div>
+                        </button>
+                      </div>
 
-            <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full bg-rose-500`}></div>
-              <span className={isDark ? 'text-gray-300' : 'text-gray-600'}>Crítico (&gt;20%)</span>
+                      {/* Legend Section */}
+                      <div className={`px-4 py-3 border-t ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
+                        <p className={`text-xs font-bold uppercase tracking-wide mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Legenda de Desvio</p>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                            <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Dentro da meta (±10%)</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-amber-500"></div>
+                            <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Atenção (±20%)</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-rose-500"></div>
+                            <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Crítico (&gt;20%)</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>

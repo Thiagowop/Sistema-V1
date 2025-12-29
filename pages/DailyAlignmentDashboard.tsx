@@ -195,16 +195,30 @@ const PriorityFlag = ({ priority }: { priority?: string }) => {
   );
 };
 
-// Ícone de HORAS EXCEDIDAS piscante
+// Ícone de HORAS EXCEDIDAS com valor do estouro
 const ExceededHoursIcon = ({ timeLogged, timeEstimate }: { timeLogged?: number; timeEstimate?: number }) => {
-  const isOver = (timeLogged || 0) > (timeEstimate || 0);
+  const logged = timeLogged || 0;
+  const estimate = timeEstimate || 0;
+  const isOver = logged > estimate;
 
-  if (!isOver || !timeEstimate) return null;
+  if (!isOver || !estimate) return null;
+
+  // Calculate exceeded hours
+  const exceeded = logged - estimate;
+
+  // Format exceeded time
+  const formatExceeded = (hours: number) => {
+    const h = Math.floor(hours);
+    const m = Math.round((hours - h) * 60);
+    if (h === 0) return `+${m}m`;
+    if (m === 0) return `+${h}h`;
+    return `+${h}h${m}m`;
+  };
 
   return (
-    <div className="flex items-center gap-1 text-rose-600 font-bold" title="Estouro de Horas">
+    <div className="flex items-center gap-1 text-rose-600 font-bold" title={`Estouro: ${formatExceeded(exceeded)}`}>
       <AlertTriangle size={12} className="text-rose-500 animate-pulse" />
-      <span className="text-[10px]">Estourado</span>
+      <span className="text-[10px]">{formatExceeded(exceeded)}</span>
     </div>
   );
 };
@@ -1331,7 +1345,6 @@ export const DailyAlignmentDashboard: React.FC = () => {
               <div className="flex justify-between text-[10px] font-bold items-center">
                 <span className="text-slate-600">{formatHours(task.timeLogged || 0)}</span>
                 <span className="text-slate-400">/ {formatHours(task.timeEstimate || 0)}</span>
-                <ExceededHoursIcon timeLogged={task.timeLogged} timeEstimate={task.timeEstimate} />
               </div>
               <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
                 <div
@@ -1341,11 +1354,16 @@ export const DailyAlignmentDashboard: React.FC = () => {
               </div>
               {(() => {
                 const remaining = (task.timeEstimate || 0) - (task.timeLogged || 0);
-                return remaining > 0 && !isDone ? (
-                  <div className="text-[10px] text-slate-500 font-bold">
-                    RESTAM {formatHours(remaining)}
-                  </div>
-                ) : null;
+                if (remaining > 0 && !isDone) {
+                  return (
+                    <div className="text-[10px] text-slate-500 font-bold">
+                      RESTAM {formatHours(remaining)}
+                    </div>
+                  );
+                } else if (remaining < 0) {
+                  return <ExceededHoursIcon timeLogged={task.timeLogged} timeEstimate={task.timeEstimate} />;
+                }
+                return null;
               })()}
             </div>
           </td>

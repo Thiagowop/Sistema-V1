@@ -1209,12 +1209,12 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                                         className={`w-28 min-w-28 flex-shrink-0 border-r ${isDark ? 'border-gray-700' : 'border-gray-100'} p-2.5 flex items-center justify-center ${day.isToday ? (isDark ? 'bg-blue-500/10 border-l-2 border-r-2 border-blue-600' : 'bg-blue-50 border-l-2 border-r-2 border-blue-300') :
                                           day.isWeekend ? (isDark ? 'bg-gray-850' : 'bg-gray-50') : ''
                                           }`}
-                                        onMouseEnter={(e) => !isExpanded && !day.isWeekend && hours.planned > 0 && showTooltip(e, project.name, hours.planned, hours.actual)}
+                                        onMouseEnter={(e) => !isExpanded && !day.isWeekend && hours.actual > 0 && showTooltip(e, project.name, hours.planned, hours.actual)}
                                         onMouseLeave={hideTooltip}
                                       >
-                                        {!isExpanded && !day.isWeekend && hours.planned > 0 && (
+                                        {!isExpanded && !day.isWeekend && hours.actual > 0 && (
                                           <div className={`w-full h-full rounded border ${getStatusColor(hours.planned, hours.actual)} flex items-center justify-center cursor-default`}>
-                                            <span className="text-sm font-semibold whitespace-nowrap">{formatHours(hours.planned)}</span>
+                                            <span className="text-sm font-semibold whitespace-nowrap">{formatHours(hours.actual)}</span>
                                           </div>
                                         )}
                                       </div>
@@ -1234,12 +1234,12 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                                           className={`w-28 min-w-28 flex-shrink-0 border-r ${isDark ? 'border-gray-700' : 'border-gray-100'} p-2 flex items-center justify-center ${day.isToday ? (isDark ? 'bg-blue-500/10 border-l-2 border-r-2 border-blue-600' : 'bg-blue-50 border-l-2 border-r-2 border-blue-300') :
                                             day.isWeekend ? (isDark ? 'bg-gray-800' : 'bg-white') : ''
                                             }`}
-                                          onMouseEnter={(e) => !day.isWeekend && hours?.planned > 0 && showTooltip(e, task.name, hours.planned, hours.actual)}
+                                          onMouseEnter={(e) => !day.isWeekend && hours?.actual > 0 && showTooltip(e, task.name, hours.planned, hours.actual)}
                                           onMouseLeave={hideTooltip}
                                         >
-                                          {!day.isWeekend && hours?.planned > 0 && (
+                                          {!day.isWeekend && hours?.actual > 0 && (
                                             <div className={`w-full h-full rounded border ${getStatusColor(hours.planned, hours.actual)} flex items-center justify-center cursor-default`}>
-                                              <span className="text-xs font-semibold whitespace-nowrap">{formatHours(hours.planned)}</span>
+                                              <span className="text-xs font-semibold whitespace-nowrap">{formatHours(hours.actual)}</span>
                                             </div>
                                           )}
                                         </div>

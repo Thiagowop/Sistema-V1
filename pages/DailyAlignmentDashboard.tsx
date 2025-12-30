@@ -1335,7 +1335,23 @@ export const DailyAlignmentDashboard: React.FC = () => {
     const isExpanded = expandedTaskIds.has(task.id);
     const isDone = isTaskCompleted(task.status);
     const effortPct = (task.timeEstimate && task.timeLogged) ? (task.timeLogged / task.timeEstimate) * 100 : 0;
-    const isOverdue = !isDone && task.dueDate && new Date(task.dueDate) < new Date();
+
+    // Calcular dias restantes
+    const daysRemaining = getDaysRemaining(task.dueDate);
+    // Atraso: somente se negativo (dias < 0), não no mesmo dia
+    const isOverdue = !isDone && daysRemaining !== null && daysRemaining < 0;
+    // Nível de alerta: 1 dia = amarelo, 2+ dias = vermelho
+    const daysLate = isOverdue && daysRemaining !== null ? Math.abs(daysRemaining) : 0;
+
+    // Determinar nível de alerta baseado nos dias de atraso
+    let alertLevel: 'none' | 'warning' | 'danger' = 'none';
+    if (isOverdue) {
+      if (daysLate >= 2) {
+        alertLevel = 'danger'; // vermelho para 2+ dias
+      } else if (daysLate === 1) {
+        alertLevel = 'warning'; // amarelo para 1 dia
+      }
+    }
 
     // Filtrar subtarefas baseado em showCompleted
     const visibleSubtasks = hasSubtasks ? task.subtasks.filter(sub =>
@@ -1382,10 +1398,23 @@ export const DailyAlignmentDashboard: React.FC = () => {
               <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
                 <Calendar size={10} /> {formatDate(task.startDate)}
               </span>
-              <div className="text-[10px] font-black flex items-center gap-1" title={getDaysRemaining(task.dueDate) !== null ? `Restam ${getDaysRemaining(task.dueDate)} dias` : ''}>
-                <Clock size={10} className={isOverdue ? 'text-rose-500' : 'text-slate-500'} />
-                <span className={isOverdue ? 'text-rose-500' : 'text-slate-500'}>{formatDate(task.dueDate)}</span>
-                {isOverdue && <AlertTriangle size={10} className="text-rose-500" />}
+              <div
+                className="text-[10px] font-black flex items-center gap-1"
+                title={daysRemaining !== null
+                  ? (daysRemaining >= 0
+                    ? `Restam ${daysRemaining} dias`
+                    : `Atrasado ${Math.abs(daysRemaining)} dia${Math.abs(daysRemaining) > 1 ? 's' : ''}`)
+                  : ''}
+              >
+                <Clock
+                  size={10}
+                  className={alertLevel === 'danger' ? 'text-rose-500' : alertLevel === 'warning' ? 'text-amber-500' : 'text-slate-500'}
+                />
+                <span className={alertLevel === 'danger' ? 'text-rose-500' : alertLevel === 'warning' ? 'text-amber-500' : 'text-slate-500'}>
+                  {formatDate(task.dueDate)}
+                </span>
+                {alertLevel === 'danger' && <AlertTriangle size={10} className="text-rose-500" />}
+                {alertLevel === 'warning' && <AlertTriangle size={10} className="text-amber-500" />}
               </div>
             </div>
           </td>

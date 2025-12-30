@@ -980,7 +980,11 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
         </div>
 
         {/* Renderização condicional das visualizações */}
-        {activeTab === 'calendar' ? <CalendarView /> : (
+        {activeTab === 'calendar' ? (
+          <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 180px)' }}>
+            <CalendarView />
+          </div>
+        ) : (
           <div className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border rounded-lg overflow-hidden`}>
             <div className="flex">
               {/* Sidebar (Left) - Largura aumentada para evitar texto cortado */}

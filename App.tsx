@@ -368,7 +368,7 @@ const AppContent: React.FC = () => {
                         />
                         <SidebarItem
                             icon={BarChart2}
-                            label="Qualidade"
+                            label="QA"
                             isActive={activeView === 'quality'}
                             onClick={() => handleNavClick('quality')}
                         />

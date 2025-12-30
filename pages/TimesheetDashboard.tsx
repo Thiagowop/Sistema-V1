@@ -1,14 +1,12 @@
 import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, Calendar, Eye, EyeOff, Moon, Sun, LayoutGrid, User, Check, AlertCircle, ToggleLeft, ToggleRight, FileSpreadsheet, BarChart3, Table2, Download, Settings, X, List, Info } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Calendar, Eye, EyeOff, Moon, Sun, LayoutGrid, User, Check, AlertCircle, ToggleLeft, ToggleRight, BarChart3, Download, Settings, X, Info } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { GroupedData, Task as RealTask } from '../types';
-import TimesheetExcelView from '../components/TimesheetExcelView';
-
 // ============================================
 // TIPOS
 // ============================================
 
-type ViewMode = 'timeline' | 'calendar' | 'excel';
+type ViewMode = 'timeline' | 'calendar';
 
 interface Hours {
   planned: number;
@@ -485,118 +483,6 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
     }
   }, [teamMembers, selectedMemberFilter]);
 
-  // Converter dados para formato Excel View
-  const excelViewData = useMemo(() => {
-    // Converter dias para formato Excel (comum a ambos os casos)
-    const excelDays = allDays.map(day => ({
-      date: day.date,
-      day: day.day,
-      weekday: day.weekday,
-      monthName: day.date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
-      isWeekend: day.isWeekend,
-      isToday: day.isToday
-    }));
-
-    // Caso "Todos da Equipe": criar estrutura de persons com projetos
-    if (selectedMemberFilter === 'all') {
-      // Criar array de persons com seus projetos
-      const persons = teamMembers.map(member => {
-        // Converter projetos do membro para formato Excel
-        const memberProjects = member.projects.map(project => {
-          const hoursPerDay = allDays.map((_, dayIdx) => {
-            const hours = sumTaskHours(project.tasks, dayIdx);
-            return {
-              planned: hours.planned,
-              actual: hours.actual,
-              deviation: hours.actual - hours.planned,
-              deviationPercent: hours.planned > 0 ? ((hours.actual - hours.planned) / hours.planned) * 100 : 0
-            };
-          });
-
-          const totalPlanned = hoursPerDay.reduce((sum, h) => sum + h.planned, 0);
-          const totalActual = hoursPerDay.reduce((sum, h) => sum + h.actual, 0);
-
-          return {
-            id: project.id,
-            name: project.name,
-            hoursPerDay,
-            totalPlanned,
-            totalActual,
-            totalDeviation: totalActual - totalPlanned
-          };
-        });
-
-        // Calcular totais do membro (soma de todos os projetos)
-        const memberHoursPerDay = allDays.map((_, dayIdx) => {
-          const planned = memberProjects.reduce((sum, p) => sum + (p.hoursPerDay[dayIdx]?.planned || 0), 0);
-          const actual = memberProjects.reduce((sum, p) => sum + (p.hoursPerDay[dayIdx]?.actual || 0), 0);
-          return {
-            planned,
-            actual,
-            deviation: actual - planned,
-            deviationPercent: planned > 0 ? ((actual - planned) / planned) * 100 : 0
-          };
-        });
-
-        const totalPlanned = memberProjects.reduce((sum, p) => sum + p.totalPlanned, 0);
-        const totalActual = memberProjects.reduce((sum, p) => sum + p.totalActual, 0);
-
-        return {
-          id: member.id,
-          name: member.name,
-          hoursPerDay: memberHoursPerDay,
-          totalPlanned,
-          totalActual,
-          totalDeviation: totalActual - totalPlanned,
-          projects: memberProjects
-        };
-      });
-
-      return {
-        days: excelDays,
-        projects: [], // Empty, using persons instead
-        memberName: 'Todos da Equipe',
-        persons,
-        showAllMode: true
-      };
-    }
-
-    // Caso membro específico selecionado
-    const selectedMember = teamMembers.find(m => m.id === selectedMemberFilter);
-    if (!selectedMember) return { days: [], projects: [], memberName: '', showAllMode: false };
-
-    // Converter projetos para formato Excel
-    const excelProjects = selectedMember.projects.map(project => {
-      const hoursPerDay = allDays.map((_, dayIdx) => {
-        const hours = sumTaskHours(project.tasks, dayIdx);
-        return {
-          planned: hours.planned,
-          actual: hours.actual,
-          deviation: hours.actual - hours.planned,
-          deviationPercent: hours.planned > 0 ? ((hours.actual - hours.planned) / hours.planned) * 100 : 0
-        };
-      });
-
-      const totalPlanned = hoursPerDay.reduce((sum, h) => sum + h.planned, 0);
-      const totalActual = hoursPerDay.reduce((sum, h) => sum + h.actual, 0);
-
-      return {
-        id: project.id,
-        name: project.name,
-        hoursPerDay,
-        totalPlanned,
-        totalActual,
-        totalDeviation: totalActual - totalPlanned
-      };
-    });
-
-    return {
-      days: excelDays,
-      projects: excelProjects,
-      memberName: selectedMember.name,
-      showAllMode: false
-    };
-  }, [teamMembers, selectedMemberFilter, allDays]);
 
   // Auto-scroll to Today
   useEffect(() => {
@@ -702,7 +588,8 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
       if (!day || !selectedMember) return [];
       const projects: { name: string; planned: number; actual: number; status: 'over' | 'under' | 'ok' }[] = [];
       selectedMember.projects.forEach(project => {
-        const dayIndex = allDays.findIndex(d => d.day === day);
+        // Match both day AND month to get correct index
+        const dayIndex = allDays.findIndex(d => d.day === day && d.month === month);
         if (dayIndex !== -1) {
           const hours = sumTaskHours(project.tasks, dayIndex);
           if (hours.actual > 0 || hours.planned > 0) {
@@ -787,18 +674,29 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                                 ? (isDark ? 'bg-amber-900/20 border-amber-800/50 text-amber-100' : 'bg-amber-50 border-amber-100 text-amber-900')
                                 : (isDark ? 'bg-emerald-900/20 border-emerald-800/50 text-emerald-100' : 'bg-emerald-50 border-emerald-100 text-emerald-900');
 
+                            const deviation = project.actual - project.planned;
+                            const hasDeviation = deviation !== 0;
+
                             return (
-                              <div key={idx} className={`p-2 rounded border text-xs ${cardStyle}`}>
-                                <div className="font-semibold truncate mb-1" title={project.name}>{project.name}</div>
-                                <div className="grid grid-cols-2 gap-2">
-                                  <div>
-                                    <div className={`text-[10px] uppercase tracking-wide opacity-70 mb-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Plan</div>
-                                    <div className="font-bold text-sm">{formatHours(project.planned)}</div>
+                              <div key={idx} className={`p-2 rounded-lg border-l-4 text-xs ${cardStyle}`}>
+                                <div className="font-semibold truncate mb-1.5" title={project.name}>{project.name}</div>
+                                <div className="space-y-0.5">
+                                  <div className="flex justify-between items-center">
+                                    <span className={`uppercase font-bold text-[9px] ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Planejado</span>
+                                    <span className={`font-mono font-bold ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>{formatHours(project.planned)}</span>
                                   </div>
-                                  <div>
-                                    <div className={`text-[10px] uppercase tracking-wide opacity-70 mb-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Real</div>
-                                    <div className="font-bold text-sm">{formatHours(project.actual)}</div>
+                                  <div className="flex justify-between items-center">
+                                    <span className={`uppercase font-bold text-[9px] ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Gasto</span>
+                                    <span className={`font-mono font-bold ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>{formatHours(project.actual)}</span>
                                   </div>
+                                  {hasDeviation && (
+                                    <div className={`flex justify-between items-center pt-0.5 border-t ${isDark ? 'border-gray-600' : 'border-gray-200'}`}>
+                                      <span className={`uppercase font-bold text-[9px] ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Desvio</span>
+                                      <span className={`font-mono font-bold ${deviation > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                                        {deviation > 0 ? '+' : ''}{formatHours(deviation)}
+                                      </span>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             );
@@ -952,14 +850,14 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                   <LayoutGrid className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={() => setActiveTab('excel')}
-                  className={`p-1.5 rounded-md transition-all ${activeTab === 'excel'
+                  onClick={() => setActiveTab('calendar')}
+                  className={`p-1.5 rounded-md transition-all ${activeTab === 'calendar'
                     ? (isDark ? 'bg-gray-700 text-white shadow-sm' : 'bg-white text-gray-900 shadow-sm')
                     : (isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
                     }`}
-                  title="Lista Detalhada"
+                  title="Calendário"
                 >
-                  <List className="w-4 h-4" />
+                  <Calendar className="w-4 h-4" />
                 </button>
               </div>
 
@@ -1082,20 +980,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
         </div>
 
         {/* Renderização condicional das visualizações */}
-        {activeTab === 'excel' ? (
-          <TimesheetExcelView
-            days={excelViewData.days}
-            projects={excelViewData.projects}
-            memberName={excelViewData.memberName}
-            isDark={isDark}
-            onExport={() => {
-              // TODO: Implementar exportação para Excel
-              alert('Exportação em desenvolvimento');
-            }}
-            persons={excelViewData.persons}
-            showAllMode={excelViewData.showAllMode}
-          />
-        ) : activeTab === 'calendar' ? <CalendarView /> : (
+        {activeTab === 'calendar' ? <CalendarView /> : (
           <div className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border rounded-lg overflow-hidden`}>
             <div className="flex">
               {/* Sidebar (Left) - Largura aumentada para evitar texto cortado */}
@@ -1248,10 +1133,10 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                                         className={`${cellWidth} flex-shrink-0 border-r ${isDark ? 'border-gray-700' : 'border-gray-100'} p-1.5 flex items-center justify-center ${day.isToday ? (isDark ? 'bg-blue-500/10 border-l-2 border-r-2 border-blue-600' : 'bg-blue-50 border-l-2 border-r-2 border-blue-300') :
                                           day.isWeekend ? (isDark ? 'bg-gray-850' : 'bg-gray-50') : ''
                                           }`}
-                                        onMouseEnter={(e) => cardViewMode === 'compact' && !day.isWeekend && hours.actual > 0 && showTooltip(e, project.name, hours.planned, hours.actual)}
+                                        onMouseEnter={(e) => cardViewMode === 'compact' && hours.actual > 0 && showTooltip(e, project.name, hours.planned, hours.actual)}
                                         onMouseLeave={hideTooltip}
                                       >
-                                        {!day.isWeekend && hours.actual > 0 && (
+                                        {hours.actual > 0 && (
                                           cardViewMode === 'cards' ? (
                                             // CARD DETALHADO
                                             <div className={`w-full h-full rounded-lg border-2 p-1.5 ${getStatusColor(hours.planned, hours.actual).replace('border-', 'border-l-4 border-l-')}`}>
@@ -1301,10 +1186,10 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
                                             className={`${taskCellWidth} flex-shrink-0 border-r ${isDark ? 'border-gray-700' : 'border-gray-100'} p-1 flex items-center justify-center ${day.isToday ? (isDark ? 'bg-blue-500/10 border-l-2 border-r-2 border-blue-600' : 'bg-blue-50 border-l-2 border-r-2 border-blue-300') :
                                               day.isWeekend ? (isDark ? 'bg-gray-800' : 'bg-white') : ''
                                               }`}
-                                            onMouseEnter={(e) => cardViewMode === 'compact' && !day.isWeekend && hours?.actual > 0 && showTooltip(e, task.name, hours.planned, hours.actual)}
+                                            onMouseEnter={(e) => cardViewMode === 'compact' && hours?.actual > 0 && showTooltip(e, task.name, hours.planned, hours.actual)}
                                             onMouseLeave={hideTooltip}
                                           >
-                                            {!day.isWeekend && hours?.actual > 0 && (
+                                            {hours?.actual > 0 && (
                                               cardViewMode === 'cards' ? (
                                                 // CARD DETALHADO PARA TAREFA
                                                 <div className={`w-full h-full rounded border p-1 ${getStatusColor(hours.planned, hours.actual)}`}>

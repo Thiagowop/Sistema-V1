@@ -240,21 +240,22 @@ const SortableProjectCard: React.FC<SortableProjectCardProps> = ({ id, children 
     isDragging,
   } = useSortable({ id });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 50 : 'auto',
+  const style: React.CSSProperties = {
+    transform: transform ? `translate3d(0, ${transform.y}px, 0)` : undefined,
+    transition: transition || 'transform 200ms ease',
+    opacity: isDragging ? 0.8 : 1,
+    zIndex: isDragging ? 100 : 'auto',
+    position: 'relative' as const,
   };
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} className="ml-8">
-      <div className="relative group">
+      <div className={`relative group ${isDragging ? 'shadow-2xl ring-2 ring-indigo-400 rounded-3xl' : ''}`}>
         {/* Drag Handle - positioned at left edge of the box */}
         <div
           {...listeners}
-          className="absolute -left-6 top-1/2 -translate-y-1/2 p-2 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-white/80 rounded-lg shadow-sm"
-          title="Arrastar para reordenar"
+          className="absolute -left-6 top-1/2 -translate-y-1/2 p-2 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-white/80 rounded-lg shadow-sm hover:bg-indigo-50 hover:shadow-md"
+          title="Segurar e arrastar para reordenar"
         >
           <GripVertical size={16} className="text-slate-400" />
         </div>
@@ -322,21 +323,22 @@ const SortableCustomBox: React.FC<SortableCustomBoxProps> = ({ id, children }) =
     isDragging,
   } = useSortable({ id });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 50 : 'auto',
+  const style: React.CSSProperties = {
+    transform: transform ? `translate3d(0, ${transform.y}px, 0)` : undefined,
+    transition: transition || 'transform 200ms ease',
+    opacity: isDragging ? 0.8 : 1,
+    zIndex: isDragging ? 100 : 'auto',
+    position: 'relative' as const,
   };
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} className="ml-8">
-      <div className="relative group">
+      <div className={`relative group ${isDragging ? 'shadow-2xl ring-2 ring-indigo-400 rounded-3xl' : ''}`}>
         {/* Drag Handle - positioned at left edge of the box */}
         <div
           {...listeners}
-          className="absolute -left-6 top-1/2 -translate-y-1/2 p-2 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-white/80 rounded-lg shadow-sm"
-          title="Arrastar para reordenar"
+          className="absolute -left-6 top-1/2 -translate-y-1/2 p-2 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-white/80 rounded-lg shadow-sm hover:bg-indigo-50 hover:shadow-md"
+          title="Segurar e arrastar para reordenar"
         >
           <GripVertical size={16} className="text-slate-400" />
         </div>
@@ -741,12 +743,12 @@ export const DailyAlignmentDashboard: React.FC = () => {
     userPreferences.updateDaily({ isPresentationMode: mode });
   }, []);
 
-  // Drag-drop sensors with 500ms delay to allow easy clicking
+  // Drag-drop sensors with 250ms delay to allow clicking while still enabling drag
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        delay: 500,       // Must hold for 500ms before drag starts
-        tolerance: 5,     // Allow 5px of movement during delay
+        delay: 250,       // Reduced from 500ms for more responsive drag
+        tolerance: 8,     // Allow 8px of movement during delay
       },
     }),
     useSensor(KeyboardSensor, {
@@ -1222,31 +1224,48 @@ export const DailyAlignmentDashboard: React.FC = () => {
   // NEW: Unified drag-drop handler for both custom boxes and projects
   const handleCombinedDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
+    if (!over || active.id === over.id || !activeMemberId) return;
 
-    // Get current combined order or build default
-    const currentOrder = dailySettings.combinedOrderByMember?.[activeMemberId] || [];
-
-    // Build full list of IDs (custom boxes first, then projects)
+    // Get current items
     const customBoxes = dailySettings.customBoxesByMember?.[activeMemberId] || [];
     const projects = activeGroup?.projects || [];
 
-    // Create default order if empty
-    let orderList = currentOrder.length > 0 ? [...currentOrder] : [
-      ...customBoxes.map(b => `custombox:${b.id}`),
-      ...projects.map(p => `project:${p.name}`)
-    ];
+    // Build the complete list of current IDs
+    const customBoxIds = customBoxes.map(b => `custombox:${b.id}`);
+    const projectIds = projects.map(p => `project:${p.name}`);
+    const allCurrentIds = new Set([...customBoxIds, ...projectIds]);
 
-    // Find indices
+    // Get saved order and filter out any stale IDs (items that no longer exist)
+    const savedOrder = dailySettings.combinedOrderByMember?.[activeMemberId] || [];
+    const validSavedOrder = savedOrder.filter(id => allCurrentIds.has(id));
+
+    // Start with valid saved order, then append any new items not in the order
+    let orderList = [...validSavedOrder];
+
+    // Add any new custom boxes not already in the order
+    customBoxIds.forEach(id => {
+      if (!orderList.includes(id)) orderList.push(id);
+    });
+
+    // Add any new projects not already in the order
+    projectIds.forEach(id => {
+      if (!orderList.includes(id)) orderList.push(id);
+    });
+
+    // Find indices for drag operation
     const activeId = active.id as string;
     const overId = over.id as string;
 
     const oldIndex = orderList.indexOf(activeId);
     const newIndex = orderList.indexOf(overId);
 
-    if (oldIndex === -1 || newIndex === -1) return;
+    // If either item not found, log and return
+    if (oldIndex === -1 || newIndex === -1) {
+      console.warn('[DragDrop] Item not found:', { activeId, overId, orderList });
+      return;
+    }
 
-    // Reorder
+    // Reorder using arrayMove
     const newOrder = arrayMove(orderList, oldIndex, newIndex);
 
     // Save new order
@@ -1260,6 +1279,8 @@ export const DailyAlignmentDashboard: React.FC = () => {
     setDailySettings(newSettings);
     setSavedSettings(newSettings);
     saveDailySettings(newSettings);
+
+    console.log('[DragDrop] Reordered:', { from: oldIndex, to: newIndex, activeId, overId });
   };
 
   // NEW: Start renaming a project

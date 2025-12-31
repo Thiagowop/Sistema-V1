@@ -49,9 +49,9 @@ interface TimesheetProps {
 export const TimesheetWrapper: React.FC = () => {
     const { groupedData, syncState } = useData();
 
-    // Debug: Log dados recebidos
-    console.log('[TIMESHEET] groupedData:', groupedData?.length || 0, 'membros');
-    console.log('[TIMESHEET] syncState:', syncState.status);
+    // Debug: Logs desabilitados para reduzir verbosidade
+    // console.log('[TIMESHEET] groupedData:', groupedData?.length || 0, 'membros');
+    // console.log('[TIMESHEET] syncState:', syncState.status);
 
     // Gerar meses disponíveis (últimos 12 meses + próximos 3 meses)
     const months = useMemo<MonthOption[]>(() => {
@@ -79,11 +79,11 @@ export const TimesheetWrapper: React.FC = () => {
     // Transformar dados do ClickUp em formato do Timesheet
     const teamMembers = useMemo<Member[]>(() => {
         if (!groupedData || groupedData.length === 0) {
-            console.log('[TIMESHEET] No grouped data');
+            // console.log('[TIMESHEET] No grouped data');
             return [];
         }
 
-        console.log('[TIMESHEET] Processing', groupedData.length, 'members');
+        // console.log('[TIMESHEET] Processing', groupedData.length, 'members');
 
         // Extrair ano e mês do filtro
         const [filterYear, filterMonth] = selectedMonth.split('-').map(Number);
@@ -190,7 +190,8 @@ export const TimesheetWrapper: React.FC = () => {
                             ? taskLogged
                             : (workingDays > 0 ? taskLogged / workingDays : 0);
 
-                        console.log(`[TIMESHEET] "${task.name}": ${isSameDay ? `DIA ${startDay}` : `dias ${startDay}-${endDay}`}, ${taskEstimate.toFixed(1)}h est, ${taskLogged.toFixed(1)}h log`);
+                        // Log desabilitado - muito verboso
+                        // console.log(`[TIMESHEET] "${task.name}": ${isSameDay ? `DIA ${startDay}` : `dias ${startDay}-${endDay}`}, ${taskEstimate.toFixed(1)}h est, ${taskLogged.toFixed(1)}h log`);
 
                         // Gerar array de horas
                         const hours: Hours[] = Array.from({ length: daysInMonth }, (_, dayIndex) => {
@@ -247,7 +248,7 @@ export const TimesheetWrapper: React.FC = () => {
         })
             .filter(member => member.projects.length > 0); // Filtrar membros sem projetos
 
-        console.log('[TIMESHEET] Transformed', transformedMembers.length, 'members with data');
+        // console.log('[TIMESHEET] Transformed', transformedMembers.length, 'members with data');
         return transformedMembers;
     }, [groupedData, selectedMonth, showCompleted]);
 
@@ -258,11 +259,11 @@ export const TimesheetWrapper: React.FC = () => {
         initialMonth: selectedMonth,
         showCompleted,
         onMonthChange: (newMonth: string) => {
-            console.log('[TIMESHEET] Month changed to:', newMonth);
+            // console.log('[TIMESHEET] Month changed to:', newMonth);
             setSelectedMonth(newMonth);
         },
         onCompletedChange: (show: boolean) => {
-            console.log('[TIMESHEET] ShowCompleted changed to:', show);
+            // console.log('[TIMESHEET] ShowCompleted changed to:', show);
             setShowCompleted(show);
         }
     };

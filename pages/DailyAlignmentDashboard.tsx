@@ -815,7 +815,20 @@ export const DailyAlignmentDashboard: React.FC = () => {
         console.log('[DailyAlignmentDashboard] ☁️ Carregando configurações globais...');
         const globalConfig = await globalSettings.initialize();
 
-        // 3. Carregar boxOrder e projectNames do GLOBAL (todos veem igual)
+        // 3. Carregar dailySettings do GLOBAL (inclui customBoxesByMember)
+        if (globalConfig.dailySettings && Object.keys(globalConfig.dailySettings).length > 0) {
+          console.log('[DailyAlignmentDashboard] ☁️ Aplicando dailySettings do Supabase (GLOBAL)');
+          // Merge com defaults para não perder campos novos
+          const mergedSettings = { ...loadDailySettings(), ...globalConfig.dailySettings };
+          setDailySettings(mergedSettings);
+          // Atualizar savedSettings também para evitar "unsaved changes"
+          setSavedSettings(mergedSettings);
+          // Salvar no localStorage para próxima vez
+          localStorage.setItem('dailyFlow_dailySettings', JSON.stringify(mergedSettings));
+          console.log('[DailyAlignmentDashboard] ✅ dailySettings carregado do Supabase (GLOBAL)');
+        }
+
+        // 4. Carregar boxOrder e projectNames do GLOBAL (todos veem igual)
         const globalBoxOrder = globalConfig.boxOrder || {};
         const globalProjectNames = globalConfig.projectNames || {};
 

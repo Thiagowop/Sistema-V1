@@ -354,7 +354,7 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
 
     // Se não há dados do sync, retornar vazio
     if (!groupedData || groupedData.length === 0) {
-      console.log('[TIMESHEET] Sem dados do groupedData');
+      // console.log('[TIMESHEET] Sem dados do groupedData');
       return [];
     }
 
@@ -363,26 +363,27 @@ const TimesheetDashboard: React.FC<TimesheetDashboardProps> = ({
     const periodStart = new Date(year, month - 1, 1);
     const periodEnd = new Date(year, month, 0, 23, 59, 59); // Último dia do mês
 
-    console.log('[TIMESHEET] Processando período:', {
-      selectedMonth,
-      periodStart: periodStart.toISOString(),
-      periodEnd: periodEnd.toISOString(),
-      totalGroups: groupedData.length
-    });
+    // Logs desabilitados para reduzir verbosidade
+    // console.log('[TIMESHEET] Processando período:', {
+    //   selectedMonth,
+    //   periodStart: periodStart.toISOString(),
+    //   periodEnd: periodEnd.toISOString(),
+    //   totalGroups: groupedData.length
+    // });
 
-    // Debug: analisar amostra dos dados
-    if (groupedData[0]?.projects[0]?.tasks[0]) {
-      const sampleTask = groupedData[0].projects[0].tasks[0];
-      console.log('[TIMESHEET] Amostra de tarefa:', {
-        name: sampleTask.name,
-        startDate: sampleTask.startDate,
-        dueDate: sampleTask.dueDate,
-        dateClosed: sampleTask.dateClosed,
-        timeEstimate: sampleTask.timeEstimate,
-        timeLogged: sampleTask.timeLogged,
-        status: sampleTask.status
-      });
-    }
+    // Debug desabilitado
+    // if (groupedData[0]?.projects[0]?.tasks[0]) {
+    //   const sampleTask = groupedData[0].projects[0].tasks[0];
+    //   console.log('[TIMESHEET] Amostra de tarefa:', {
+    //     name: sampleTask.name,
+    //     startDate: sampleTask.startDate,
+    //     dueDate: sampleTask.dueDate,
+    //     dateClosed: sampleTask.dateClosed,
+    //     timeEstimate: sampleTask.timeEstimate,
+    //     timeLogged: sampleTask.timeLogged,
+    //     status: sampleTask.status
+    //   });
+    // }
 
     // Converter cada membro do groupedData
     return groupedData.map(group => {

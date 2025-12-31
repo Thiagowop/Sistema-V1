@@ -137,16 +137,14 @@ export const loadDailySettings = (): DailySettings => {
             return { ...createDefaultDailySettings(), ...parsed };
         }
 
-        // Se não tem localStorage, tenta carregar do Supabase GLOBAL
+        // Se não tem localStorage, tenta carregar do Supabase GLOBAL (sync - pode não ter dados ainda)
         const globalDailySettings = globalSettings.getDailySettings();
         const globalBoxOrder = globalSettings.getBoxOrder();
 
-        if (globalDailySettings || Object.keys(globalBoxOrder).length > 0) {
-            console.log('[DailySettingsPanel] ☁️ Carregando configurações do Supabase (GLOBAL)');
+        if (globalDailySettings && Object.keys(globalDailySettings).length > 0) {
+            console.log('[DailySettingsPanel] ☁️ Carregando configurações do Supabase (GLOBAL) - sync');
             const settings = createDefaultDailySettings();
-            if (globalDailySettings) {
-                Object.assign(settings, globalDailySettings);
-            }
+            Object.assign(settings, globalDailySettings);
             if (Object.keys(globalBoxOrder).length > 0) {
                 settings.combinedOrderByMember = globalBoxOrder;
             }
@@ -156,6 +154,46 @@ export const loadDailySettings = (): DailySettings => {
         }
     } catch (e) {
         console.warn('Failed to load daily settings:', e);
+    }
+    return createDefaultDailySettings();
+};
+
+// Versão ASYNC - aguarda globalSettings.initialize() antes de carregar
+// Use esta função quando precisar garantir que os dados do Supabase estejam disponíveis
+export const loadDailySettingsAsync = async (): Promise<DailySettings> => {
+    try {
+        // Se já tem localStorage, usar ele (rápido)
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            return { ...createDefaultDailySettings(), ...parsed };
+        }
+
+        // Aguardar inicialização do Supabase
+        console.log('[DailySettingsPanel] ⏳ Aguardando globalSettings.initialize()...');
+        const globalConfig = await globalSettings.initialize();
+
+        if (globalConfig && globalConfig.dailySettings && Object.keys(globalConfig.dailySettings).length > 0) {
+            console.log('[DailySettingsPanel] ☁️ Carregando configurações do Supabase (GLOBAL) - async');
+            const settings = createDefaultDailySettings();
+            // Copiar todas as propriedades de dailySettings
+            Object.assign(settings, globalConfig.dailySettings);
+
+            // Garantir que customBoxesByMember está presente
+            if (globalConfig.dailySettings.customBoxesByMember) {
+                settings.customBoxesByMember = globalConfig.dailySettings.customBoxesByMember;
+            }
+            if (globalConfig.dailySettings.combinedOrderByMember) {
+                settings.combinedOrderByMember = globalConfig.dailySettings.combinedOrderByMember;
+            }
+
+            // Salvar localmente para próxima vez
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+            console.log('[DailySettingsPanel] ✅ Configurações carregadas e salvas localmente');
+            return settings;
+        }
+    } catch (e) {
+        console.warn('[DailySettingsPanel] Failed to load daily settings async:', e);
     }
     return createDefaultDailySettings();
 };
@@ -822,10 +860,10 @@ export const DailySettingsPanel: React.FC<DailySettingsPanelProps> = ({
                             onClick={handleCloudSync}
                             disabled={isCloudSyncing}
                             className={`w-full py-2.5 text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2 ${cloudSyncStatus === 'success'
-                                    ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
-                                    : cloudSyncStatus === 'error'
-                                        ? 'bg-rose-100 text-rose-700 border border-rose-300'
-                                        : 'bg-sky-100 text-sky-700 border border-sky-300 hover:bg-sky-200'
+                                ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                                : cloudSyncStatus === 'error'
+                                    ? 'bg-rose-100 text-rose-700 border border-rose-300'
+                                    : 'bg-sky-100 text-sky-700 border border-sky-300 hover:bg-sky-200'
                                 }`}
                         >
                             {isCloudSyncing ? (

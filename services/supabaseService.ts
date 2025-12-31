@@ -30,18 +30,25 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 let supabaseClient: SupabaseClient | null = null;
 
 export const getSupabase = (): SupabaseClient | null => {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  // Verificação robusta - garantir que variáveis existem e não são vazias
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY || SUPABASE_URL.trim() === '' || SUPABASE_ANON_KEY.trim() === '') {
+    // Não logar aqui para evitar spam no console
     return null;
   }
 
   if (!supabaseClient) {
-    supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-      },
-    });
-    console.log('[SERV-SUPA-001] ✅ Supabase client inicializado');
+    try {
+      supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+        },
+      });
+      console.log('[SERV-SUPA-001] ✅ Supabase client inicializado');
+    } catch (error) {
+      console.error('[SERV-SUPA-001] ❌ Erro ao criar Supabase client:', error);
+      return null;
+    }
   }
 
   return supabaseClient;

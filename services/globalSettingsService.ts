@@ -25,21 +25,11 @@ const SETTINGS_KEY = 'global';
 // ============================================
 
 export interface GlobalSettings {
-  // Configurações do Daily Dashboard
-  dailySettings: {
-    columns: number;
-    showEmptyBoxes: boolean;
-    showTaskCount: boolean;
-    showProgressBar: boolean;
-    compactMode: boolean;
-    groupByProject: boolean;
-    showSubtasks: boolean;
-    maxTasksPerBox: number;
-    highlightOverdue: boolean;
-    showTimeSpent: boolean;
-  };
+  // Configurações do Daily Dashboard (armazenado como JSONB flexível)
+  // Inclui todos os campos de DailySettings: customBoxesByMember, combinedOrderByMember, etc.
+  dailySettings: Record<string, any>;
 
-  // Ordem dos boxes por membro
+  // Ordem dos boxes por membro (DEPRECATED - agora está dentro de dailySettings.combinedOrderByMember)
   boxOrder: Record<string, string[]>;
 
   // Nomes customizados de projetos
@@ -62,18 +52,8 @@ export interface GlobalSettings {
 // ============================================
 
 const DEFAULT_SETTINGS: GlobalSettings = {
-  dailySettings: {
-    columns: 3,
-    showEmptyBoxes: false,
-    showTaskCount: true,
-    showProgressBar: true,
-    compactMode: false,
-    groupByProject: true,
-    showSubtasks: true,
-    maxTasksPerBox: 50,
-    highlightOverdue: true,
-    showTimeSpent: true
-  },
+  // dailySettings será populado com o objeto completo de DailySettings
+  dailySettings: {},
   boxOrder: {},
   projectNames: {},
   uiPreferences: {

@@ -1640,6 +1640,16 @@ export const DailyAlignmentDashboard: React.FC = () => {
                     if (box.filterStatuses?.length > 0) filterParts.push(`${box.filterStatuses.length} status`);
                     const filterLabel = filterParts.length > 0 ? ` (${filterParts.join(', ')})` : '';
 
+                    // Build detailed tooltip showing actual tags and statuses
+                    const tooltipParts: string[] = [];
+                    if (box.filterTags.length > 0) {
+                      tooltipParts.push(`Tags: ${box.filterTags.join(', ')}`);
+                    }
+                    if (box.filterStatuses?.length > 0) {
+                      tooltipParts.push(`Status: ${box.filterStatuses.join(', ')}`);
+                    }
+                    const filterTooltip = tooltipParts.join('\n');
+
                     return (
                       <SortableCustomBox key={item.id} id={item.id}>
                         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all hover:shadow-md">
@@ -1654,7 +1664,14 @@ export const DailyAlignmentDashboard: React.FC = () => {
                               </div>
                               <h3 className="text-white font-black text-lg tracking-tight uppercase">
                                 {box.name}
-                                {filterLabel && <span className="text-white/60 font-normal text-sm ml-2">{filterLabel}</span>}
+                                {filterLabel && (
+                                  <span
+                                    className="text-white/60 font-normal text-sm ml-2"
+                                    title={filterTooltip}
+                                  >
+                                    {filterLabel}
+                                  </span>
+                                )}
                               </h3>
                             </div>
                             <div className="flex items-center gap-4">

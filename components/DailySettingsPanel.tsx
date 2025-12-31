@@ -39,6 +39,7 @@ import {
 import { LocalFilters, createDefaultLocalFilters } from './filters/LocalFilterBar';
 import { TagSelector } from './filters/TagSelector';
 import { StatusSelector } from './filters/StatusSelector';
+import { globalSettings } from '../services/globalSettingsService';
 
 // Abas do painel
 type SettingsTab = 'geral' | 'boxes' | 'filtros' | 'membros';
@@ -128,11 +129,30 @@ export const createDefaultDailySettings = (): DailySettings => ({
 // Persistence helpers
 export const loadDailySettings = (): DailySettings => {
     try {
+        // Primeiro tenta carregar do localStorage (rápido)
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {
             const parsed = JSON.parse(stored);
             // Merge with defaults to handle new fields
             return { ...createDefaultDailySettings(), ...parsed };
+        }
+
+        // Se não tem localStorage, tenta carregar do Supabase GLOBAL
+        const globalDailySettings = globalSettings.getDailySettings();
+        const globalBoxOrder = globalSettings.getBoxOrder();
+
+        if (globalDailySettings || Object.keys(globalBoxOrder).length > 0) {
+            console.log('[DailySettingsPanel] ☁️ Carregando configurações do Supabase (GLOBAL)');
+            const settings = createDefaultDailySettings();
+            if (globalDailySettings) {
+                Object.assign(settings, globalDailySettings);
+            }
+            if (Object.keys(globalBoxOrder).length > 0) {
+                settings.combinedOrderByMember = globalBoxOrder;
+            }
+            // Salvar localmente para próxima vez
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+            return settings;
         }
     } catch (e) {
         console.warn('Failed to load daily settings:', e);
@@ -142,7 +162,22 @@ export const loadDailySettings = (): DailySettings => {
 
 export const saveDailySettings = (settings: DailySettings): void => {
     try {
+        // 1. Salvar localmente (rápido)
         localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+
+        // 2. Salvar no Supabase (GLOBAL - todos veem igual)
+        globalSettings.updateAll({
+            dailySettings: settings as any,
+            boxOrder: settings.combinedOrderByMember || {},
+        }, 'admin').then(success => {
+            if (success) {
+                console.log('[DailySettingsPanel] ☁️ Configurações salvas no Supabase (GLOBAL)');
+            } else {
+                console.warn('[DailySettingsPanel] ⚠️ Falha ao salvar no Supabase');
+            }
+        }).catch(err => {
+            console.error('[DailySettingsPanel] ❌ Erro ao salvar no Supabase:', err);
+        });
     } catch (e) {
         console.warn('Failed to save daily settings:', e);
     }

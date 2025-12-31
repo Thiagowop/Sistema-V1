@@ -8,7 +8,6 @@ import {
   Check,
   Layers,
   GripVertical,
-  Pencil,
   X,
   RotateCw,
   CheckCircle2,
@@ -688,8 +687,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
   // NEW: State for advanced features (persistentes)
   const [boxOrder, setBoxOrderState] = useState<Record<string, string[]>>({});
   const [projectNames, setProjectNamesState] = useState<Record<string, string>>({});
-  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
-  const [tempProjectName, setTempProjectName] = useState('');
+  // Removido: editingProjectId e tempProjectName (simplificação)
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
 
   // WRAPPERS para persistir automaticamente
@@ -1296,31 +1294,7 @@ export const DailyAlignmentDashboard: React.FC = () => {
     console.log('[DragDrop] Reordered:', { from: oldIndex, to: newIndex, activeId, overId });
   };
 
-  // NEW: Start renaming a project
-  const startRename = (projectId: string, currentName: string) => {
-    setEditingProjectId(projectId);
-    setTempProjectName(projectNames[currentName] || currentName);
-  };
-
-  // NEW: Save renamed project
-  const saveRename = () => {
-    if (!editingProjectId || !tempProjectName.trim()) {
-      setEditingProjectId(null);
-      return;
-    }
-
-    const updatedNames = { ...projectNames, [editingProjectId]: tempProjectName.trim() };
-    setProjectNames(updatedNames);
-    saveStorage({ projectNames: updatedNames });
-    setEditingProjectId(null);
-    setTempProjectName('');
-  };
-
-  // NEW: Cancel rename
-  const cancelRename = () => {
-    setEditingProjectId(null);
-    setTempProjectName('');
-  };
+  // Funções de renomeação removidas (startRename, saveRename, cancelRename)
 
   // NEW: Move project up/down
   const moveProject = (direction: 'up' | 'down', projectName: string) => {
@@ -1759,7 +1733,6 @@ export const DailyAlignmentDashboard: React.FC = () => {
                     });
 
                     const bgHeader = project.color || 'bg-slate-800';
-                    const isEditing = editingProjectId === uniqueId;
                     const displayName = projectNames[project.name] || project.name;
 
                     return (
@@ -1768,31 +1741,8 @@ export const DailyAlignmentDashboard: React.FC = () => {
                           <div className={`${bgHeader} px-6 py-4 flex items-center justify-between group`}>
                             <div onClick={() => toggleProject(uniqueId)} className="flex-1 flex items-center gap-4 cursor-pointer">
                               <div className="p-2 bg-white/20 rounded-xl text-white"><Layers size={20} /></div>
-
-                              {isEditing ? (
-                                <input
-                                  type="text"
-                                  value={tempProjectName}
-                                  onChange={(e) => setTempProjectName(e.target.value)}
-                                  onBlur={saveRename}
-                                  onKeyDown={(e) => e.key === 'Enter' ? saveRename() : e.key === 'Escape' && cancelRename()}
-                                  className="bg-white/20 text-white font-black text-lg tracking-tight uppercase px-2 py-1 rounded border-2 border-white/40 outline-none"
-                                  autoFocus
-                                  onClick={(e) => e.stopPropagation()}
-                                />
-                              ) : (
-                                <h3 className="text-white font-black text-lg tracking-tight uppercase">{displayName}</h3>
-                              )}
+                              <h3 className="text-white font-black text-lg tracking-tight uppercase">{displayName}</h3>
                             </div>
-
-                            {!isEditing && (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); startRename(uniqueId, project.name); }}
-                                className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-all"
-                              >
-                                <Pencil size={16} />
-                              </button>
-                            )}
 
                             <button onClick={() => toggleProject(uniqueId)} className="p-2">
                               <ChevronDown className={`text-white transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />

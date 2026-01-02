@@ -2,7 +2,6 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
-    // Load env variables
     const env = loadEnv(mode, process.cwd(), '');
 
     return {
@@ -26,8 +25,7 @@ export default defineConfig(({ mode }) => {
                     manualChunks: {
                         'vendor-react': ['react', 'react-dom'],
                         'vendor-supabase': ['@supabase/supabase-js'],
-                        'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
-                        'vendor-utils': ['lz-string', 'date-fns', 'lucide-react']
+                        'vendor-ui': ['lucide-react', 'lz-string']
                     }
                 }
             }
